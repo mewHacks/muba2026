@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gonka Router Workshop · 0 成本部署更智能的 AI 应用 / Ship Smarter AI Apps at Zero Cost</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --g-bg:        #05070a;
+      --g-bg-2:      #0a0e14;
+      --g-surface:   #0f151d;
+      --g-surface-2: #151d27;
+      --g-emerald:   #10B981;
+      --g-emerald-2: #34D399;
+      --g-emerald-dim: #059669;
+      --g-cyan:      #22D3EE;
+      --g-amber:     #F59E0B;
+      --g-text:      #E9F0F6;
+      --g-muted:     #8b98a8;
+      --g-line:      rgba(255,255,255,0.08);
+      --g-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --g-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --g-display: 'Sora', 'Inter', var(--g-sans);
+      --g-radius: 20px;
+      --g-shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 18px 40px -22px rgba(0,0,0,0.9);
+      --g-shadow-glow: 0 0 0 1px rgba(16,185,129,0.18), 0 20px 60px -20px rgba(16,185,129,0.35);
+    }
+
+    .reveal {
+      font-family: var(--g-sans);
+      font-size: 28px;
+      color: var(--g-text);
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .reveal .slides { text-align: left; }
+    .reveal .slides section { line-height: 1.38; }
+
+    /* Background — layered ambient glow + fine grid texture */
+    .reveal-viewport {
+      background:
+        radial-gradient(1100px 620px at 12% -6%, rgba(16,185,129,0.13) 0%, transparent 55%),
+        radial-gradient(900px 560px at 104% 108%, rgba(34,211,238,0.08) 0%, transparent 50%),
+        radial-gradient(700px 500px at 92% 4%, rgba(52,211,153,0.05) 0%, transparent 55%),
+        var(--g-bg);
+    }
+    .reveal-viewport::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+      background-size: 54px 54px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 55%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 55%, transparent 100%);
+    }
+    .reveal .slides > section { z-index: 1; }
+
+    /* Headings */
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: var(--g-display);
+      color: var(--g-text);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      text-transform: none;
+      line-height: 1.08;
+      margin-bottom: 0.4em;
+    }
+    .reveal h1 { font-size: 2.2em; letter-spacing: -0.04em; }
+    .reveal h2 { font-size: 1.45em; }
+    .reveal h3 { font-size: 1.02em; font-family: var(--g-sans); }
+    .reveal .emerald {
+      background: linear-gradient(120deg, var(--g-emerald-2) 0%, #6EE7B7 55%, var(--g-cyan) 130%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+    .reveal .cyan    { color: var(--g-cyan); }
+    .reveal .amber   { color: var(--g-amber); }
+    .reveal .muted   { color: var(--g-muted); }
+    .reveal strong   { color: #fff; font-weight: 700; }
+    .reveal em       { color: var(--g-emerald-2); font-style: normal; font-weight: 600; }
+    /* keep inline emphasis crisp where gradient would hurt legibility */
+    .reveal .small .emerald, .reveal .xsmall .emerald, .reveal strong .emerald {
+      -webkit-text-fill-color: var(--g-emerald-2); color: var(--g-emerald-2); background: none;
+    }
+
+    /* ---- Bilingual layer: the English line always sits under its Chinese line,
+           one visual step quieter so the eye reads CN → EN, never competes. ---- */
+    .en {
+      display: block;
+      font-family: var(--g-sans);
+      font-weight: 400;
+      font-size: 0.85em;
+      line-height: 1.32;
+      letter-spacing: -0.005em;
+      color: rgba(139,152,168,0.92);
+      margin-top: 0.2em;
+      text-wrap: pretty;
+    }
+    .reveal h1 .en {
+      font-size: 0.36em; font-weight: 500; letter-spacing: -0.01em;
+      color: var(--g-muted); margin-top: 0.7rem; line-height: 1.25;
+      -webkit-text-fill-color: var(--g-muted);
+    }
+    .reveal h2 .en {
+      font-size: 0.5em; font-weight: 500; letter-spacing: -0.01em;
+      color: var(--g-muted); margin-top: 0.42rem; line-height: 1.25;
+      -webkit-text-fill-color: var(--g-muted);
+    }
+    .reveal h3 .en {
+      font-size: 0.8em; font-weight: 500; color: var(--g-muted);
+      margin-top: 0.12em; -webkit-text-fill-color: var(--g-muted);
+    }
+    .reveal li .en { font-size: 0.86em; color: rgba(139,152,168,0.8); margin-top: 0.1em; }
+    .reveal .lead .en { font-size: 0.84em; color: rgba(139,152,168,0.78); margin-top: 0.45rem; }
+    .card .en { color: rgba(139,152,168,0.78); }
+    .stat .lbl .en { font-size: 0.92em; letter-spacing: 0.06em; text-transform: none; margin-top: 0.15em; }
+
+    /* Lists */
+    .reveal ul, .reveal ol { margin-left: 0; }
+    .reveal ul li, .reveal ol li { margin: 0.5em 0; line-height: 1.4; }
+    .reveal ul { list-style: none; }
+    .reveal ul li::before {
+      content: '';
+      display: inline-block;
+      width: 7px; height: 7px;
+      margin-right: 0.75rem; margin-bottom: 0.18em;
+      border-radius: 2px;
+      background: linear-gradient(135deg, var(--g-emerald-2), var(--g-emerald-dim));
+      box-shadow: 0 0 8px -1px rgba(16,185,129,0.7);
+      vertical-align: middle;
+    }
+    .reveal ol { counter-reset: li; list-style: none; }
+    .reveal ol li { counter-increment: li; position: relative; padding-left: 0.2em; }
+    .reveal ol li::before {
+      content: counter(li);
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.35em; height: 1.35em; margin-right: 0.6rem;
+      font-family: var(--g-mono); font-size: 0.62em; font-weight: 700;
+      color: var(--g-emerald-2);
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.28);
+      border-radius: 7px; vertical-align: middle;
+      transform: translateY(-0.12em);
+    }
+    /* keep the English line aligned with the text, not the bullet */
+    .reveal ul li .en { padding-left: calc(7px + 0.75rem); }
+    .reveal ol li .en { padding-left: calc(1.35em + 0.6rem); }
+
+    /* Code */
+    .reveal pre {
+      width: 100%;
+      font-size: 0.55em;
+      box-shadow: 0 24px 60px -18px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      margin: 0.5em 0;
+      position: relative;
+      background: #0a0e15;
+      overflow: hidden;
+    }
+    /* macOS window chrome — absolutely positioned so it never affects
+       reveal's line-highlight scroll math (which caused ghosting) */
+    .reveal pre::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+      height: 38px;
+      background: linear-gradient(180deg, #131a24, #0d131b);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px 16px 0 0;
+      pointer-events: none;
+    }
+    .reveal pre::after {
+      content: '';
+      position: absolute; top: 15px; left: 16px; z-index: 3;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #ff5f57;
+      box-shadow: 18px 0 0 #febc2e, 36px 0 0 #28c840;
+      pointer-events: none;
+    }
+    .reveal pre code {
+      font-family: var(--g-mono);
+      padding: 1.15em 1.4em;
+      padding-top: calc(38px + 1.05em);   /* clear the window chrome */
+      border-radius: 0;
+      background: transparent !important;
+      max-height: 520px;
+      line-height: 1.55;
+      font-weight: 500;
+    }
+    .reveal pre code .hljs-ln-numbers,
+    .reveal pre .hljs-ln-n { color: rgba(139,152,168,0.4); }
+    .reveal code:not(pre code) {
+      font-family: var(--g-mono);
+      color: var(--g-emerald-2);
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.16);
+      padding: 0.1em 0.42em;
+      border-radius: 6px;
+      font-size: 0.84em;
+      font-weight: 500;
+    }
+
+    /* Cards */
+    .card {
+      position: relative;
+      background:
+        linear-gradient(168deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 42%),
+        var(--g-surface);
+      border: 1px solid var(--g-line);
+      border-radius: var(--g-radius);
+      padding: 1.25rem 1.45rem;
+      box-shadow: var(--g-shadow-card);
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), border-color 0.3s, box-shadow 0.3s;
+    }
+    .card-emerald {
+      background:
+        linear-gradient(165deg, rgba(16,185,129,0.16), rgba(16,185,129,0.02) 60%),
+        var(--g-surface);
+      border: 1px solid rgba(16,185,129,0.3);
+      box-shadow: var(--g-shadow-glow), var(--g-shadow-card);
+    }
+    .grid { display: grid; gap: 1rem; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    /* Stat */
+    .stat { text-align: center; }
+    .stat .num {
+      font-family: var(--g-display);
+      font-size: 2.05em; font-weight: 800;
+      letter-spacing: -0.045em;
+      line-height: 1;
+      display: block;
+      background: linear-gradient(160deg, #EAFBF3 0%, var(--g-emerald-2) 55%, var(--g-emerald-dim) 120%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 4px 18px rgba(16,185,129,0.25));
+    }
+    .stat .lbl {
+      font-size: 0.48em; text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--g-muted); margin-top: 0.6rem; font-weight: 700;
+    }
+
+    /* Pills */
+    .pill {
+      display: inline-block;
+      font-size: 0.6em; font-weight: 700;
+      padding: 0.32rem 0.8rem; border-radius: 999px;
+      border: 1px solid var(--g-line);
+      background: var(--g-surface-2);
+      color: var(--g-muted);
+      margin: 0.2rem 0.25rem 0.2rem 0;
+      white-space: nowrap;
+    }
+    .pill.on {
+      color: var(--g-emerald-2);
+      border-color: rgba(16,185,129,0.35);
+      background: rgba(16,185,129,0.1);
+      box-shadow: 0 0 16px -6px rgba(16,185,129,0.6);
+    }
+    .pill.new {
+      color: var(--g-cyan);
+      border-color: rgba(34,211,238,0.4);
+      background: rgba(34,211,238,0.12);
+      box-shadow: 0 0 16px -6px rgba(34,211,238,0.55);
+    }
+
+    /* Eyebrow / kicker */
+    .kicker {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      font-size: 0.46em; font-weight: 800; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--g-emerald-2);
+      background: linear-gradient(180deg, rgba(16,185,129,0.14), rgba(16,185,129,0.05));
+      border: 1px solid rgba(16,185,129,0.28);
+      padding: 0.42rem 0.95rem; border-radius: 999px;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 22px -6px rgba(16,185,129,0.4), 0 1px 0 rgba(255,255,255,0.06) inset;
+      backdrop-filter: blur(6px);
+    }
+    .kicker .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--g-emerald-2);
+      box-shadow: 0 0 12px var(--g-emerald-2), 0 0 4px #fff inset;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.4; transform:scale(0.82)} }
+
+    /* Utility */
+    .center { text-align: center; }
+    .lead { font-size: 1.1em; color: var(--g-muted); font-weight: 300; line-height: 1.5; }
+    .small { font-size: 0.72em; }
+    .xsmall { font-size: 0.6em; }
+    .mt { margin-top: 1rem; }
+    .mt2 { margin-top: 1.6rem; }
+    .flex { display: flex; }
+    .flex-c { display: flex; align-items: center; }
+    .gap { gap: 1rem; }
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--g-line) 20%, var(--g-line) 80%, transparent); margin: 1.1rem 0; border: 0; }
+
+    /* Step number */
+    .stepnum {
+      width: 46px; height: 46px; flex: none;
+      border-radius: 15px;
+      background: linear-gradient(150deg, var(--g-emerald-2), var(--g-emerald-dim));
+      color: #04120c; font-weight: 800; font-size: 1.1em;
+      font-family: var(--g-display);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 22px -8px rgba(16,185,129,0.7), 0 1px 0 rgba(255,255,255,0.35) inset;
+    }
+
+    /* Progress / controls color */
+    .reveal .progress { color: var(--g-emerald-2); height: 4px; }
+    .reveal .controls { color: var(--g-emerald-2); }
+    .reveal .slide-number { background: transparent; color: var(--g-muted); font-family: var(--g-mono); }
+
+    /* Footer brand */
+    .brandbar {
+      position: fixed; bottom: 16px; left: 24px; z-index: 30;
+      font-family: var(--g-mono); font-size: 12px; letter-spacing: 0.15em;
+      color: rgba(139,152,168,0.5); text-transform: uppercase;
+      pointer-events: none;
+    }
+    .brandbar b { color: var(--g-emerald-2); }
+
+    /* Title slide logo mark */
+    .logomark {
+      display: inline-flex; align-items: center; gap: 0.7rem;
+      font-family: var(--g-display);
+      font-weight: 800; letter-spacing: -0.02em; font-size: 0.85em;
+    }
+    .logomark .g {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(150deg, var(--g-emerald-2), var(--g-emerald-dim));
+      color: #04120c; display:flex; align-items:center; justify-content:center;
+      font-size: 1.1em; box-shadow: 0 0 30px rgba(16,185,129,0.55), 0 1px 0 rgba(255,255,255,0.4) inset;
+    }
+
+    .tag-row { display:flex; flex-wrap:wrap; gap: 0.4rem; }
+
+    table.cmp { width:100%; border-collapse: collapse; font-size: 0.68em; }
+    table.cmp th, table.cmp td { padding: 0.6rem 0.9rem; text-align:left; border-bottom: 1px solid var(--g-line); vertical-align: top; }
+    table.cmp th { color: var(--g-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.1em; font-size:0.8em; }
+    table.cmp td.hl { color: var(--g-emerald-2); font-weight:700; }
+    table.cmp tr td:first-child { color:#fff; font-weight:600; }
+    table.cmp tr:last-child td { border-bottom: 0; }
+    table.cmp .en { font-size: 0.86em; margin-top: 0.12em; }
+
+    .arrow-flow { display:flex; align-items:center; justify-content:center; gap:0.8rem; flex-wrap:wrap; }
+    .node {
+      background:
+        linear-gradient(168deg, rgba(255,255,255,0.04), transparent 50%),
+        var(--g-surface);
+      border:1px solid var(--g-line);
+      border-radius:14px; padding:0.75rem 1.1rem; font-weight:600; font-size:0.76em;
+      text-align:center;
+      box-shadow: var(--g-shadow-card);
+    }
+    .node .en { font-size: 0.8em; margin-top: 0.15em; }
+    .node.hl {
+      border-color: rgba(16,185,129,0.45);
+      background: linear-gradient(165deg, rgba(16,185,129,0.16), rgba(16,185,129,0.03)), var(--g-surface);
+      color: var(--g-emerald-2);
+      box-shadow: var(--g-shadow-glow);
+    }
+    .arrow { color: var(--g-emerald-2); font-size:1.3em; font-weight:800; filter: drop-shadow(0 0 8px rgba(16,185,129,0.5)); }
+
+    /* Fragment-style entrance for cards on each slide */
+    .reveal section.present .card,
+    .reveal section.present .node {
+      animation: cardRise 0.55s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .reveal section.present .grid-3 .card:nth-child(2) { animation-delay: 0.07s; }
+    .reveal section.present .grid-3 .card:nth-child(3) { animation-delay: 0.14s; }
+    .reveal section.present .grid-4 .card:nth-child(2) { animation-delay: 0.05s; }
+    .reveal section.present .grid-4 .card:nth-child(3) { animation-delay: 0.10s; }
+    .reveal section.present .grid-4 .card:nth-child(4) { animation-delay: 0.15s; }
+    @keyframes cardRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+    /* Section title accent underline */
+    .reveal h2::after {
+      content: '';
+      display: block;
+      width: 3.2em; height: 3px; margin-top: 0.5rem;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--g-emerald-2), rgba(52,211,153,0));
+    }
+    .reveal h1::after, .reveal .center h2::after { display: none; }
+
+    /* Density modifiers — bilingual copy roughly doubles the text volume, so
+       the text-heavy slides get one notch tighter rather than being cut down. */
+    .reveal section.dense { font-size: 0.9em; }
+    .reveal section.dense .card { padding: 0.95rem 1.15rem; }
+    .reveal section.dense .grid { gap: 0.7rem; }
+    .reveal section.dense h2 { font-size: 1.3em; margin-bottom: 0.3em; }
+    .reveal section.dense .stepnum { width: 38px; height: 38px; border-radius: 12px; font-size: 0.95em; }
+    .reveal section.dense .divider { margin: 0.8rem 0; }
+    /* The five-step roadmap stacks five bilingual rows — one notch tighter again. */
+    .reveal section.roadmap .card { padding: 0.62rem 1.05rem; }
+    .reveal section.roadmap h2 { margin-bottom: 0.2em; }
+    .reveal section.roadmap .card .en { font-size: 0.7em; margin-top: 0.25em; }
+
+    /* Code slides — one shared code scale so the window chrome reads the same
+       size on every step of the walkthrough. */
+    .reveal section.code-slide { font-size: 0.94em; }
+    .reveal section.code-slide pre { font-size: 0.47em; }
+    .reveal section.code-slide pre code { max-height: 430px; }
+    .reveal section.code-slide h2 { font-size: 1.28em; margin-bottom: 0.25em; }
+
+    /* Cover slide — fit everything without overflow */
+    .cover .logomark { font-size: 0.76em; }
+    .cover .kicker { margin-bottom: 0.85rem; }
+    .cover h1 { font-size: 1.9em; margin-bottom: 0.25em !important; }
+    .cover h1 .en { font-size: 0.38em; }
+    .cover .lead { font-size: 0.98em; }
+    .cover .divider { margin: 1.1rem 0 0.9rem !important; }
+  </style>
+</head>
+<body>
+<div class="brandbar">GONKA<b>ROUTER</b> · gonkarouter.io</div>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ============ 封面 / Cover ============ -->
+    <section class="cover" data-background-gradient="radial-gradient(circle at 20% 10%, rgba(16,185,129,0.18), transparent 55%), #06080a">
+      <div class="logomark"><span class="g">G</span><span>Gonka<span class="emerald">Router</span></span></div>
+      <div style="margin-top:1.5rem">
+        <span class="kicker"><span class="dot"></span>Developer Workshop · 开发者工作坊</span>
+      </div>
+      <h1 style="margin-bottom:0.3em">
+        用 <span class="emerald">Gonka Router</span> 快速、<br/>0 成本部署更智能的 AI 应用
+        <span class="en">Ship smarter AI apps — fast, and at zero cost</span>
+      </h1>
+      <p class="lead" style="max-width:24em; margin-top:1rem">
+        一套兼容 OpenAI / Anthropic 的 API，接入多个主流大模型。
+        <span class="en">One OpenAI- &amp; Anthropic-compatible API. Many frontier open models. Minutes from key to first token.</span>
+      </p>
+      <div class="divider" style="max-width:26em; margin:1.4rem 0 1rem"></div>
+    </section>
+
+    <!-- ============ 议程 / Agenda ============ -->
+    <section>
+      <span class="kicker"><span class="dot"></span>Agenda · 议程</span>
+      <h2>我们会讲三件事 <span class="en">Three things tonight</span></h2>
+      <div class="grid grid-3 mt">
+        <div class="card">
+          <div class="stat" style="text-align:left"><span class="num">01</span></div>
+          <h3 class="mt">为什么需要 Gonka Router<span class="en">Why Gonka Router</span></h3>
+          <p class="small muted">Gonka 是什么，以及多模型统一调用的价值。<span class="en">What Gonka is, and why one unified endpoint matters.</span></p>
+        </div>
+        <div class="card card-emerald">
+          <div class="stat" style="text-align:left"><span class="num">02</span></div>
+          <h3 class="mt">动手搭一个 AI 应用<span class="en">Build an AI app, live</span></h3>
+          <p class="small muted">拿 Key → 接入 → 切换模型 → 跑通 Demo → 最佳实践。<span class="en">Get a key → connect → switch models → run a demo → best practices.</span></p>
+        </div>
+        <div class="card">
+          <div class="stat" style="text-align:left"><span class="num">03</span></div>
+          <h3 class="mt">现场答疑<span class="en">Live Q&amp;A</span></h3>
+          <p class="small muted">帮你扫清接入过程中的技术障碍。<span class="en">Bring your integration blockers — we debug them together.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PART 1 分隔 ============ -->
+    <section data-background-gradient="radial-gradient(circle at 80% 50%, rgba(16,185,129,0.16), transparent 55%), #06080a">
+      <span class="kicker"><span class="dot"></span>Part 1</span>
+      <h1>为什么开发者需要<br/><span class="emerald">Gonka Router</span>？
+        <span class="en">Why developers need Gonka Router</span>
+      </h1>
+    </section>
+
+    <!-- ============ 问题出发 / The problem ============ -->
+    <section>
+      <span class="kicker"><span class="dot"></span>先说问题 · Start with the problem</span>
+      <h2>从想法到<span class="emerald">第一个 token</span>，中间隔了什么<span class="en">The friction between your idea and your first API call</span></h2>
+      <div class="grid grid-2 mt">
+        <div class="card">
+          <h3>开发者的真实痛点<span class="en">What actually slows you down</span></h3>
+          <ul class="small">
+            <li>做 AI Demo 先要<strong>海外信用卡</strong>才能调 OpenAI / Anthropic<span class="en">A foreign credit card stands between you and your first token</span></li>
+            <li>每家模型 <strong>SDK、鉴权、计费都不同</strong>，切换成本高<span class="en">Every vendor: its own SDK, auth and billing</span></li>
+            <li>想法还在验证阶段，<strong>钱和时间不该花在接入上</strong><span class="en">Plumbing is the worst place to spend a prototype's budget</span></li>
+            <li>想横向对比几个模型，却要开<strong>好几个账号</strong><span class="en">Comparing models means juggling several accounts</span></li>
+          </ul>
+        </div>
+        <div class="card card-emerald">
+          <h3>Gonka Router 的答案<span class="en">What Gonka Router does about it</span></h3>
+          <ul class="small">
+            <li>新用户<strong>一次性 $20 免费额度</strong>，先跑通再说<span class="en">$20 one-time free credit — start before you pay</span></li>
+            <li><strong>一套 API</strong>同时兼容 OpenAI 与 Anthropic 格式<span class="en">One API, both protocols</span></li>
+            <li>只改 <em>base_url</em>，<strong>5 分钟</strong>接入现有代码<span class="en">Change the base URL — your existing code just works</span></li>
+            <li><strong>统一低价</strong>，输入输出同价，多模型自由切换<span class="en">One flat rate for every model, input and output alike</span></li>
+          </ul>
+        </div>
+      </div>
+      <p class="center muted small mt">把「接模型」从几天压到几分钟，时间留给创意本身。<span class="en">Turn days of integration into minutes — spend the rest on the idea.</span></p>
+    </section>
+
+    <!-- ============ 什么是 Gonka / What is Gonka ============ -->
+    <section>
+      <span class="kicker"><span class="dot"></span>What is Gonka · 什么是 Gonka</span>
+      <h2>把 <span class="emerald">AI 算力</span> 变成网络货币<span class="en">A decentralised AI compute network — “AI compute is the new currency”</span></h2>
+      <p class="lead small">主网已上线，全球节点提供推理算力。<span class="en">Mainnet is live, with inference served by nodes worldwide.</span></p>
+      <div class="grid grid-3 mt">
+        <div class="card">
+          <h3 class="emerald">去中心化算力<span class="en">Decentralised compute</span></h3>
+          <p class="small muted">全球节点提供推理，基于 Transformer 的工作量证明保障安全，已通过 CertiK 审计。<span class="en">Proof-of-work built on transformer inference; audited by CertiK.</span></p>
+        </div>
+        <div class="card">
+          <h3 class="emerald">主流开源大模型<span class="en">Frontier open models</span></h3>
+          <p class="small muted">网络上已运行 Kimi-K2.6、MiniMax-M2.7、DeepSeek-V4-Flash 等顶尖开源模型。<span class="en">Kimi-K2.6, MiniMax-M2.7 and DeepSeek-V4-Flash are all live today.</span></p>
+        </div>
+        <div class="card">
+          <h3 class="emerald">GNK 代币结算<span class="en">Settled in GNK</span></h3>
+          <p class="small muted">算力以 GNK 结算，Web3 原生；背后有 Coatue、Slow Ventures 等投资。<span class="en">Web3-native settlement, backed by Coatue and Slow Ventures.</span></p>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <p class="center small">
+        <strong>Gonka</strong> 是底层算力网络　·　<strong class="emerald">Gonka Router</strong> 是你作为开发者的统一入口。
+        <span class="en">Gonka is the compute network. Gonka Router is the developer-facing front door.</span>
+      </p>
+    </section>
+
+    <!-- ============ 统一入口 / The router in the middle ============ -->
+    <section>
+      <span class="kicker"><span class="dot"></span>它在你和模型之间做了什么 · What sits in the middle</span>
+      <h2>一个<span class="emerald">统一入口</span>，屏蔽所有复杂度<span class="en">One endpoint that absorbs the complexity</span></h2>
+      <div class="arrow-flow mt2">
+        <div class="node">你的应用<span class="en">Your app · OpenAI / Anthropic SDK</span></div>
+        <span class="arrow">→</span>
+        <div class="node hl">Gonka Router<span class="en">Auth · billing · routing</span></div>
+        <span class="arrow">→</span>
+        <div class="node">Gonka 网络<span class="en">Decentralised compute</span></div>
+        <span class="arrow">→</span>
+        <div class="node">Kimi · MiniMax · DeepSeek<span class="en">Frontier open models</span></div>
+      </div>
+      <div class="grid grid-3 mt2">
+        <div class="card center"><div class="stat"><span class="num">1</span><span class="lbl">个 API Key<span class="en">one API key</span></span></div></div>
+        <div class="card center"><div class="stat"><span class="num">2</span><span class="lbl">种协议兼容<span class="en">two wire protocols</span></span></div></div>
+        <div class="card center"><div class="stat"><span class="num">N</span><span class="lbl">个大模型<span class="en">many models</span></span></div></div>
+      </div>
+      <p class="center muted small mt">你只对接一次，模型的增删、路由与结算全部由 Router 处理。<span class="en">Integrate once — model changes, routing and settlement stay on our side.</span></p>
+    </section>
+
+    <!-- ============ 统一入口的价值 / Why it's worth it ============ -->
+    <section>
+      <span class="kicker"><span class="dot"></span>多模型统一调用的优势 · The case for one endpoint</span>
+      <h2>为什么「统一入口」值钱<span class="en">Four things you stop paying for</span></h2>
+      <div class="grid grid-4 mt">
+        <div class="card"><h3 class="emerald">💰 极低成本<span class="en">Radically cheap</span></h3><p class="xsmall muted">统一费率，输入输出同价，无月费、无 per-model 加价。<span class="en">One rate, input and output alike. No subscription, no per-model markup.</span></p></div>
+        <div class="card"><h3 class="emerald">🔌 零迁移成本<span class="en">Zero migration</span></h3><p class="xsmall muted">兼容 OpenAI Chat Completions 与 Anthropic Messages，改 base_url 即可。<span class="en">Both wire formats supported — just point the base URL here.</span></p></div>
+        <div class="card"><h3 class="emerald">🔀 自由切换<span class="en">Swap freely</span></h3><p class="xsmall muted">同一份代码，改一个 model 字段就换到另一个大模型做对比。<span class="en">Same code, one string changed — now you're A/B-ing models.</span></p></div>
+        <div class="card"><h3 class="emerald">🌐 全球可用<span class="en">Open to everyone</span></h3><p class="xsmall muted">Web3 原生结算，无需海外信用卡，$20 额度即刻开跑。<span class="en">Crypto-native billing, no foreign card, $20 credit on signup.</span></p></div>
+      </div>
+      <p class="center muted small mt2">这四件事，你原本每接一家模型就要重做一遍。<span class="en">Without a router, you redo all four for every vendor you add.</span></p>
+    </section>
+
+    <!-- ============ 对比表 / Side by side ============ -->
+    <section class="dense">
+      <span class="kicker"><span class="dot"></span>并排看一眼 · Side by side</span>
+      <h2>直连各家 vs. Gonka Router<span class="en">Going direct vs. going through the router</span></h2>
+      <div class="card card-emerald mt">
+        <table class="cmp">
+          <tr>
+            <th>对比维度<span class="en">Dimension</span></th>
+            <th>直连各家官方<span class="en">Direct to each vendor</span></th>
+            <th>Gonka Router</th>
+          </tr>
+          <tr>
+            <td>接入<span class="en">Integration</span></td>
+            <td class="muted">每家一套 SDK / 鉴权<span class="en">One SDK &amp; auth per vendor</span></td>
+            <td class="hl">一套 API，双协议兼容<span class="en">One API, two protocols</span></td>
+          </tr>
+          <tr>
+            <td>支付<span class="en">Payment</span></td>
+            <td class="muted">海外信用卡 / 订阅<span class="en">Foreign card or subscription</span></td>
+            <td class="hl">$20 免费额度 + 加密支付<span class="en">$20 free credit + crypto</span></td>
+          </tr>
+          <tr>
+            <td>定价<span class="en">Pricing</span></td>
+            <td class="muted">各模型不同、常有加价<span class="en">Per-model, often marked up</span></td>
+            <td class="hl">全模型统一费率<span class="en">One flat rate, all models</span></td>
+          </tr>
+          <tr>
+            <td>切换模型<span class="en">Switching</span></td>
+            <td class="muted">改 SDK、改鉴权<span class="en">New SDK, new auth</span></td>
+            <td class="hl">只改 model 字符串<span class="en">Change one string</span></td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 定价 / Pricing ============ -->
+    <section class="dense">
+      <span class="kicker"><span class="dot"></span>成本这一栏 · The cost column</span>
+      <h2>为什么说「0 成本」起步<span class="en">Why “zero cost” is not marketing</span></h2>
+      <div class="grid grid-3 mt2">
+        <div class="card stat"><span class="num">$20</span><span class="lbl">新用户一次性额度<span class="en">one-time signup credit</span></span></div>
+        <div class="card stat card-emerald"><span class="num">$0.0013</span><span class="lbl">起 / 每 1M tokens · 输入输出同价<span class="en">from, per 1M tokens · input = output</span></span></div>
+        <div class="card stat"><span class="num">0</span><span class="lbl">月费 / 订阅 / 信用卡<span class="en">subscriptions, seats, cards</span></span></div>
+      </div>
+      <div class="card card-emerald mt2">
+        <div class="flex-c gap" style="justify-content:space-between; flex-wrap:wrap">
+          <div style="flex:1; min-width:12em">
+            <span class="kicker" style="margin-bottom:0.55rem"><span class="dot"></span>一位真实用户的账单 · A real account</span>
+            <p class="small" style="margin:0">跑了 <strong class="emerald">177 万次请求</strong>、烧掉 <strong class="emerald">43 亿 tokens</strong> 之后……<span class="en">After 1.77M requests and 4.35B tokens burned…</span></p>
+            <p class="small muted" style="margin:0.3rem 0 0">$20 额度只用掉个位数美元，账户里还躺着 <strong>$18.26</strong>。<span class="en">…the $20 credit is barely dented: $18.26 still sitting there.</span></p>
+          </div>
+          <div class="flex gap" style="flex:none">
+            <div class="stat"><span class="num" style="font-size:1.4em">1.77M</span><span class="lbl">总请求<span class="en">requests</span></span></div>
+            <div class="stat"><span class="num" style="font-size:1.4em">4.35B</span><span class="lbl">总 tokens<span class="en">tokens</span></span></div>
+            <div class="stat"><span class="num" style="font-size:1.4em">18.26</span><span class="lbl">USDT 余额<span class="en">balance left</span></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="center muted xsmall mt">费率随 Gonka 网络实时浮动，<code>/pricing</code> 页面显示当前价格。结论不变：$20 拿来做原型和验证，<strong>几乎花不完</strong>。<span class="en">The rate floats with the Gonka network — see /pricing for the live number. Either way, $20 goes a very long way in prototyping.</span></p>
+    </section>
+
+    <!-- ============ 适用场景 / Use cases ============ -->
+    <section class="dense">
+      <span class="kicker"><span class="dot"></span>适合哪些场景 · What to build</span>
+      <h2>拿它能做什么<span class="en">Six things people are already shipping</span></h2>
+      <div class="grid grid-3 mt">
+        <div class="card"><h3>🤖 Agent / 自动化<span class="en">Agents &amp; automation</span></h3><p class="small muted">长链路工具调用、任务编排。MiniMax-M2.7 专为 agent harness 优化。<span class="en">Long tool-call chains — MiniMax-M2.7 is agent-native.</span></p></div>
+        <div class="card"><h3>💻 编程助手 / IDE<span class="en">Coding assistants</span></h3><p class="small muted">接入 Cursor、Claude Code、Cline、Aider，用 Gonka 的模型写代码。<span class="en">Point Cursor, Claude Code, Cline or Aider at Gonka models.</span></p></div>
+        <div class="card"><h3>💬 聊天 / 问答<span class="en">Chat &amp; Q&amp;A</span></h3><p class="small muted">长上下文对话与知识库问答，最高 262K context window。<span class="en">Long-context conversation, up to a 262K window.</span></p></div>
+        <div class="card"><h3>📄 文档 / 数据处理<span class="en">Docs &amp; data</span></h3><p class="small muted">长文摘要、日志分析、Excel / PPT / Word 工作流。<span class="en">Summarisation, log analysis, office-document workflows.</span></p></div>
+        <div class="card"><h3>🔍 RAG / 检索增强<span class="en">RAG</span></h3><p class="small muted">Function calling 就绪，配合检索做企业知识问答。<span class="en">Function calling is ready — bolt it onto your retriever.</span></p></div>
+        <div class="card"><h3>🧪 原型验证<span class="en">Prototyping</span></h3><p class="small muted">$20 额度 + 5 分钟接入，把一个想法先跑起来再谈成本。<span class="en">$20 and five minutes — get the idea running before you think about budget.</span></p></div>
+      </div>
+    </section>
+
+    <!-- ============ PART 2 分隔 ============ -->
+    <section data-background-gradient="radial-gradient(circle at 20% 60%, rgba(16,185,129,0.16), transparent 55%), #06080a">
+      <span class="kicker"><span class="dot"></span>Part 2 · Hands-on</span>
+      <h1>动手搭一个 <span class="emerald">AI 应用</span>
+        <span class="en">Let's build one, live</span>
+      </h1>
+      <p class="lead mt">拿 Key → 接入 → 切模型 → 跑 Demo → 最佳实践。<span class="en">Key → connect → switch → demo → best practices.</span></p>
+    </section>
+
+    <!-- ============ 步骤总览 / Roadmap ============ -->
+    <section class="dense roadmap">
+      <span class="kicker"><span class="dot"></span>五步跑通 · Five steps</span>
+      <h2>接下来的路线图<span class="en">Where we're going</span></h2>
+      <div class="grid mt" style="gap:0.5rem">
+        <div class="card flex-c gap"><div class="stepnum">1</div><div><strong>获取 API Key</strong> <span class="muted small">— 邮箱 / Google 登录，创建 Key，领 $20 额度</span><span class="en">Sign in with email or Google, create a key, claim $20</span></div></div>
+        <div class="card flex-c gap"><div class="stepnum">2</div><div><strong>30 秒冒烟测试</strong> <span class="muted small">— 一条 curl 确认链路通</span><span class="en">One curl to prove the path works</span></div></div>
+        <div class="card flex-c gap"><div class="stepnum">3</div><div><strong>接入 SDK</strong> <span class="muted small">— OpenAI 或 Anthropic 官方 SDK，只改 base_url</span><span class="en">Official OpenAI or Anthropic SDK — only the base URL changes</span></div></div>
+        <div class="card flex-c gap"><div class="stepnum">4</div><div><strong>切换不同大模型</strong> <span class="muted small">— 改一个字符串对比效果</span><span class="en">Swap one string to compare models</span></div></div>
+        <div class="card flex-c gap"><div class="stepnum">5</div><div><strong>最佳实践 &amp; 避坑</strong> <span class="muted small">— 限流、超时、注意事项</span><span class="en">Rate limits, timeouts, and the gotchas we've hit</span></div></div>
+      </div>
+    </section>
+
+    <!-- ============ Step1 拿 Key / Get a key ============ -->
+    <section>
+      <div class="flex-c gap"><div class="stepnum">1</div><h2 style="margin:0">注册并获取 API Key<span class="en">Sign up and get your API key</span></h2></div>
+      <div class="grid grid-2 mt" style="align-items:start">
+        <div class="card">
+          <ol class="small">
+            <li>打开 <em>Dashboard</em>，用<strong>邮箱或 Google</strong> 登录 —— 无需钱包<span class="en">Sign in with email or Google — no wallet required</span></li>
+            <li>创建并复制 <strong>API Key</strong>（<code>sk-…</code>）<span class="en">Create a key and copy it</span></li>
+            <li>新账号自动获得 <strong class="emerald">一次性 $20 免费额度</strong><span class="en">Every new account gets $20 in credit</span></li>
+          </ol>
+          <div class="divider"></div>
+          <p class="xsmall muted">Base URL</p>
+          <p><code>https://api.gonkarouter.io</code></p>
+          <p class="xsmall muted mt">鉴权 Header · Auth header（两种都支持 / either works）</p>
+          <p class="small"><code>x-api-key: sk-…</code><br/><code>Authorization: Bearer sk-…</code></p>
+        </div>
+        <div class="card card-emerald">
+          <h3>关键概念<span class="en">Things worth knowing up front</span></h3>
+          <ul class="small">
+            <li><strong>OpenAI 风格</strong>走 <code>/v1/chat/completions</code><span class="en">OpenAI-style requests go to /v1</span></li>
+            <li><strong>Anthropic 风格</strong>走 <code>/v1/messages</code><span class="en">Anthropic-style requests go to /v1/messages</span></li>
+            <li>一把 Key 通吃所有模型，<strong>无需逐个申请</strong><span class="en">One key covers every model — no per-model access requests</span></li>
+            <li><code>429</code> 限流<strong>不扣余额</strong>，退避重试即可<span class="en">A 429 never costs you balance — just back off and retry</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Step2 冒烟测试 / Smoke test ============ -->
+    <section class="code-slide">
+      <div class="flex-c gap"><div class="stepnum">2</div><h2 style="margin:0">30 秒冒烟测试<span class="en">A 30-second smoke test</span></h2></div>
+      <p class="small muted">接 SDK 之前，先用一条 curl 确认链路。拿到 200 就说明后面所有示例都能跑通。<span class="en">Before touching an SDK, prove the path with curl. A 200 here means every later example will work.</span></p>
+      <pre><code class="language-bash" data-trim data-line-numbers>KEY="sk-xxxxxx"   # paste your real key
+
+curl -s https://api.gonkarouter.io/v1/messages \
+  -H "x-api-key: $KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{
+    "model": "deepseek-ai/DeepSeek-V4-Flash-0731",
+    "max_tokens": 1024,
+    "messages": [{"role":"user","content":"Reply with just: pong"}]
+  }'</code></pre>
+      <p class="xsmall muted">预期返回 / Expect：<code>"role":"assistant"</code> · <code>"content":[{"type":"text","text":"pong"}]</code> · <code>usage</code> token 计数 (token counts)</p>
+    </section>
+
+    <!-- ============ Step3 OpenAI SDK ============ -->
+    <section class="code-slide">
+      <div class="flex-c gap"><div class="stepnum">3</div><h2 style="margin:0">接入 · OpenAI 兼容<span class="en">Connect via the OpenAI-compatible API</span></h2></div>
+      <p class="small muted">已有的 OpenAI SDK 代码，<strong>只改 <em>base_url</em> 和 <em>api_key</em> 两行</strong>。<span class="en">Existing OpenAI SDK code needs exactly two lines changed.</span></p>
+      <pre><code class="language-python" data-trim data-line-numbers>from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-xxxxxx",                            # your GonkaRouter key
+    base_url="https://api.gonkarouter.io/v1",       # <- the only real change
+)
+
+response = client.chat.completions.create(
+    model="deepseek-ai/DeepSeek-V4-Flash-0731",     # any supported model id
+    messages=[
+        {"role": "user", "content": "Hello!"},
+    ],
+)
+
+print(response.choices[0].message.content)</code></pre>
+      <p class="xsmall muted">TypeScript / JavaScript / curl 同理，改 <code>baseURL</code> 即可。<span class="en">Same story in TS/JS — set baseURL. Full examples at /docs.</span></p>
+    </section>
+
+    <!-- ============ Step3b Anthropic SDK ============ -->
+    <section class="code-slide">
+      <div class="flex-c gap"><div class="stepnum">3</div><h2 style="margin:0">接入 · Anthropic 兼容<span class="en">Connect via the Anthropic-compatible API</span></h2></div>
+      <p class="small muted">完整实现 <code>/v1/messages</code>，含 streaming 与 tool use，官方 Anthropic SDK 直接指过来。<span class="en">/v1/messages is fully implemented — streaming and tool use included. Point the official SDK at it.</span></p>
+      <pre><code class="language-python" data-trim data-line-numbers>from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="https://api.gonkarouter.io",   # no /v1 — the SDK appends /v1/messages
+    api_key="sk-xxxxxx",
+)
+
+msg = client.messages.create(
+    model="moonshotai/Kimi-K2.6",
+    max_tokens=1024,                         # >= 1024, leave room for reasoning tokens
+    messages=[{"role": "user", "content": "Reply with just: pong"}],
+)
+
+text = next((b.text for b in msg.content if getattr(b, "text", None)), "")
+print(text)          # -> pong</code></pre>
+    </section>
+
+    <!-- ============ 生态工具 / Existing tools ============ -->
+    <section class="dense">
+      <span class="kicker"><span class="dot"></span>不写代码也能用 · No code required</span>
+      <h2>直接接入你<span class="emerald">现有的工具</span><span class="en">Drop it into the tools you already use</span></h2>
+      <div class="grid grid-2 mt">
+        <div class="card">
+          <h3>🖱️ Cursor IDE</h3>
+          <p class="xsmall muted">Settings → Models → 把 OpenAI Base URL 覆盖为 <code>…/v1</code>，粘贴 Key，添加模型 id。<span class="en">Override the OpenAI base URL, paste your key, add the model id.</span></p>
+          <p class="xsmall amber">⚠️ Cursor Free 会拦截自定义模型，需 Pro；免费替代：Continue.dev / Cline / Aider。<span class="en">Custom models need Cursor Pro — Continue.dev, Cline and Aider are free alternatives.</span></p>
+        </div>
+        <div class="card">
+          <h3>⌨️ Claude Code CLI</h3>
+          <p class="xsmall muted">设置 <code>ANTHROPIC_BASE_URL</code> + <code>ANTHROPIC_AUTH_TOKEN</code>，用隔离的 HOME 避免撞官方 OAuth 登录。<span class="en">Set the two env vars; use an isolated HOME so it doesn't clash with the official OAuth session.</span></p>
+        </div>
+        <div class="card">
+          <h3>🧩 OpenClaw</h3>
+          <p class="xsmall muted">注册自定义 <code>gonka</code> provider（<code>anthropic-messages</code> adapter），模型 id 写 <code>gonka/&lt;real-id&gt;</code>。<span class="en">Register a custom provider with the anthropic-messages adapter.</span></p>
+        </div>
+        <div class="card">
+          <h3>🐍 任意 OpenAI 兼容客户端<span class="en">Any OpenAI-compatible client</span></h3>
+          <p class="xsmall muted">LangChain、LlamaIndex、Vercel AI SDK…… 凡是能填 base_url 的都能直接接。<span class="en">If it lets you set a base URL, it works.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Step4 切换模型 / Models ============ -->
+    <section>
+      <div class="flex-c gap"><div class="stepnum">4</div><h2 style="margin:0">调用不同的大模型<span class="en">Switching between models</span></h2></div>
+      <p class="small muted">同一份代码，<strong>只改 <em>model</em> 字符串</strong>（大小写与斜杠敏感）。<span class="en">Same code — change one string. Model ids are case- and slash-sensitive.</span></p>
+      <div class="grid grid-3 mt">
+        <div class="card" style="border-color:rgba(34,211,238,0.3)">
+          <h3 class="emerald">DeepSeek-V4-Flash <span class="pill new" style="vertical-align:0.28em">NEW · 已上线 / just live</span></h3>
+          <p class="xsmall"><code>deepseek-ai/DeepSeek-V4-Flash-0731</code></p>
+          <div class="divider" style="margin:0.6rem 0"></div>
+          <p class="xsmall muted">速度取向：高吞吐日常任务、摘要抽取、代码辅助，直接给答案不输出思维链。<span class="en">Speed-tuned: fast chat, summarisation, extraction, code help. Answers directly — no visible reasoning trace.</span></p>
+          <div class="tag-row mt"><span class="pill on">1M</span><span class="pill">Function</span><span class="pill">Low latency</span></div>
+        </div>
+        <div class="card">
+          <h3 class="emerald">Kimi-K2.6</h3>
+          <p class="xsmall"><code>moonshotai/Kimi-K2.6</code></p>
+          <div class="divider" style="margin:0.6rem 0"></div>
+          <p class="xsmall muted">长上下文推理、代码密集任务、Agent 能力全面。<span class="en">Long-context reasoning, code-heavy work, strong agent behaviour.</span></p>
+          <div class="tag-row mt"><span class="pill on">262K</span><span class="pill">Vision</span><span class="pill">Function</span><span class="pill">Reasoning</span></div>
+        </div>
+        <div class="card">
+          <h3 class="emerald">MiniMax-M2.7</h3>
+          <p class="xsmall"><code>MiniMaxAI/MiniMax-M2.7</code></p>
+          <div class="divider" style="margin:0.6rem 0"></div>
+          <p class="xsmall muted">Agent-native，精英级编程能力，长链工具调用稳定。<span class="en">Agent-native, elite coding, stable long-chain tool calling.</span></p>
+          <div class="tag-row mt"><span class="pill on">192K</span><span class="pill">Reasoning</span><span class="pill">Function</span></div>
+        </div>
+      </div>
+      <p class="center xsmall muted mt">三个模型<strong class="emerald">同一费率</strong>，输入输出同价 —— 换模型不换钱包。完整清单见 <code>/models</code>。<span class="en">All three share one rate, input and output alike. Full list at /models.</span></p>
+    </section>
+
+    <!-- ============ Demo ============ -->
+    <section class="code-slide">
+      <span class="kicker"><span class="dot"></span>Live Demo</span>
+      <h2>开发一个简单的 <span class="emerald">Demo</span><span class="en">A minimal streaming app skeleton</span></h2>
+      <pre><code class="language-python" data-trim data-line-numbers>from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-xxxxxx",
+    base_url="https://api.gonkarouter.io/v1",
+)
+
+def ask(question: str, model="deepseek-ai/DeepSeek-V4-Flash-0731"):
+    stream = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": question}],
+        stream=True,                      # streaming feels far better in a demo
+    )
+    for chunk in stream:
+        print(chunk.choices[0].delta.content or "", end="", flush=True)
+
+ask("Summarise this week's support tickets and list the top 3 recurring issues.")</code></pre>
+      <p class="xsmall muted">流式返回体验更好；同一个问题换 <code>model=</code> 跑三个模型，挑最适合你场景的那个。<span class="en">Streaming feels better in a demo — swap the model argument to run the same prompt through all three.</span></p>
+    </section>
+
+    <!-- ============ Live Demo · WorkBuddy 接入 ============ -->
+    <section class="dense">
+      <span class="kicker"><span class="dot"></span>Live Demo · 现场演示</span>
+      <h2>把 Gonka Router 接进 <span class="emerald">WorkBuddy</span><span class="en">Plugging Gonka Router into WorkBuddy</span></h2>
+      <div class="grid grid-2 mt">
+        <div class="card">
+          <h3>五步配置<span class="en">Five fields, that's the whole setup</span></h3>
+          <ol class="small">
+            <li>Settings → Models → <strong>Add Model</strong><span class="en">Open model settings and add one</span></li>
+            <li>Provider 选 <strong>Custom</strong><span class="en">Not the named vendors — those point at their own endpoints</span></li>
+            <li>Interface URL 粘 <strong>完整路径</strong><span class="en">Paste the complete endpoint — see the warning</span></li>
+            <li>API Key 粘上 <code>sk-…</code><span class="en">The key you just created in the Dashboard</span></li>
+            <li>Model Name 从 <code>/models</code> <strong>原样复制</strong><span class="en">Copy the model id verbatim — case and slashes matter</span></li>
+          </ol>
+        </div>
+        <div class="card card-emerald">
+          <h3 class="amber">⚠️ 这一栏填错，必 404<span class="en">Get this one field wrong and every call 404s</span></h3>
+          <p class="xsmall muted">WorkBuddy 的 Interface URL 是<strong>完整端点</strong>，它不会帮你补 <code>/chat/completions</code>。<span class="en">Unlike every other client here, this field is the full endpoint — nothing is appended for you.</span></p>
+          <div class="divider" style="margin:0.7rem 0"></div>
+          <p class="xsmall"><span class="amber">✗</span>&nbsp; <code>api.gonkarouter.io</code><br/>
+             <span class="amber">✗</span>&nbsp; <code>api.gonkarouter.io/v1</code><br/>
+             <strong class="emerald">✓</strong>&nbsp; <code>api.gonkarouter.io/v1/chat/completions</code></p>
+        </div>
+      </div>
+      <p class="center muted small mt">已验证版本 WorkBuddy <code>v5.3.11</code>　·　完整步骤见 <code>/docs</code> 的 WorkBuddy 标签页。<span class="en">Verified against v5.3.11 — the full walkthrough lives on the WorkBuddy tab at /docs.</span></p>
+    </section>
+
+    <!-- ============ WorkBuddy 避坑 ============ -->
+    <section class="dense">
+      <span class="kicker"><span class="dot"></span>WorkBuddy 避坑 · Gotchas</span>
+      <h2>四个会让你卡住的地方<span class="en">Four things that will bite you</span></h2>
+      <div class="grid grid-2 mt">
+        <div class="card">
+          <h3 class="amber">404 基本都是 URL<span class="en">A 404 is almost always the URL</span></h3>
+          <p class="xsmall muted"><code>404 page not found</code> 说明请求到了我们这儿、但路径不对。Key 错返回 <code>401</code>，模型名错返回 <code>400</code> —— 都不长成 404。<span class="en">A bad key returns 401, an unknown model returns 400 — neither looks like this.</span></p>
+        </div>
+        <div class="card">
+          <h3 class="amber">输出上限 4096<span class="en">Output caps at 4096 tokens</span></h3>
+          <p class="xsmall muted">长回答会以 <code>MAX_TOKENS</code> 截断；不填 <code>max_tokens</code> 默认更低，只有 3072；填超过 4096 会被静默压回，客户端抬不高。<span class="en">Omitting max_tokens gives an even lower 3072, and asking for more is silently clamped back down.</span></p>
+        </div>
+        <div class="card">
+          <h3 class="amber">模型 id 分目录<span class="en">Model ids differ per plan</span></h3>
+          <p class="xsmall muted">带厂商前缀的 <code>MiniMaxAI/MiniMax-M2.7</code> 和短 id <code>kimi-k2.6</code> 属于不同目录，以你的 Key 在 <code>/models</code> 上看到的为准。<span class="en">Copy whatever the Models page shows for your own key.</span></p>
+        </div>
+        <div class="card">
+          <h3 class="amber">请求经 WorkBuddy 中转<span class="en">Relayed by WorkBuddy's own backend</span></h3>
+          <p class="xsmall muted">调用不是从你机器直连，而是走 WorkBuddy 的 SaaS 层，所以报错会带两个 id。找支持时，把报错卡片上的 <strong>Trace ID</strong> 一起给。<span class="en">That's why its errors carry two ids — quote the Trace ID when asking for help.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 最佳实践 / Best practices ============ -->
+    <section>
+      <div class="flex-c gap"><div class="stepnum">5</div><h2 style="margin:0">最佳实践 &amp; 避坑<span class="en">Best practices, and the gotchas</span></h2></div>
+      <div class="grid grid-2 mt">
+        <div class="card card-emerald">
+          <h3>✅ 该做的<span class="en">Do this</span></h3>
+          <ul class="small">
+            <li><code>max_tokens ≥ 1024</code>，给推理 token 留足空间<span class="en">Leave room for reasoning tokens</span></li>
+            <li>模型 id <strong>照抄 <code>/models</code> 页</strong>，大小写与斜杠精确<span class="en">Copy model ids verbatim from /models</span></li>
+            <li>遇 <code>429</code> 退避 30–60s 重试（<strong>不扣费</strong>）<span class="en">On 429, back off 30–60s — it costs you nothing</span></li>
+            <li>用 <strong>streaming</strong> 提升长回答的体验<span class="en">Stream long answers</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 class="amber">⚠️ 生产限制（已验证）<span class="en">Verified production limits</span></h3>
+          <ul class="small">
+            <li>突发 <strong>≥ 200 并发</strong>，稳态 <strong>≤ 1000 req/min</strong><span class="en">≥200 concurrent burst; ≤1000 req/min sustained</span></li>
+            <li>持续 <strong>&gt; 1500 req/min</strong> 开始返回 429<span class="en">Beyond 1500 req/min you'll see 429s</span></li>
+            <li>单请求硬上限 <strong>10 分钟</strong>；空闲 <strong>90 秒</strong>断流<span class="en">10-minute hard cap per request; 90s idle closes the stream</span></li>
+            <li>网关暂不支持 Anthropic prompt-caching，客户端关掉即可<span class="en">Prompt-caching headers aren't supported yet — disable them client-side</span></li>
+          </ul>
+        </div>
+      </div>
+      <p class="center xsmall muted mt">口诀：<em>curl 先通 → SDK 改 base_url → 精确 model id → 429 退避重试</em>。<span class="en">curl first → change the base URL → exact model id → back off on 429.</span></p>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section>
+      <span class="kicker"><span class="dot"></span>可能会被问到 · Frequently asked</span>
+      <h2>几个高频问题<span class="en">The four we hear most</span></h2>
+      <div class="grid grid-2 mt">
+        <div class="card"><h3 class="emerald small">要钱包吗？<span class="en">Do I need a wallet?</span></h3><p class="xsmall muted">不需要。邮箱 / Google 登录即可，只有充值时才用到钱包。<span class="en">No — email or Google is enough. A wallet only matters when you top up.</span></p></div>
+        <div class="card"><h3 class="emerald small">和 OpenRouter 有什么区别？<span class="en">How is this different from OpenRouter?</span></h3><p class="xsmall muted">同为统一 API，但 Gonka 建在去中心化算力网络上：统一低价 + 加密支付 + $20 额度。<span class="en">Same idea, different foundation: decentralised compute, one flat rate, crypto billing, $20 to start.</span></p></div>
+        <div class="card"><h3 class="emerald small">兼容 OpenAI SDK 吗？<span class="en">Does the OpenAI SDK work?</span></h3><p class="xsmall muted">兼容。改 base_url 即可，同时也支持 Anthropic Messages 格式。<span class="en">Yes — change the base URL. Anthropic Messages is supported too.</span></p></div>
+        <div class="card"><h3 class="emerald small">额度用完怎么办？<span class="en">What happens when the credit runs out?</span></h3><p class="xsmall muted">充值余额，按量计费，只为实际消耗的 token 付费。<span class="en">Top up and pay per token actually consumed. Nothing else.</span></p></div>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="dense" data-background-gradient="radial-gradient(circle at 30% 20%, rgba(16,185,129,0.18), transparent 55%), #06080a">
+      <div class="logomark"><span class="g">G</span><span>Gonka<span class="emerald">Router</span></span></div>
+      <h2 class="mt">现在就开始<span class="en">Start now</span></h2>
+
+      <!-- 额度支持 —— 这一页的主角 -->
+      <div class="card card-emerald mt">
+        <div class="flex-c gap" style="justify-content:space-between; flex-wrap:wrap">
+          <div style="flex:1; min-width:15em">
+            <span class="kicker" style="margin-bottom:0.55rem"><span class="dot"></span>给现场开发者的额度支持 · Token support</span>
+            <p class="small" style="margin:0">活动期间，token <strong class="emerald">不限量</strong>，放开了用。<span class="en">Unlimited tokens for the whole event — don't ration them.</span></p>
+            <p class="small" style="margin:0.35rem 0 0">活动之后，做得出色的团队还能继续拿到 <strong class="emerald">每月 2000 万 token</strong>，持续 3 到 6 个月。<span class="en">And the teams that build something great keep 20M tokens a month for 3–6 months after.</span></p>
+          </div>
+          <div class="flex gap" style="flex:none">
+            <div class="stat"><span class="num">∞</span><span class="lbl">活动期间<span class="en">during the event</span></span></div>
+            <div class="stat"><span class="num">20M</span><span class="lbl">每月 · 3–6 个月<span class="en">/month · 3–6 months</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-2 mt">
+        <div class="card">
+          <h3>三步开跑<span class="en">Three steps</span></h3>
+          <ol class="small">
+            <li>登录 Dashboard，创建 Key<span class="en">Sign in and create a key</span></li>
+            <li>base_url 换成 <code>api.gonkarouter.io/v1</code><span class="en">Point your base URL here</span></li>
+            <li>选一个 model，开始写<span class="en">Pick a model and start building</span></li>
+          </ol>
+        </div>
+        <div class="card">
+          <h3>资源清单<span class="en">Resources</span></h3>
+          <ul class="small">
+            <li>文档 · Docs　<code>/docs</code><span class="en">WorkBuddy、Claude Code、Cursor 全示例</span></li>
+            <li>模型 · Models　<code>/models</code><span class="en">Exact ids + snippets</span></li>
+            <li>价格 · Pricing　<code>/pricing</code><span class="en">The live per-token rate</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 谢谢 / Thank you ============ -->
+    <section data-background-gradient="radial-gradient(circle at 50% 50%, rgba(16,185,129,0.14), transparent 60%), #06080a" class="center">
+      <h1 class="center">谢谢 · Thank You</h1>
+      <p class="lead center mt">Q&amp;A 时间 —— 把你的接入问题抛过来。<span class="en">Bring your integration questions.</span></p>
+      <div class="divider" style="max-width:12em; margin:1.8rem auto"></div>
+      <p class="muted small center">Jack　·　GonkaRouter Workshop　·　gonkarouter.io</p>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    transitionSpeed: 'default',
+    backgroundTransition: 'fade',
+    width: 1280,
+    height: 720,
+    margin: 0.06,
+    controls: true,
+    progress: true,
+    center: true,   // every slide now fits within 720px, so vertical centring
+                    // balances the dead space instead of pinning content to the top
+    plugins: [RevealHighlight, RevealNotes],
+  });
+</script>
+</body>
+</html>

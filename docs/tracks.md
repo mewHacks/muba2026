@@ -36,7 +36,7 @@ One entry can take both Thetanuts tracks and win both.
 
 Thetanuts workshop: 27 Aug, 8:00 PM, Google Meet — presenter Shawn Chee (Fullstack Developer).
 
-> **Unofficial brainstorming steer (from mentor, not the deck):** judge on product UX, real-world problem fit / PMF, technical implementation (favor *complete* over *complex*), security & privacy, and presentation. Underexplored angle: **real-world assets (RWA)** — few teams pitch RWA + options together, so that combo stands out. For Track 02 (AI × Options), aim for something that genuinely surprises a judge in what the agent can autonomously do, not just "chatbot that calls an API."
+> **Unofficial brainstorming steer (from mentor, not the deck):** SUI judge on product UX, real-world problem fit / PMF, technical implementation (favor *complete* over *complex*), security & privacy, and presentation. Underexplored angle: **real-world assets (RWA)** — few teams pitch RWA + options together, so that combo stands out. For Track 02 (AI × Options), aim for something that genuinely surprises a judge in what the agent can autonomously do, not just "chatbot that calls an API."
 
 ---
 
