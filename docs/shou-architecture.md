@@ -127,6 +127,19 @@ Dev B never imports Move or `@mysten/sui` — only this file's types, plus a thi
 
 **Implemented and passing — `shou/move/`, 16/16 tests green (`sui move build && sui move test`).** This replaced the original `abort 0` stub; the shape below is what's actually deployed, not a plan.
 
+**Deployed to testnet, round-tripped for real** (not just published — a full `create_policy` → `create_guard` → `create_deny_list` → `request_transfer` → `execute_and_send` sequence was run against these live objects, confirming `funds: "0"` / `executed: true` on the final object read):
+
+| | |
+|---|---|
+| Package ID | `0x924fb6c20412093e657aeb5086a2da9f093b06c257815236d74a0846afa14b38` |
+| Modules | `policy`, `redflag` |
+| `AdminCap` (owner: deployer) | `0x347c0654d38c5791ef752dbf5c900d2a56b66f80f5c3ef094e56706e355c2c0b` |
+| `UpgradeCap` | `0x8d756c1ccf6562b01ac0aed79098a29082a1d292d4e7232ba7de687efb1ac20b` |
+
+`shou/move/Published.toml` tracks this per-environment and is committed — anyone building against testnet reads the package ID from there, not from this table (this table exists so Dev B doesn't have to go find it).
+
+`shou/packages/driver/src/client.ts` implements `ShouClient` against this deployment — typechecks clean (`npx tsc --noEmit`, `skipLibCheck: true` needed to work around an unrelated upstream `@mysten/sui@1.45.2` declaration bug, not a project issue) and every method was exercised by the round-trip above via direct `sui client call`/`ptb` (the same calls `client.ts` makes), before wiring the SDK version.
+
 ```move
 module shou::policy;
 
