@@ -1,4 +1,4 @@
-# Kawal — PRD (Sui: AI × Sui + Gonka: AI for Society)
+# Kawal — PRD (Sui: Payments & Stablecoins + Gonka: AI for Society)
 
 *Kawal — Malay, "to watch over, to guard."*
 
@@ -60,9 +60,24 @@ Four layers, each answering one failure mode above:
 
 **Gonka — AI for Society.** Passive DOM-based conversation risk scoring and Red Flag evidence scoring both run entirely through Gonka Router — this is Layer 0 and Layer 3, not a bolt-on. It's genuine public-value AI (elder financial abuse), global (not Malaysia-locked), and the mechanism — passive detection instead of reactive self-report — is the part that doesn't already exist in the "chatbot fact-checker" pattern most entries will pitch. *(Adaptation needed: Gonka's preferred submission shape is URL/text-in → Truth Score + reasoning trace + Request ID. Our Layer 0 input is a live DOM stream, not a URL — map each scored message to that same Truth-Score-and-Request-ID shape so the submission still fits their preferred format even though the trigger is passive.)*
 
-**Sui — AI × Sui.** zkLogin (elder/family onboard via Google, no seed phrase — non-negotiable for this user base), gasless sponsored transactions, deterministic address recovery if a device is lost (a real elder failure mode), and the Seniority Mode policy object enforcing co-approval on-chain rather than in a backend an operator could quietly bypass. This is a transaction-executing assistant with hardware-independent recovery and on-chain-enforced guardianship — squarely their "personal copilot with digital ownership" framing.
+**Sui — Track 01, Payments & Stablecoins.** Track 01 asks something Kawal can answer without a stretch: "effective Sui/stablecoin use," and its own Ideas list names **"stablecoin wallets, treasury, escrow"** — which is a literal, undefended description of what `SeniorityPolicy` and `TransferRequest` do.
 
-**Deliberate decoupling — resilience against a partial build.** Layers 0 and 3 (Gonka Router scoring) run entirely off-chain and need zero Sui code to demo; Layers 1–2 (circuit breaker, Seniority Mode) need zero Gonka Router calls to demo — the transfer-tier logic accepts a risk score as input regardless of who produced it. If the extension's live DOM read is flaky on demo day, the Sui-side submission still stands on its own with a scripted risk score. If Gonka Router quota or latency is a problem during the Gonka-track demo, that submission doesn't depend on the Sui contract being deployed at all. Two submissions, two independently-complete demos, from one build.
+**Why Sui specifically, not a database with the same rules in it** — the stub-it-out test, run honestly:
+
+| Piece | Remove Sui — still works? |
+|---|---|
+| Gonka scoring, Circuit Breaker glue | Yes, unaffected — this is why it's a separate track submission (Gonka), not evidence against Sui here |
+| `SeniorityPolicy` / `TransferRequest` / `WalletGuard` tiered approval, cooldown, denylist | **No** — this is the thing being submitted to Track 01 |
+| zkLogin | **No**, not without re-centralizing custody in our own backend |
+| Sponsored transactions | **No**, not without the elder needing to hold gas |
+
+Three reasons the chain matters here, not just "logic lives in a `TransferRequest` object instead of a Postgres row":
+
+1. **The asset is already there.** The target user (§1) receives money as stablecoins because her family routes it that way, not because Kawal chose to put a Web2 idea on-chain. Protecting stablecoins that already live on Sui is the payments-track use case as-written, not an add-on to it.
+2. **Tamper-evidence a database can't give you.** A guardian threshold or cooldown window enforced in our own backend is one `UPDATE` statement away from us — the operator — quietly changing it. Enforced as a Move object, it isn't; the elder's own pre-committed policy (§7) is only credible as "can't be walked through live" if even we can't bypass it.
+3. **Non-custodial without the UX cost.** zkLogin is the one piece here with no clean Web2 equivalent: OAuth-simple sign-in *and* self-custody in the same primitive. Recreating "elder logs in with Google, no seed phrase" in Web2 means either a seed phrase (dealbreaker for this user) or Kawal holding the keys (recreates the custody risk the whole product exists to avoid).
+
+**Deliberate decoupling — resilience against a partial build.** Layers 0 and 3 (Gonka Router scoring) run entirely off-chain and need zero Sui code to demo; Layers 1–2 (circuit breaker, Seniority Mode) need zero Gonka Router calls to demo — the transfer-tier logic accepts a risk score as input regardless of who produced it. This is why the two submissions split cleanly: **Gonka (AI for Society)** gets Layers 0+3 on their own merits, **Sui Track 01** gets Layers 1+2 on theirs. If the extension's live DOM read is flaky on demo day, the Sui-side submission still stands on its own with a scripted risk score. If Gonka Router quota or latency is a problem during the Gonka-track demo, that submission doesn't depend on the Sui contract being deployed at all. Two submissions, two independently-complete demos, from one build — and neither has to defend an AI-Sui entanglement that doesn't exist.
 
 ## 6. Architecture
 
