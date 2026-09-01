@@ -3,3 +3,9 @@
 
 .env
 
+# Move build artifacts (Move.lock is still tracked)
+shou/move/build/
+
+# Node
+node_modules/
+

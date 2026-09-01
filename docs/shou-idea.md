@@ -1,10 +1,10 @@
-# Kawal — PRD (Sui: Payments & Stablecoins + Gonka: AI for Society)
+# SHOU — PRD (Sui: Payments & Stablecoins + Gonka: AI for Society)
 
-*Kawal — Malay, "to watch over, to guard."*
+*SHOU — **S**cam-**H**alting **O**n-chain **U**tility. Also 守 (shǒu), Chinese for "to guard, keep watch, defend." Working name during early design was "Kawal" (Malay for the same thing) — kept the meaning, renamed for the room this pitches to.*
 
 One-liner: **"Detects the scam while it's happening. Slows the money down. Never shows anyone the conversation."**
 
-Status: draft PRD, pre-build. Owner: Hana. Last updated: 2026-09-01.
+Status: draft PRD, pre-build. Owner: Hana. Last updated: 2026-09-02.
 
 ---
 
@@ -60,7 +60,7 @@ Four layers, each answering one failure mode above:
 
 **Gonka — AI for Society.** Passive DOM-based conversation risk scoring and Red Flag evidence scoring both run entirely through Gonka Router — this is Layer 0 and Layer 3, not a bolt-on. It's genuine public-value AI (elder financial abuse), global (not Malaysia-locked), and the mechanism — passive detection instead of reactive self-report — is the part that doesn't already exist in the "chatbot fact-checker" pattern most entries will pitch. *(Adaptation needed: Gonka's preferred submission shape is URL/text-in → Truth Score + reasoning trace + Request ID. Our Layer 0 input is a live DOM stream, not a URL — map each scored message to that same Truth-Score-and-Request-ID shape so the submission still fits their preferred format even though the trigger is passive.)*
 
-**Sui — Track 01, Payments & Stablecoins.** Track 01 asks something Kawal can answer without a stretch: "effective Sui/stablecoin use," and its own Ideas list names **"stablecoin wallets, treasury, escrow"** — which is a literal, undefended description of what `SeniorityPolicy` and `TransferRequest` do.
+**Sui — Track 01, Payments & Stablecoins.** Track 01 asks something SHOU can answer without a stretch: "effective Sui/stablecoin use," and its own Ideas list names **"stablecoin wallets, treasury, escrow"** — which is a literal, undefended description of what `SeniorityPolicy` and `TransferRequest` do.
 
 **Why Sui specifically, not a database with the same rules in it** — the stub-it-out test, run honestly:
 
@@ -73,9 +73,9 @@ Four layers, each answering one failure mode above:
 
 Three reasons the chain matters here, not just "logic lives in a `TransferRequest` object instead of a Postgres row":
 
-1. **The asset is already there.** The target user (§1) receives money as stablecoins because her family routes it that way, not because Kawal chose to put a Web2 idea on-chain. Protecting stablecoins that already live on Sui is the payments-track use case as-written, not an add-on to it.
+1. **The asset is already there.** The target user (§1) receives money as stablecoins because her family routes it that way, not because SHOU chose to put a Web2 idea on-chain. Protecting stablecoins that already live on Sui is the payments-track use case as-written, not an add-on to it.
 2. **Tamper-evidence a database can't give you.** A guardian threshold or cooldown window enforced in our own backend is one `UPDATE` statement away from us — the operator — quietly changing it. Enforced as a Move object, it isn't; the elder's own pre-committed policy (§7) is only credible as "can't be walked through live" if even we can't bypass it.
-3. **Non-custodial without the UX cost.** zkLogin is the one piece here with no clean Web2 equivalent: OAuth-simple sign-in *and* self-custody in the same primitive. Recreating "elder logs in with Google, no seed phrase" in Web2 means either a seed phrase (dealbreaker for this user) or Kawal holding the keys (recreates the custody risk the whole product exists to avoid).
+3. **Non-custodial without the UX cost.** zkLogin is the one piece here with no clean Web2 equivalent: OAuth-simple sign-in *and* self-custody in the same primitive. Recreating "elder logs in with Google, no seed phrase" in Web2 means either a seed phrase (dealbreaker for this user) or SHOU holding the keys (recreates the custody risk the whole product exists to avoid).
 
 **Deliberate decoupling — resilience against a partial build.** Layers 0 and 3 (Gonka Router scoring) run entirely off-chain and need zero Sui code to demo; Layers 1–2 (circuit breaker, Seniority Mode) need zero Gonka Router calls to demo — the transfer-tier logic accepts a risk score as input regardless of who produced it. This is why the two submissions split cleanly: **Gonka (AI for Society)** gets Layers 0+3 on their own merits, **Sui Track 01** gets Layers 1+2 on theirs. If the extension's live DOM read is flaky on demo day, the Sui-side submission still stands on its own with a scripted risk score. If Gonka Router quota or latency is a problem during the Gonka-track demo, that submission doesn't depend on the Sui contract being deployed at all. Two submissions, two independently-complete demos, from one build — and neither has to defend an AI-Sui entanglement that doesn't exist.
 
@@ -92,7 +92,7 @@ Gonka Router — Layer 0 consensus scorer
    3 models vote: scam-pattern classifier → 🟢/🟡/🔴 + Truth Score + Request ID
         │  score + hash of message (not the message) →
         ▼
-Kawal backend (TEE-hosted inference broker)
+SHOU backend (TEE-hosted inference broker)
         │  message content decrypted only inside enclave, never logged, never stored
         │  emits: risk_score, category, hash-anchor record → Sui (Layer 0 audit trail)
         ▼
@@ -159,7 +159,7 @@ This is the part of the pitch that answers a judge asking "so who's actually in 
 
 **Flow B — live scam, transfer blocked:** conversation trends 🔴 ("send RM5,000 to secure your account," urgency language) → elder opens wallet to send → Circuit Breaker sees flagged-conversation × transfer correlation in the same session → transfer enters High tier regardless of amount → guardian notified with risk category + amount + recipient novelty ("first time sending to this address") → guardian approves/blocks → PTB only executes on threshold met.
 
-**Flow C — Red Flag report:** guardian or elder reports a wallet address post-incident → Gonka Router agent scores the evidence (screenshots, transaction hash, description) → soft ban applied within the minute (blocks transfers *to* that address across all Kawal users, daily-necessity-sized transfers elsewhere unaffected) → staff queue ranked by `amount_at_risk × plausibility_score` → staff confirms or lifts.
+**Flow C — Red Flag report:** guardian or elder reports a wallet address post-incident → Gonka Router agent scores the evidence (screenshots, transaction hash, description) → soft ban applied within the minute (blocks transfers *to* that address across all SHOU users, daily-necessity-sized transfers elsewhere unaffected) → staff queue ranked by `amount_at_risk × plausibility_score` → staff confirms or lifts.
 
 ## 9. Privacy design
 
@@ -175,7 +175,7 @@ Who pays, and why now — not a hackathon afterthought:
 - **The buyer is the bank/e-wallet/remittance operator, not the elder.** Regulation just turned elder-scam losses from "sad but not our liability" into a direct balance-sheet cost for financial institutions:
   - **Singapore's Shared Responsibility Framework** (live 16 Dec 2024): a bank bears the *full* scam loss if it breached a duty — including running real-time fraud surveillance and offering a 12-hour cooling-off period after new-device login/token activation. No liability cap. ([MAS](https://www.mas.gov.sg/news/media-releases/2024/mas-and-imda-announce-implementation-of-shared-responsibility-framework-from-16-december-2024), [Herbert Smith Freehills Kramer](https://www.hsfkramer.com/notes/data/2024-posts/financial-institutions-and-telcos-required-to-share-responsibility-for-phishing-scams-in-singapore))
   - **UK PSR APP fraud reimbursement** (live 7 Oct 2024): sending and receiving banks split scam losses 50/50, mandatory reimbursement within 5 business days, up to £85,000 per claim. ([PSR](https://www.psr.org.uk/information-for-consumers/app-fraud-reimbursement-protections/), [Hogan Lovells](https://www.hoganlovells.com/en/publications/app-fraud-mandatory-reimbursement-uk-psr-publishes-final-policy-for-7-october-2024-go-live-date))
-  - Malaysia (BNM) is watching both models. A bank facing this liability shift now has a direct financial reason to pay for a pre-transfer risk layer instead of eating the reimbursement after the fact — Kawal is the "real-time fraud surveillance + cooling-off" duty from the Singapore framework, productized.
+  - Malaysia (BNM) is watching both models. A bank facing this liability shift now has a direct financial reason to pay for a pre-transfer risk layer instead of eating the reimbursement after the fact — SHOU is the "real-time fraud surveillance + cooling-off" duty from the Singapore framework, productized.
 - **Revenue model:** B2B2C SaaS — license Seniority Mode + the Circuit Breaker as an embeddable risk layer to a wallet/remittance app (per-active-guarded-account fee), not a consumer subscription competing with free antivirus-style tools. A bank/e-wallet pays because it now reduces their own reimbursement exposure, not out of goodwill.
 - **Secondary, smaller revenue:** the diaspora-family angle from Section 1 supports a direct-to-consumer tier too (a working-abroad adult child pays a few dollars a month to protect a parent's account) — same precedent as Life360's guardian-pays model, just for money instead of location.
 - **Why now, not five years ago:** the regulatory liability shift is 2024–2025, live in two major jurisdictions already. This is a market that didn't financially exist for banks until last year.
@@ -185,8 +185,8 @@ Who pays, and why now — not a hackathon afterthought:
 Named honestly, because a hand-waved compliance section is worse than a short one that admits the real blocker:
 
 - **WhatsApp's Terms of Service prohibit automated/scraped access to WhatsApp Web** — this is the single biggest blocker in the whole pitch, and it's real, not hypothetical. DOM-reading via a content script for a hackathon demo (self-hosted test conversation, our own accounts) doesn't touch a real user at scale, but it is **not a viable production integration** as specified. Production path: **WhatsApp Business API** (Meta-sanctioned, message content available via webhook to a business account the user has explicitly connected) instead of scraping the consumer client — same detection logic, different message source, fully ToS-compliant. State this plainly in the pitch; a judge who knows WhatsApp's ToS will ask, and "we know, here's the compliant production path" lands far better than pretending the scraping approach ships as-is.
-- **Data protection (Malaysia PDPA / GDPR-shaped regimes elsewhere):** reading a private conversation, even passively, is processing personal data of two people — the elder *and* whoever she's talking to, who never consented to Kawal reading anything. Mitigation: TEE-only content access with no persistence (Section 9) narrows this to processing-not-storage, and the production WhatsApp Business API path above requires the elder's explicit opt-in connection, which supplies her side of consent; the counterparty's data is processed only transiently for risk-scoring, a narrower claim than "we retain and analyze your messages."
-- **Not a money transmitter:** Kawal never custodies funds — the elder's own zkLogin key authorizes every transfer; Kawal only vetoes or delays via the Move policy she pre-set. This keeps it out of money-transmission licensing territory that a custodial escrow product (like our Pact idea) would have to face head-on.
+- **Data protection (Malaysia PDPA / GDPR-shaped regimes elsewhere):** reading a private conversation, even passively, is processing personal data of two people — the elder *and* whoever she's talking to, who never consented to SHOU reading anything. Mitigation: TEE-only content access with no persistence (Section 9) narrows this to processing-not-storage, and the production WhatsApp Business API path above requires the elder's explicit opt-in connection, which supplies her side of consent; the counterparty's data is processed only transiently for risk-scoring, a narrower claim than "we retain and analyze your messages."
+- **Not a money transmitter:** SHOU never custodies funds — the elder's own zkLogin key authorizes every transfer; SHOU only vetoes or delays via the Move policy she pre-set. This keeps it out of money-transmission licensing territory that a custodial escrow product (like our Pact idea) would have to face head-on.
 - **Guardianship / capacity law:** Seniority Mode deliberately never makes a competency determination — the elder opts in and sets her own thresholds while not under duress (Section 7, Section 13). This sidesteps needing formal legal guardianship status for the "family" role, which varies by jurisdiction and would otherwise be a real blocker to launching anywhere without a lawyer first.
 
 ## 12. Hackathon MVP — what actually gets built
