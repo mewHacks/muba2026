@@ -144,6 +144,7 @@ Both are named "helpful features" for Track 01 and our whole UX claim ("Google s
 - **D2.** Is the Mysten **prover** available for testnet, and are there rate limits we'd hit during a live demo?
 - **D3.** Sponsored transactions: hosted sponsor/paymaster for testnet, or roll our own relayer? Smallest correct implementation for a demo?
 - **D4.** Does a zkLogin signer compose cleanly with our shared-object PTBs, or are there gotchas with `maxEpoch` expiring mid-demo?
+- **D5.** A zkLogin address is derived, not a keypair — no seed phrase, no export, and access dies with the salt or the OAuth client ID. For a product holding an elderly user's remittance, we plan to put the zkLogin signer inside a **multisig** with the guardian holding an ordinary keypair as the recovery path. Is that the pattern you'd recommend, and are there gotchas combining a zkLogin signer with a multisig on shared objects?
 
 ---
 

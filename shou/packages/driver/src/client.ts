@@ -449,6 +449,12 @@ export class SuiShouClient implements ShouClient {
     return { banned: true };
   }
 
+  /** Total balance of `coinType` held by `owner`, in base units. */
+  async balanceOf(owner: string, coinType: string = SUI_COIN_TYPE): Promise<bigint> {
+    const { balance } = await this.client.getBalance({ owner, coinType });
+    return BigInt((balance as { balance?: string })?.balance ?? 0);
+  }
+
   async isAmountBlocked(denyListId: string, address: string, amount: number): Promise<boolean> {
     const tx = new Transaction();
     tx.moveCall({

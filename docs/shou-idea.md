@@ -13,7 +13,7 @@ Status: draft PRD, pre-build. Owner: Hana. Last updated: 2026-09-02.
 - US, FBI IC3 2024: adults 60+ filed the most fraud complaints of any age group (147,000+) and reported **$4.8–4.9B in losses, up 43% year over year**; crypto-related scams alone cost this group **$2.8B**. Average loss per victim: **$83,000**. ([AARP](https://www.aarp.org/money/scams-fraud/fbi-report-fraud-2024/), [TRM Labs](https://www.trmlabs.com/resources/blog/a-record-breaking-year-for-cybercrime-key-findings-from-the-fbis-2024-ic3-report))
 - Malaysia, Bukit Aman: senior citizens lost **RM552.5M to online scams from 2021–2023** (5,533 victims) — a smaller share of victims than other age groups, but a disproportionately larger loss per victim. ([FMT](https://www.freemalaysiatoday.com/category/nation/2024/05/27/senior-citizens-lost-half-a-billion-ringgit-to-online-fraud-over-3-years)) 2024 alone: **RM40.6M** in elderly financial-scam losses, the highest of the past five years. Love scams targeting elderly women hit **RM45.9M in 2024**, up from RM43.9M in 2023 — **Facebook and WhatsApp are the two most-used contact points**. ([Malay Mail](https://www.malaymail.com/news/malaysia/2025/01/10/lonely-hearts-exploited-love-scams-prey-on-elderly-women-causing-rm459m-in-losses-in-2024-facebook-whatsapp-apps-of-choice-to-find-victims/162742))
 
-**Target user, precisely:** not "elderly people," which is too broad to build UX for — the SEA family where an adult child works abroad or earns in crypto/stablecoins and sends money home to a parent who isn't crypto-native herself. She doesn't choose to hold stablecoins; her family routes money to her that way because it's cheaper and faster than a bank wire (see the $8.9T-in-6-months 2025 stablecoin remittance volume figure). She experiences the wallet as "money that appears," never as a crypto decision — which is exactly why zkLogin (Google sign-in, no seed phrase) is load-bearing, not decorative.
+**Target user, precisely:** not "elderly people," which is too broad to build UX for — the SEA family where an adult child works abroad or earns in crypto/stablecoins and sends money home to a parent who isn't crypto-native herself. She doesn't choose to hold stablecoins; her family routes money to her that way because it's cheaper and faster than a bank wire (see the $8.9T-in-6-months 2025 stablecoin remittance volume figure). She experiences the wallet as "money that appears," never as a crypto decision — which is exactly why zkLogin (Google sign-in, no seed phrase) is load-bearing, not decorative. See §4 for the custody caveat that comes with it, and how the guardian covers it.
 
 **The failure mode every existing tool misses:** the moment a scam works is the moment the victim is under live social-engineering pressure — urgency, authority, secrecy ("don't tell your family, the bank asked me not to say"). No elderly victim, mid-scam, is going to calmly copy-paste the conversation into a fact-checker. By the time a family member finds out, the transfer already happened.
 
@@ -79,6 +79,27 @@ That is not a gap in the design; it is the design.
 
 **The design point worth saying out loud: the funder is the guardian.** The son sending money home is the same person named as an approver on large withdrawals. He does not need separate recruiting, he is already engaged every month, and his incentives are exactly aligned — it is his money she is being asked to send to a stranger. Most guardian systems struggle to get the guardian to show up; here, funding the wallet *is* showing up.
 
+### zkLogin: what it actually buys, and what it costs
+
+State this accurately, because it is easy to overclaim and a Sui judge will know the difference.
+
+**What zkLogin genuinely gives us:** she signs in with Google. There is no seed phrase — so there is nothing to lose, and nothing a scammer can talk her into reciting. *"Ma'am, please confirm your twelve recovery words"* has no answer. For this user that removes an entire loss category.
+
+**What it does not give us: durable custody.** A zkLogin address is *derived*, not a keypair. There is no private key to export, so the wallet cannot be ported into Slush, MetaMask or anything else, and it cannot be recovered from a phrase. Access depends on three things all staying alive:
+
+1. her Google account,
+2. the per-user salt (lose it and the address is unreachable even with a valid login),
+3. our OAuth client ID — a different `aud` derives a *different* address.
+
+Lose any one and the funds are permanently unreachable. **zkLogin is therefore not appropriate as the sole custody model for money that matters** — which, for a product holding an elderly person's remittance, is a tension we have to answer rather than gloss.
+
+**Two answers, and we take both:**
+
+- **zkLogin inside a Sui multisig.** Her zkLogin signer is one key; the guardian holds an ordinary keypair as the recovery path. If the salt is lost, Google locks her out, or SHOU disappears, her son can still reach the funds. The elegant part is that this adds no new role — the guardian already exists as an approver on large transfers (§7). zkLogin's sharpest weakness is covered by a piece the product already has.
+- **Frame it as a spending account, not a savings account.** She receives a monthly remittance for living expenses. Her life savings do not belong here, and the product never asks them to. This costs nothing to say because it is already the story in §1.
+
+The line for the pitch: zkLogin removes the seed phrase. **The guardian, not zkLogin, is what makes losing access survivable.**
+
 ## 5. Track fit
 
 **Gonka — AI for Society.** Passive DOM-based conversation risk scoring and Red Flag evidence scoring both run entirely through Gonka Router — this is Layer 0 and Layer 3, not a bolt-on. It's genuine public-value AI (elder financial abuse), global (not Malaysia-locked), and the mechanism — passive detection instead of reactive self-report — is the part that doesn't already exist in the "chatbot fact-checker" pattern most entries will pitch. *(Adaptation needed: Gonka's preferred submission shape is URL/text-in → Truth Score + reasoning trace + Request ID. Our Layer 0 input is a live DOM stream, not a URL — map each scored message to that same Truth-Score-and-Request-ID shape so the submission still fits their preferred format even though the trigger is passive.)*
@@ -98,7 +119,7 @@ Three reasons the chain matters here, not just "logic lives in a `TransferReques
 
 1. **The asset is already there.** The target user (§1) receives money as stablecoins because her family routes it that way, not because SHOU chose to put a Web2 idea on-chain. Protecting stablecoins that already live on Sui is the payments-track use case as-written, not an add-on to it.
 2. **Tamper-evidence a database can't give you.** A guardian threshold or cooldown window enforced in our own backend is one `UPDATE` statement away from us — the operator — quietly changing it. Enforced as a Move object, it isn't; the elder's own pre-committed policy (§7) is only credible as "can't be walked through live" if even we can't bypass it.
-3. **Non-custodial without the UX cost.** zkLogin is the one piece here with no clean Web2 equivalent: OAuth-simple sign-in *and* self-custody in the same primitive. Recreating "elder logs in with Google, no seed phrase" in Web2 means either a seed phrase (dealbreaker for this user) or SHOU holding the keys (recreates the custody risk the whole product exists to avoid).
+3. **Non-custodial without the UX cost.** zkLogin is the one piece here with no clean Web2 equivalent: OAuth-simple sign-in *and* self-custody in the same primitive. Recreating "elder logs in with Google, no seed phrase" in Web2 means either a seed phrase (dealbreaker for this user) or SHOU holding the keys (recreates the custody risk the whole product exists to avoid). What zkLogin buys is *onboarding*, not custody safety — see §4.
 
 **Deliberate decoupling — resilience against a partial build.** Layers 0 and 3 (Gonka Router scoring) run entirely off-chain and need zero Sui code to demo; Layers 1–2 (circuit breaker, Seniority Mode) need zero Gonka Router calls to demo — the transfer-tier logic accepts a risk score as input regardless of who produced it. This is why the two submissions split cleanly: **Gonka (AI for Society)** gets Layers 0+3 on their own merits, **Sui Track 01** gets Layers 1+2 on theirs. If the extension's live DOM read is flaky on demo day, the Sui-side submission still stands on its own with a scripted risk score. If Gonka Router quota or latency is a problem during the Gonka-track demo, that submission doesn't depend on the Sui contract being deployed at all. Two submissions, two independently-complete demos, from one build — and neither has to defend an AI-Sui entanglement that doesn't exist.
 
