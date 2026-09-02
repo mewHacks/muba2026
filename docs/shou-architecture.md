@@ -156,7 +156,13 @@ Nautilus-pattern attestation, so §9's privacy claim is enforced rather than pro
 
 **PRODUCTION GAP, stated plainly:** a complete Nautilus deployment passes the raw AWS attestation document to `register_enclave` and verifies its COSE signature and certificate chain on-chain — that is what proves the key came from an enclave running the measured code. That parsing lives in Mysten's Nautilus Move library and is not reimplemented here; registration is AdminCap-gated instead. **Signature verification is fully real; the *provenance* of the registered key currently rests on the admin rather than on AWS's root of trust.** Do not describe this as a verified enclave in the pitch until that swap is made and it is running on a Nitro instance.
 
-**Verified end to end on testnet, through `client.ts` rather than the CLI** (`shou/packages/driver/src/e2e.ts`, 7 steps):
+**Verified end to end on testnet in real USDC**, through `client.ts` rather than the CLI (`shou/packages/driver/src/e2e.ts`, 7 steps). The escrowed object is genuinely stablecoin-typed:
+
+```
+TransferRequest<0xa1ec7fc0…::usdc::USDC>   executed: true, funds: 0, tier: HIGH
+```
+
+Run it with `SHOU_COIN_TYPE=0x2::sui::SUI` to fall back to SUI. Steps:
 
 1. enclave build + live public key registered on-chain
 2. scam message scored **inside** the enclave — HIGH

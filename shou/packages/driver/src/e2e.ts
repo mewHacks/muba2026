@@ -23,12 +23,19 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
-import { SuiShouClient } from './client.ts';
+import { SuiShouClient, TESTNET_USDC } from './client.ts';
 import type { EnclaveAttestation } from './types.ts';
 
 const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3000';
 const PACKAGE_ID = process.env.SHOU_PACKAGE_ID ?? readPublishedPackageId();
-const AMOUNT = Number(process.env.SHOU_AMOUNT ?? 1_000_000); // 0.001 SUI
+// Defaults to real testnet USDC — this is a payments product, and the
+// asset the elder actually holds is a stablecoin her family sent, not a
+// volatile native token. Override with SHOU_COIN_TYPE to use SUI.
+const COIN_TYPE = process.env.SHOU_COIN_TYPE ?? TESTNET_USDC;
+const IS_USDC = COIN_TYPE === TESTNET_USDC;
+// USDC has 6 decimals, so 2_000_000 = 2.00 USDC.
+const AMOUNT = Number(process.env.SHOU_AMOUNT ?? (IS_USDC ? 2_000_000 : 1_000_000));
+const UNIT = IS_USDC ? 'USDC' : 'SUI';
 const SESSION_ID = `e2e-${Date.now()}`;
 
 const SCAM_MESSAGE =
@@ -78,6 +85,8 @@ async function main(): Promise<void> {
   const me = keypair.toSuiAddress();
   console.log(`package : ${PACKAGE_ID}`);
   console.log(`sender  : ${me}`);
+  console.log(`asset   : ${UNIT} (${COIN_TYPE})`);
+  console.log(`amount  : ${(AMOUNT / 1e6).toFixed(2)} ${UNIT}`);
 
   const client = new SuiShouClient({ packageId: PACKAGE_ID, network: 'testnet', signer: keypair });
 
@@ -155,13 +164,14 @@ async function main(): Promise<void> {
     enclaveId,
     attested.attestation,
     attested.signature,
+    COIN_TYPE,
   );
   console.log(`    request=${request.requestId}`);
   console.log(`    chain assigned tier=${request.tier}, status=${request.status}`);
 
   step(6, 'Try to release it with no approval — this must fail');
   try {
-    await client.executeTransfer(request.requestId, policyId);
+    await client.executeTransfer(request.requestId, policyId, COIN_TYPE);
     console.error('    !! FAILED: the transfer executed without approval');
     process.exitCode = 1;
     return;
@@ -177,9 +187,9 @@ async function main(): Promise<void> {
   }
 
   step(7, 'Guardian approves, then the money moves');
-  const approved = await client.approveTransfer(request.requestId, policyId);
+  const approved = await client.approveTransfer(request.requestId, policyId, COIN_TYPE);
   console.log(`    after approval: status=${approved.status}, approvals=${approved.approvals.length}`);
-  const executed = await client.executeTransfer(request.requestId, policyId);
+  const executed = await client.executeTransfer(request.requestId, policyId, COIN_TYPE);
   console.log(`    after execute : status=${executed.status}`);
 
   if (executed.status !== 'EXECUTED') {
