@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SHOU — zkLogin</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; }
+  h1 { font-size: 1.25rem; margin-bottom: .25rem; }
+  .sub { color: #666; margin-top: 0; }
+  .card { border: 1px solid #ddd; border-radius: .5rem; padding: 1.25rem; margin: 1.5rem 0; }
+  .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #666; }
+  code { display: block; word-break: break-all; font-size: .9rem; margin-top: .25rem; }
+  button { font: inherit; padding: .6rem 1.1rem; border-radius: .4rem; border: 1px solid #333;
+           background: #111; color: #fff; cursor: pointer; }
+  button[hidden] { display: none; }
+  .detail { color: #666; font-size: .9rem; }
+</style>
+</head>
+<body>
+  <h1>SHOU — sign in</h1>
+  <p class="sub">The elder's wallet. Google sign-in, no seed phrase.</p>
+
+  <div class="card">
+    <div class="label">Status</div>
+    <div id="status">Loading…</div>
+    <div class="detail" id="detail"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Sui address</div>
+    <code id="address">—</code>
+  </div>
+
+  <button id="signin" hidden>Sign in with Google</button>
+  <button id="signout" hidden>Sign out</button>
+
+  <div class="card">
+    <div class="label">Diagnostics</div>
+    <pre id="debug" style="white-space:pre-wrap;font-size:.8rem;color:#444;margin:.25rem 0 0"></pre>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
