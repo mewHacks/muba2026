@@ -123,7 +123,7 @@ Dev A never imports Gonka Router — `RiskAssessment` arrives already scored.
 
 | | |
 |---|---|
-| Package ID | `0xca22881f7d75c28f9df1a5e4f4572056f60a67c5d3fa29186ff71a8938464953` |
+| Package ID | `0xf7f053a2483dcc7e67dd02c007307d845ee15489ae97f107f2aaaf7e0cb9c003` |
 | Modules | `policy`, `redflag`, `enclave` |
 | Tests | 37/37 passing (`sui move test`) |
 
@@ -155,6 +155,22 @@ Nautilus-pattern attestation, so §9's privacy claim is enforced rather than pro
 **Verified, not assumed:** `genuine_enclave_signature_verifies` checks a real ed25519 signature produced by the enclave against the bytes Move reconstructs. That test is also the guard against the TS and Move BCS layouts silently drifting apart — the failure mode where every real signature stops verifying on-chain and nothing else tells you.
 
 **PRODUCTION GAP, stated plainly:** a complete Nautilus deployment passes the raw AWS attestation document to `register_enclave` and verifies its COSE signature and certificate chain on-chain — that is what proves the key came from an enclave running the measured code. That parsing lives in Mysten's Nautilus Move library and is not reimplemented here; registration is AdminCap-gated instead. **Signature verification is fully real; the *provenance* of the registered key currently rests on the admin rather than on AWS's root of trust.** Do not describe this as a verified enclave in the pitch until that swap is made and it is running on a Nitro instance.
+
+**Verified end to end on testnet, through `client.ts` rather than the CLI** (`shou/packages/driver/src/e2e.ts`, 7 steps):
+
+1. enclave build + live public key registered on-chain
+2. scam message scored **inside** the enclave — HIGH
+3. elder policy created
+4. enclave signs a verdict bound to that exact policy/recipient/amount
+5. attested transfer submitted — **chain assigned HIGH, status NEEDS_APPROVAL**
+6. release attempted with no approval — **refused, `EThresholdNotMet`**
+7. guardian approves → status APPROVED → executed
+
+Four real bugs only surfaced by running it, all invisible to the 37 passing unit tests:
+- `Clock` trails wall-clock time, so a correctly signed attestation aborted as `EAttestationFromFuture` (fixed with a 60s skew tolerance)
+- on-chain types are fully qualified (`0x0000…0002::sui::SUI`), so matching `0x2::sui::SUI` never hit
+- gRPC effects omit `objectType`, needing a follow-up read, and `idOperation` is `'Created'` not `'CREATED'`
+- `getObject` needs `include: { json: true }`; `content` alone returns raw BCS bytes
 
 **The demo moment this earns:** tell the contract a large transfer is LOW risk, and watch it refuse anyway. That is the difference between "our AI decides" and "the elder's own policy decides, and the chain enforces it" — and it is the honest answer to *"what if your AI is wrong, or compromised?"*
 

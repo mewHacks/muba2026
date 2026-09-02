@@ -83,17 +83,27 @@ async function findCreatedObjectId(
   result: ExecutedTransaction,
   typeSuffix: string,
 ): Promise<string> {
+  // On-chain types come back fully qualified: a generic parameter reads
+  // as 0x0000...0002::sui::SUI, not 0x2::sui::SUI. Normalising both
+  // sides keeps this working for any coin type, USDC included.
+  // Compare only the part before the generic parameter. On-chain types
+  // come back fully qualified (0x0000...0002::sui::SUI, not 0x2::sui::SUI),
+  // so matching the whole string is brittle — and only one object of a
+  // given struct is created per call anyway.
+  const base = (t: string): string => t.split('<')[0]!;
+  const wanted = base(typeSuffix);
+  const matches = (candidate: string): boolean =>
+    Boolean(candidate) && base(candidate).endsWith(wanted);
+
   const created = (result.effects?.changedObjects ?? []).filter(
     (change) => change.idOperation === 'Created',
   );
   for (const change of created) {
-    const inline = change.objectType ?? '';
-    if (inline.endsWith(typeSuffix)) return change.objectId;
+    if (matches(change.objectType ?? '')) return change.objectId;
   }
   for (const change of created) {
     const { object } = await client.getObject({ objectId: change.objectId });
-    const objectType = (object as { type?: string } | undefined)?.type ?? '';
-    if (objectType.endsWith(typeSuffix)) return change.objectId;
+    if (matches((object as { type?: string } | undefined)?.type ?? '')) return change.objectId;
   }
   throw new Error(`No created object matching "${typeSuffix}" in transaction ${result.digest}`);
 }
@@ -357,15 +367,17 @@ export class SuiShouClient implements ShouClient {
   }
 
   async getTransferStatus(requestId: string): Promise<TransferState> {
+    // `json` is the decoded Move struct; `content` is raw BCS bytes, so
+    // asking for content alone gives you an unreadable byte array.
     const { object } = await this.client.getObject({
       objectId: requestId,
-      include: { content: true },
+      include: { json: true },
     });
-    const content = (object as { content?: { json?: unknown } } | undefined)?.content?.json;
-    if (!content) {
+    const decoded = (object as { json?: unknown } | undefined)?.json;
+    if (!decoded) {
       throw new Error(`TransferRequest ${requestId} not found or has no readable content`);
     }
-    const fields = content as {
+    const fields = decoded as {
       approvals: string[];
       executed: boolean;
       blocked: boolean;
