@@ -6,7 +6,60 @@ Everything below came out of actually building it. Blockers are real and reprodu
 
 ---
 
-## A. Blockers hit while building (highest value — ask these first)
+## Z. Judging-alignment questions (ask these FIRST — he is also a judge)
+
+How to open, so this reads as mentorship rather than fishing for favour:
+
+> "We've got a working Move package on testnet with 37 tests and one security hole we found and fixed by attacking our own deployment. I've got three days left and I'd rather spend them on what the track actually rewards than guess. Can I run a few tradeoffs past you?"
+
+That earns the right to ask everything below: it shows work first, and asks him to arbitrate tradeoffs rather than hand you answers.
+
+### Tier 1 — his answer changes what you build this week
+
+**Z1. The stablecoin gap.** *"Track 01 is Payments & Stablecoins. Our contracts are generic over `Coin<T>`, but every demo transfer is SUI because we couldn't find a canonical testnet stablecoin. How much does demoing in a real stablecoin weigh in scoring — and is there one you'd point us at?"*
+→ Biggest track-fit risk we have. If he names a coin, it's an hour of work to fix. Ask this first.
+
+**Z2. Is a guardrail a payments product?** *"SHOU doesn't move money in a new way — it stops money from moving wrongly. Does that read to you as a payments product, or as security tooling sitting in the wrong track?"*
+→ Uncomfortable but the highest-value question here. If the answer is "wrong track," you need to know now, not at judging. If the answer is "no, that counts," you can lean into it hard in the pitch.
+
+**Z3. Depth or breadth, with three days left.** *"We have four layers: passive detection, a circuit breaker, the on-chain policy, and scam reporting. The chain layer is deep and adversarially tested; the others are thinner. The brief says complete beats complex — concretely, do you reward one complete vertical slice, or the whole architecture shown shallowly?"*
+→ Makes "complete > complex" actionable instead of a slogan.
+
+### Tier 2 — sharpens the pitch itself
+
+**Z4. Does the security demo land?** *"Our strongest moment is telling the contract a large transfer is low-risk and watching it refuse anyway, because the policy escalates on amount independently of the AI. In a 3-minute pitch, does that land — or is it too inside-baseball for a mixed panel?"*
+→ Judges know what plays to judges. This is worth more than any amount of guessing.
+
+**Z5. Does honest incompleteness help or hurt?** *"We implemented the Nautilus signing and on-chain verification pattern, but we can't provision a Nitro instance, so key registration is admin-gated and we label that gap explicitly in the code and the deck. Does an honestly-labelled partial implementation read as rigour, or just as incomplete?"*
+→ Genuinely uncertain, and his answer decides whether it's worth burning a day on an AWS Nitro deployment.
+
+**Z6. What does commercial viability mean here?** *"We were told commercial viability weighs heaviest. Our buyer is a bank or e-wallet reducing its own scam-reimbursement liability under the 2024 Singapore and UK rules — not the elderly user. Does a B2B2C story satisfy that, or do you want evidence of consumer willingness to pay?"*
+→ Targets the criterion the mentors said matters most, and tests whether our §10 argument actually convinces someone scoring it.
+
+### Tier 3 — cheap, and unusually high signal
+
+**Z7.** *"What's the most common way a good project loses points in this track?"*
+→ Pet peeves. Best value-per-second question you can ask any judge.
+
+**Z8.** *"Live testnet demo or recorded? Have you seen live demos fail on network flakiness here?"*
+→ Practical, and the answer is a decision you have to make anyway.
+
+**Z9. Save this for the very end, after he's seen what we have:** *"If this were your codebase and you had three days, what would you spend them on?"*
+→ The single best question in this list, but it only works once he understands the project. Asked cold, it gets a generic answer.
+
+### Do NOT ask
+
+- Anything answered in `tracks.md` — it signals you didn't read the brief and burns goodwill.
+- "Do you think we'll win?" / "Is our idea good?" — puts a judge in an awkward spot and gets a non-answer.
+- Anything that's really a pitch in disguise. Ask, listen, take notes, stop talking.
+
+### Capture the answers
+
+Write down Z1, Z2 and Z6 verbatim. Those three change the build; the rest change the telling.
+
+---
+
+## A. Blockers hit while building (technical — ask if time allows)
 
 ### A1. JSON-RPC is dead on public full nodes, and it broke us silently
 Our driver used `SuiClient` from `@mysten/sui` v1.45.2. Every write failed with:
