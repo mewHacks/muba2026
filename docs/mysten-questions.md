@@ -16,8 +16,8 @@ That earns the right to ask everything below: it shows work first, and asks him 
 
 ### Tier 1 — his answer changes what you build this week
 
-**Z1. The stablecoin gap.** *"Track 01 is Payments & Stablecoins. Our contracts are generic over `Coin<T>`, but every demo transfer is SUI because we couldn't find a canonical testnet stablecoin. How much does demoing in a real stablecoin weigh in scoring — and is there one you'd point us at?"*
-→ Biggest track-fit risk we have. If he names a coin, it's an hour of work to fix. Ask this first.
+**Z1. ~~The stablecoin gap.~~ ANSWERED — do not ask.**
+Circle's USDC is on Sui testnet at `0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC`, faucet at faucet.circle.com (select Sui Testnet). The driver now uses `coinWithBalance`, which works for any coin type. The demo runs in USDC.
 
 **Z2. Is a guardrail a payments product?** *"SHOU doesn't move money in a new way — it stops money from moving wrongly. Does that read to you as a payments product, or as security tooling sitting in the wrong track?"*
 → Uncomfortable but the highest-value question here. If the answer is "wrong track," you need to know now, not at judging. If the answer is "no, that counts," you can lean into it hard in the pitch.
@@ -130,9 +130,7 @@ Seal looks like a better fit for one specific thing in our design: PRD §9 says 
 
 ## C. Track 01 fit — the one that could cost us points
 
-**C1. We're demoing with SUI, not a stablecoin.** Track 01 is "Payments & Stablecoins" and our contracts are generic over `Coin<T>`, but every test moves SUI. Is there a canonical **testnet USDC** (or similar) we should be using, with a faucet? This feels like it matters for track fit and we'd rather fix it than argue around it.
-
-**C2.** Our `requestTransfer` splits the payment from the gas coin, which only works because the coin type *is* SUI. For a real stablecoin the caller must supply coin objects explicitly. Is there a cleaner idiomatic pattern for "take N of coin type T from the sender" inside a PTB?
+**C1 and C2 — resolved ourselves, no need to ask.** Testnet USDC is `0xa1ec7fc0...::usdc::USDC` (faucet.circle.com, select Sui Testnet), and `coinWithBalance` from `@mysten/sui/transactions` is the idiomatic way to take N of any coin type from the sender — it finds, merges and splits automatically. Our earlier `splitCoins(tx.gas, ...)` silently only worked for SUI.
 
 **C3.** Can one project be submitted to **both** Sui tracks, or must we pick one? Thetanuts' brief says explicitly that one entry can take both of theirs; the Sui section doesn't say either way. We're currently targeting Track 01 only.
 

@@ -8,7 +8,7 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import type { Signer } from '@mysten/sui/cryptography';
 
 import type {
@@ -23,6 +23,15 @@ import type {
 const RISK_TIER_CODE: Record<RiskTier, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
 const RISK_TIER_NAME: RiskTier[] = ['LOW', 'MEDIUM', 'HIGH'];
 const SUI_COIN_TYPE = '0x2::sui::SUI';
+
+/**
+ * Circle's USDC on Sui testnet. This is the coin SHOU is actually about:
+ * the elder holds stablecoins her family sent her, not a volatile
+ * native token. Faucet: https://faucet.circle.com (select Sui Testnet).
+ * 6 decimals, so 1 USDC = 1_000_000.
+ */
+export const TESTNET_USDC =
+  '0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC';
 
 const DEFAULT_GRPC_URL: Record<string, string> = {
   testnet: 'https://fullnode.testnet.sui.io:443',
@@ -164,27 +173,14 @@ export class SuiShouClient implements ShouClient {
     recipient: string,
     risk: RiskAssessment,
     coinType: string = SUI_COIN_TYPE,
-    paymentCoinIds?: string[],
   ): Promise<{ requestId: string } & TransferState> {
     const tx = new Transaction();
-
-    // The payment must be a Coin<coinType>. Splitting from tx.gas only
-    // works when coinType IS SUI, since the gas coin is always SUI — for
-    // a stablecoin the caller must supply coins of that type.
-    let payment;
-    if (coinType === SUI_COIN_TYPE) {
-      [payment] = tx.splitCoins(tx.gas, [tx.pure.u64(amount)]);
-    } else {
-      if (!paymentCoinIds || paymentCoinIds.length === 0) {
-        throw new Error(
-          `requestTransfer for ${coinType} requires paymentCoinIds — only SUI can be split from gas`,
-        );
-      }
-      const [primary, ...rest] = paymentCoinIds;
-      const primaryCoin = tx.object(primary!);
-      if (rest.length > 0) tx.mergeCoins(primaryCoin, rest.map((id) => tx.object(id)));
-      [payment] = tx.splitCoins(primaryCoin, [tx.pure.u64(amount)]);
-    }
+    tx.setSender(this.signer.toSuiAddress());
+    // Works for any coin type, stablecoins included: the SDK finds the
+    // sender's coins of that type, merges and splits as needed. An
+    // earlier version split from tx.gas, which silently only worked for
+    // SUI — wrong for a product whose whole premise is stablecoins.
+    const payment = coinWithBalance({ type: coinType, balance: BigInt(amount) });
 
     tx.moveCall({
       target: `${this.packageId}::policy::request_transfer`,
@@ -192,7 +188,7 @@ export class SuiShouClient implements ShouClient {
       arguments: [
         tx.object(policyId),
         tx.object(denyListId),
-        payment!,
+        payment,
         tx.pure.address(recipient),
         tx.pure.u8(RISK_TIER_CODE[risk.tier]),
         tx.object.clock(),
@@ -255,25 +251,11 @@ export class SuiShouClient implements ShouClient {
     attestation: EnclaveAttestation,
     signatureHex: string,
     coinType: string = SUI_COIN_TYPE,
-    paymentCoinIds?: string[],
   ): Promise<{ requestId: string } & TransferState> {
     const tx = new Transaction();
+    tx.setSender(this.signer.toSuiAddress());
     const amount = BigInt(attestation.amount);
-
-    let payment;
-    if (coinType === SUI_COIN_TYPE) {
-      [payment] = tx.splitCoins(tx.gas, [tx.pure.u64(amount)]);
-    } else {
-      if (!paymentCoinIds?.length) {
-        throw new Error(
-          `requestTransferAttested for ${coinType} requires paymentCoinIds — only SUI splits from gas`,
-        );
-      }
-      const [primary, ...rest] = paymentCoinIds;
-      const primaryCoin = tx.object(primary!);
-      if (rest.length) tx.mergeCoins(primaryCoin, rest.map((id) => tx.object(id)));
-      [payment] = tx.splitCoins(primaryCoin, [tx.pure.u64(amount)]);
-    }
+    const payment = coinWithBalance({ type: coinType, balance: amount });
 
     // Rebuild the exact struct the enclave signed. Any drift here and the
     // on-chain ed25519 check fails, which is the intended behaviour.
@@ -299,7 +281,7 @@ export class SuiShouClient implements ShouClient {
         tx.object(enclaveId),
         attestationArg,
         tx.pure.vector('u8', hexToBytes(signatureHex)),
-        payment!,
+        payment,
         tx.pure.address(attestation.recipient),
         tx.object.clock(),
       ],
