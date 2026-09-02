@@ -5,7 +5,8 @@
   "type": "module",
   "main": "src/types.ts",
   "dependencies": {
-    "@mysten/sui": "^1.0.0"
+    "@mysten/sui": "^2.28.0",
+    "@types/node": "^26.4.1"
   },
   "devDependencies": {
     "typescript": "^5.5.0"

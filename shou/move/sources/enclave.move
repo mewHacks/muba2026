@@ -38,6 +38,13 @@ const INTENT_RISK_SCORE: u8 = 0;
 /// the transfer in front of us.
 const FRESHNESS_WINDOW_MS: u64 = 300_000; // 5 minutes
 
+/// Sui's `Clock` advances per checkpoint, so it trails the enclave's
+/// wall clock by a small and variable amount. Without an allowance here,
+/// a correctly-signed attestation is rejected as "from the future"
+/// purely because the chain has not caught up yet — which is exactly
+/// what happened the first time this ran against testnet.
+const CLOCK_SKEW_TOLERANCE_MS: u64 = 60_000; // 1 minute
+
 /// The measurements of the code we expect to be running. Registered
 /// once, from a build anyone can reproduce from the public repo.
 public struct EnclaveConfig has key {
@@ -184,8 +191,14 @@ public fun verify(
     clock: &Clock,
 ) {
     let now = clock.timestamp_ms();
-    assert!(attestation.timestamp_ms <= now, EAttestationFromFuture);
-    assert!(now - attestation.timestamp_ms <= FRESHNESS_WINDOW_MS, EStaleAttestation);
+    if (attestation.timestamp_ms > now) {
+        assert!(
+            attestation.timestamp_ms - now <= CLOCK_SKEW_TOLERANCE_MS,
+            EAttestationFromFuture,
+        );
+    } else {
+        assert!(now - attestation.timestamp_ms <= FRESHNESS_WINDOW_MS, EStaleAttestation);
+    };
 
     let payload = bcs::to_bytes(attestation);
     assert!(
@@ -222,6 +235,9 @@ public fun assert_belongs_to(enclave: &Enclave, config: &EnclaveConfig) {
 
 #[test_only]
 public fun freshness_window_ms(): u64 { FRESHNESS_WINDOW_MS }
+
+#[test_only]
+public fun clock_skew_tolerance_ms(): u64 { CLOCK_SKEW_TOLERANCE_MS }
 
 #[test_only]
 public fun attestation_bytes(attestation: &RiskAttestation): vector<u8> {

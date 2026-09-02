@@ -7,11 +7,12 @@
 // comes from zkLogin + sponsored transactions, not a bare keypair file.
 
 import { bcs } from '@mysten/sui/bcs';
-import { SuiClient, getFullnodeUrl, type SuiTransactionBlockResponse } from '@mysten/sui/client';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import type { Signer } from '@mysten/sui/cryptography';
 
 import type {
+  EnclaveAttestation,
   RiskAssessment,
   RiskTier,
   ShouClient,
@@ -23,9 +24,18 @@ const RISK_TIER_CODE: Record<RiskTier, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
 const RISK_TIER_NAME: RiskTier[] = ['LOW', 'MEDIUM', 'HIGH'];
 const SUI_COIN_TYPE = '0x2::sui::SUI';
 
+const DEFAULT_GRPC_URL: Record<string, string> = {
+  testnet: 'https://fullnode.testnet.sui.io:443',
+  mainnet: 'https://fullnode.mainnet.sui.io:443',
+  devnet: 'https://fullnode.devnet.sui.io:443',
+  localnet: 'http://127.0.0.1:9000',
+};
+
 export interface ShouClientConfig {
   packageId: string;
   network?: 'testnet' | 'mainnet' | 'devnet' | 'localnet';
+  /** Overrides the default full node for the chosen network. */
+  baseUrl?: string;
   signer: Signer;
   /**
    * Required for reportRedFlag — the OracleCap object held by the Gonka
@@ -35,24 +45,64 @@ export interface ShouClientConfig {
   oracleCapId?: string;
 }
 
-function findCreatedObjectId(result: SuiTransactionBlockResponse, typeSuffix: string): string {
-  const created = result.objectChanges?.find(
-    (change) => change.type === 'created' && change.objectType.endsWith(typeSuffix),
+function hexToBytes(hex: string): number[] {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  const bytes: number[] = [];
+  for (let i = 0; i < clean.length; i += 2) bytes.push(parseInt(clean.slice(i, i + 2), 16));
+  return bytes;
+}
+
+interface ChangedObject {
+  objectId: string;
+  idOperation?: string;
+  objectType?: string | null;
+}
+
+interface ExecutedTransaction {
+  digest: string;
+  effects?: { changedObjects?: ChangedObject[] };
+}
+
+/**
+ * gRPC effects report which objects were created but not their types
+ * (objectType comes back absent even with include.objectTypes), so the
+ * type has to be resolved with a follow-up read. Note idOperation is
+ * PascalCase 'Created', not 'CREATED'.
+ */
+async function findCreatedObjectId(
+  client: SuiGrpcClient,
+  result: ExecutedTransaction,
+  typeSuffix: string,
+): Promise<string> {
+  const created = (result.effects?.changedObjects ?? []).filter(
+    (change) => change.idOperation === 'Created',
   );
-  if (!created || created.type !== 'created') {
-    throw new Error(`No created object matching "${typeSuffix}" in transaction ${result.digest}`);
+  for (const change of created) {
+    const inline = change.objectType ?? '';
+    if (inline.endsWith(typeSuffix)) return change.objectId;
   }
-  return created.objectId;
+  for (const change of created) {
+    const { object } = await client.getObject({ objectId: change.objectId });
+    const objectType = (object as { type?: string } | undefined)?.type ?? '';
+    if (objectType.endsWith(typeSuffix)) return change.objectId;
+  }
+  throw new Error(`No created object matching "${typeSuffix}" in transaction ${result.digest}`);
 }
 
 export class SuiShouClient implements ShouClient {
-  private readonly client: SuiClient;
+  private readonly client: SuiGrpcClient;
   private readonly packageId: string;
   private readonly signer: Signer;
   private readonly oracleCapId?: string;
 
   constructor(config: ShouClientConfig) {
-    this.client = new SuiClient({ url: getFullnodeUrl(config.network ?? 'testnet') });
+    const network = config.network ?? 'testnet';
+    // JSON-RPC is deprecated on public full nodes and returns "Method not
+    // found"; gRPC is the supported transport.
+    this.client = new SuiGrpcClient({
+      network,
+      baseUrl: config.baseUrl ?? DEFAULT_GRPC_URL[network]!,
+    });
     this.packageId = config.packageId;
     this.signer = config.signer;
     this.oracleCapId = config.oracleCapId;
@@ -63,18 +113,20 @@ export class SuiShouClient implements ShouClient {
    * so surface the abort name (EWrongDenyList, EThresholdNotMet, ...)
    * that the contract actually raised rather than a generic failure.
    */
-  private async execute(tx: Transaction, action: string): Promise<SuiTransactionBlockResponse> {
+  private async execute(tx: Transaction, action: string): Promise<ExecutedTransaction> {
     try {
       const result = await this.client.signAndExecuteTransaction({
         signer: this.signer,
         transaction: tx,
-        options: { showEffects: true, showObjectChanges: true },
+        include: { effects: true, objectTypes: true },
       });
-      await this.client.waitForTransaction({ digest: result.digest });
-      if (result.effects?.status.status === 'failure') {
-        throw new Error(`${action} failed on-chain: ${result.effects.status.error ?? 'unknown'}`);
+      if (result.$kind === 'FailedTransaction') {
+        throw new Error(
+          result.FailedTransaction.status.error?.message ?? 'transaction failed on-chain',
+        );
       }
-      return result;
+      await this.client.waitForTransaction({ digest: result.Transaction.digest });
+      return result.Transaction as unknown as ExecutedTransaction;
     } catch (cause) {
       const detail = cause instanceof Error ? cause.message : String(cause);
       throw new Error(`${action} failed: ${detail}`, { cause });
@@ -102,7 +154,7 @@ export class SuiShouClient implements ShouClient {
       ],
     });
     const result = await this.execute(tx, 'createPolicy');
-    return { policyId: findCreatedObjectId(result, '::policy::SeniorityPolicy') };
+    return { policyId: await findCreatedObjectId(this.client, result, '::policy::SeniorityPolicy') };
   }
 
   async requestTransfer(
@@ -147,7 +199,118 @@ export class SuiShouClient implements ShouClient {
       ],
     });
     const result = await this.execute(tx, 'requestTransfer');
-    const requestId = findCreatedObjectId(result, `::policy::TransferRequest<${coinType}>`);
+    const requestId = await findCreatedObjectId(
+      this.client,
+      result,
+      `::policy::TransferRequest<${coinType}>`,
+    );
+    return { requestId, ...(await this.getTransferStatus(requestId)) };
+  }
+
+  async registerEnclaveConfig(
+    adminCapId: string,
+    name: string,
+    pcr0: string,
+    pcr1: string,
+    pcr2: string,
+  ): Promise<{ configId: string }> {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${this.packageId}::enclave::create_config`,
+      arguments: [
+        tx.object(adminCapId),
+        tx.pure.vector('u8', Array.from(new TextEncoder().encode(name))),
+        tx.pure.vector('u8', hexToBytes(pcr0)),
+        tx.pure.vector('u8', hexToBytes(pcr1)),
+        tx.pure.vector('u8', hexToBytes(pcr2)),
+      ],
+    });
+    const result = await this.execute(tx, 'registerEnclaveConfig');
+    return { configId: await findCreatedObjectId(this.client, result, '::enclave::EnclaveConfig') };
+  }
+
+  async registerEnclave(
+    configId: string,
+    adminCapId: string,
+    publicKeyHex: string,
+  ): Promise<{ enclaveId: string }> {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${this.packageId}::enclave::create_enclave`,
+      arguments: [
+        tx.object(configId),
+        tx.object(adminCapId),
+        tx.pure.vector('u8', hexToBytes(publicKeyHex)),
+        tx.object.clock(),
+      ],
+    });
+    const result = await this.execute(tx, 'registerEnclave');
+    return { enclaveId: await findCreatedObjectId(this.client, result, '::enclave::Enclave') };
+  }
+
+  async requestTransferAttested(
+    policyId: string,
+    denyListId: string,
+    enclaveId: string,
+    attestation: EnclaveAttestation,
+    signatureHex: string,
+    coinType: string = SUI_COIN_TYPE,
+    paymentCoinIds?: string[],
+  ): Promise<{ requestId: string } & TransferState> {
+    const tx = new Transaction();
+    const amount = BigInt(attestation.amount);
+
+    let payment;
+    if (coinType === SUI_COIN_TYPE) {
+      [payment] = tx.splitCoins(tx.gas, [tx.pure.u64(amount)]);
+    } else {
+      if (!paymentCoinIds?.length) {
+        throw new Error(
+          `requestTransferAttested for ${coinType} requires paymentCoinIds — only SUI splits from gas`,
+        );
+      }
+      const [primary, ...rest] = paymentCoinIds;
+      const primaryCoin = tx.object(primary!);
+      if (rest.length) tx.mergeCoins(primaryCoin, rest.map((id) => tx.object(id)));
+      [payment] = tx.splitCoins(primaryCoin, [tx.pure.u64(amount)]);
+    }
+
+    // Rebuild the exact struct the enclave signed. Any drift here and the
+    // on-chain ed25519 check fails, which is the intended behaviour.
+    const attestationArg = tx.moveCall({
+      target: `${this.packageId}::enclave::new_attestation`,
+      arguments: [
+        tx.pure.u64(attestation.timestampMs),
+        tx.pure.vector('u8', hexToBytes(attestation.messageHash)),
+        tx.pure.id(attestation.policyId),
+        tx.pure.address(attestation.recipient),
+        tx.pure.u64(amount),
+        tx.pure.u8(attestation.riskTier),
+        tx.pure.u8(attestation.truthScore),
+      ],
+    });
+
+    tx.moveCall({
+      target: `${this.packageId}::policy::request_transfer_attested`,
+      typeArguments: [coinType],
+      arguments: [
+        tx.object(policyId),
+        tx.object(denyListId),
+        tx.object(enclaveId),
+        attestationArg,
+        tx.pure.vector('u8', hexToBytes(signatureHex)),
+        payment!,
+        tx.pure.address(attestation.recipient),
+        tx.object.clock(),
+      ],
+    });
+
+    const result = await this.execute(tx, 'requestTransferAttested');
+    const requestId = await findCreatedObjectId(
+      this.client,
+      result,
+      `::policy::TransferRequest<${coinType}>`,
+    );
     return { requestId, ...(await this.getTransferStatus(requestId)) };
   }
 
@@ -212,11 +375,15 @@ export class SuiShouClient implements ShouClient {
   }
 
   async getTransferStatus(requestId: string): Promise<TransferState> {
-    const obj = await this.client.getObject({ id: requestId, options: { showContent: true } });
-    if (obj.data?.content?.dataType !== 'moveObject') {
+    const { object } = await this.client.getObject({
+      objectId: requestId,
+      include: { content: true },
+    });
+    const content = (object as { content?: { json?: unknown } } | undefined)?.content?.json;
+    if (!content) {
       throw new Error(`TransferRequest ${requestId} not found or has no readable content`);
     }
-    const fields = obj.data.content.fields as unknown as {
+    const fields = content as {
       approvals: string[];
       executed: boolean;
       blocked: boolean;
@@ -294,14 +461,20 @@ export class SuiShouClient implements ShouClient {
       target: `${this.packageId}::redflag::blocks_amount`,
       arguments: [tx.object(denyListId), tx.pure.address(address), tx.pure.u64(amount)],
     });
-    const result = await this.client.devInspectTransactionBlock({
-      sender: this.signer.toSuiAddress(),
-      transactionBlock: tx,
+    tx.setSender(this.signer.toSuiAddress());
+    const result = await this.client.simulateTransaction({
+      transaction: tx,
+      checksEnabled: false,
+      include: { commandResults: true },
     });
-    const bytes = result.results?.[0]?.returnValues?.[0]?.[0];
+    const bytes = (
+      result as unknown as {
+        commandResults?: { returnValues?: { value?: Uint8Array }[] }[];
+      }
+    ).commandResults?.[0]?.returnValues?.[0]?.value;
     if (!bytes) {
       throw new Error(
-        `blocks_amount dev-inspect returned no value: ${JSON.stringify(result.effects?.status)}`,
+        'blocks_amount simulate returned no value',
       );
     }
     return bcs.bool().parse(new Uint8Array(bytes));

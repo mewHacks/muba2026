@@ -244,8 +244,10 @@ fun future_dated_attestation_is_rejected() {
         &config, &admin, ENCLAVE_PUBKEY, &clock, scenario.ctx(),
     );
 
+    // Beyond the skew tolerance, not merely ahead of the chain clock.
     let attestation = enclave::new_attestation(
-        clock.timestamp_ms() + 60_000, x"00", object::id(&config), RECIPIENT, 1, 0, 0,
+        clock.timestamp_ms() + enclave::clock_skew_tolerance_ms() + 1,
+        x"00", object::id(&config), RECIPIENT, 1, 0, 0,
     );
     enclave_obj.verify(&attestation, x"00", &clock);
 

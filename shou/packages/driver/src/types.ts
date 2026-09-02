@@ -31,6 +31,17 @@ export type TransferStatus =
   | 'BLOCKED' // guardian blocked it, or the owner cancelled it
   | 'EXECUTED';
 
+/** Exactly what the enclave signed. Produced by POST /attest_transfer. */
+export interface EnclaveAttestation {
+  timestampMs: number;
+  messageHash: string;
+  policyId: string;
+  recipient: string;
+  amount: string;
+  riskTier: number;
+  truthScore: number;
+}
+
 export interface TransferState {
   status: TransferStatus;
   approvals: string[];
@@ -76,6 +87,37 @@ export interface ShouClient {
     amount: number,
     recipient: string,
     risk: RiskAssessment,
+  ): Promise<{ requestId: string } & TransferState>;
+
+  /** Registers the PCR measurements of the enclave build. Admin-gated. */
+  registerEnclaveConfig(
+    adminCapId: string,
+    name: string,
+    pcr0: string,
+    pcr1: string,
+    pcr2: string,
+  ): Promise<{ configId: string }>;
+
+  /** Binds a running enclave's public key to a config. Admin-gated. */
+  registerEnclave(
+    configId: string,
+    adminCapId: string,
+    publicKeyHex: string,
+  ): Promise<{ enclaveId: string }>;
+
+  /**
+   * The attested path: the tier comes from a score the enclave signed,
+   * bound to this exact policy/recipient/amount. Prefer this over
+   * requestTransfer — an unattested LOW is ignored by the chain, an
+   * attested one is trusted, which is what keeps ordinary payments
+   * frictionless.
+   */
+  requestTransferAttested(
+    policyId: string,
+    denyListId: string,
+    enclaveId: string,
+    attestation: EnclaveAttestation,
+    signatureHex: string,
   ): Promise<{ requestId: string } & TransferState>;
 
   /** Approver-only. Only affects release for HIGH-tier requests. */
