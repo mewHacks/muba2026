@@ -87,6 +87,11 @@ const server = createServer(async (req, res) => {
         recipient: '0x0000000000000000000000000000000000000000000000000000000000000000',
         amount: '0',
       });
+      // `reasoning` is returned here because /risk drives the badge on the
+      // ELDER'S OWN screen, showing her own conversation back to her.
+      // It is deliberately absent from /transfer/prepare, which is what
+      // the guardian sees — a guardian gets a risk tier, never a
+      // description of what was said. See shou-idea.md §9.
       return json(200, {
         tier: scored.tier,
         category: scored.category,

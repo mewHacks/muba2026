@@ -159,7 +159,7 @@ This is the part of the pitch that answers a judge asking "so who's actually in 
 
 **Flow B — live scam, transfer blocked:** conversation trends 🔴 ("send RM5,000 to secure your account," urgency language) → elder opens wallet to send → Circuit Breaker sees flagged-conversation × transfer correlation in the same session → transfer enters High tier regardless of amount → guardian notified with risk category + amount + recipient novelty ("first time sending to this address") → guardian approves/blocks → PTB only executes on threshold met.
 
-**Flow C — Red Flag report:** guardian or elder reports a wallet address post-incident → Gonka Router agent scores the evidence (screenshots, transaction hash, description) → soft ban applied within the minute (blocks transfers *to* that address across all SHOU users, daily-necessity-sized transfers elsewhere unaffected) → staff queue ranked by `amount_at_risk × plausibility_score` → staff confirms or lifts.
+**Flow C — Red Flag report:** guardian or elder reports a wallet address post-incident → Gonka Router agent scores the evidence (transaction hash, recipient address, written description — text only, since Gonka Router does not currently support image input) → soft ban applied within the minute (blocks transfers *to* that address across all SHOU users, daily-necessity-sized transfers elsewhere unaffected) → staff queue ranked by `amount_at_risk × plausibility_score` → staff confirms or lifts.
 
 ## 9. Privacy design
 

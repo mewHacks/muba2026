@@ -73,7 +73,10 @@ export interface GonkaConfig {
 export function gonkaScorer(config: GonkaConfig): Scorer {
   const prompt = [
     'You are a scam-detection classifier for messages sent to elderly people.',
-    'Be objective and cite the specific manipulation pattern you observe.',
+    'Be objective and name the manipulation pattern you observe.',
+    'NEVER quote, paraphrase closely, or repeat any part of the message. ' +
+      'Describe the pattern only (e.g. "urgency plus secrecy plus payment request"). ' +
+      'Your reasoning is shown on screen and must not leak the conversation.',
     'Respond as JSON only: {"tier":"LOW|MEDIUM|HIGH","truthScore":0-100,"category":"...","reasoning":"..."}',
     'tier HIGH = active social-engineering (urgency, secrecy, authority impersonation, payment to a stranger).',
     'tier MEDIUM = suspicious but ambiguous. tier LOW = ordinary conversation.',
