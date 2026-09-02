@@ -113,7 +113,18 @@ We implemented the Nautilus **pattern**: `EnclaveConfig` holds PCR0/1/2, `Enclav
 - **B1.** Is the Nautilus Move library published somewhere we can depend on (MVR? git?) for `verify_attestation`, or is vendoring the template the expected path? A concrete dependency line would unblock us immediately.
 - **B2.** Can any part of attestation verification be exercised **without** a real Nitro instance — a sample attestation document, a devnet fixture, a test mode? We can't provision AWS Nitro before the deadline.
 - **B3.** If we can't get a genuine enclave running: is an honestly-labelled "attestation-ready, key registered by admin" implementation acceptable for judging, or does it read as not-really-TEE? We'd rather be told now.
-- **B4.** The enclave key is ephemeral and dies on restart, so every restart needs a re-registration transaction. Is that the intended lifecycle, or is Seal the answer for key persistence?
+- **B4.** The enclave key is ephemeral and dies on restart, so every restart needs a re-registration transaction. The Nautilus docs say Seal solves exactly this — storing long-term keys and releasing them only to a properly attested TEE. Is that the recommended lifecycle, and is it realistic to wire up in a few days?
+
+### B5. Should Seal be doing our privacy work instead of regex?
+
+Right now we strip PII with pattern matching (`packages/redact`) before a message is scored, and we store no conversation anywhere. That is simple and testable, but it is our own invention rather than a Sui-native answer.
+
+Seal looks like a better fit for one specific thing in our design: PRD §9 says that if the elder disputes a block, **she** — not her family, not our staff — can choose to reveal the underlying message to a named reviewer. That is an access-control policy over encrypted data, which is precisely what Seal does.
+
+**Ask:**
+- Is "encrypt the message with Seal, let a Move policy decide who may decrypt, elder-controlled" the right shape for a selective-disclosure dispute flow?
+- Seal's own docs warn it is not for "highly sensitive data". Do private messages of an elderly scam victim fall inside or outside that line, in your view?
+- Realistically, is Seal a few-days integration or a rabbit hole for a team with three days left? We will not start it unless you think it lands.
 
 ---
 
