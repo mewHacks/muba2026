@@ -56,6 +56,29 @@ Four layers, each answering one failure mode above:
 | **Reporter** | Anyone (elder, guardian, or an unrelated victim) who encountered a scam wallet. | A fast, low-friction way to flag an address before it hits someone else. |
 | **Staff reviewer** | Platform-side, reviews Red Flag queue. | A ranked queue by severity, not a firehose. |
 
+### How money gets in — and why that side needs no protection
+
+The obvious objection: *"you've secured spending, but how does the family fund the wallet safely in the first place?"*
+
+**The answer starts with an asymmetry.** Nobody is ever scammed by *receiving* money. Every loss in elder fraud happens on the way **out**. So SHOU deliberately puts zero friction on deposits and all of its controls on withdrawals — an inbound transfer needs no approval, no cooldown, no risk score. Money can always arrive. Only leaving is governed.
+
+That is not a gap in the design; it is the design.
+
+**The three ways funds actually arrive**, in order of how many families can use them today:
+
+| Path | Who it works for | Built? |
+|---|---|---|
+| Family already holds USDC (exchange, wallet) and sends it to her address | Crypto-capable senders — the initial target | Works today, nothing to build |
+| Family buys USDC through a fiat on-ramp and withdraws to her address | Anyone with a card or bank account | Works today via Circle/exchange; no in-app widget |
+| On-ramp widget inside SHOU — her zkLogin address is passed straight to a provider (Banxa, Stripe, Meld) | Everyone, including non-crypto senders | **Not built.** The documented Sui path exists; it is the obvious next step |
+
+**The one genuine deposit risk is sending to the wrong address**, which in crypto is unrecoverable. A 66-character hex string copied into WhatsApp is exactly the kind of thing that gets swapped by malware or mistyped. Two Sui-native mitigations:
+
+- **SuiNS** — a human-readable name (`@mum`) instead of `0x4e48…`. Removes the copy-paste failure mode entirely.
+- **zkLogin's deterministic address** — her address derives from her Google identity, so the family can be shown "this is the address for *her account*" rather than trusting a pasted string.
+
+**The design point worth saying out loud: the funder is the guardian.** The son sending money home is the same person named as an approver on large withdrawals. He does not need separate recruiting, he is already engaged every month, and his incentives are exactly aligned — it is his money she is being asked to send to a stranger. Most guardian systems struggle to get the guardian to show up; here, funding the wallet *is* showing up.
+
 ## 5. Track fit
 
 **Gonka — AI for Society.** Passive DOM-based conversation risk scoring and Red Flag evidence scoring both run entirely through Gonka Router — this is Layer 0 and Layer 3, not a bolt-on. It's genuine public-value AI (elder financial abuse), global (not Malaysia-locked), and the mechanism — passive detection instead of reactive self-report — is the part that doesn't already exist in the "chatbot fact-checker" pattern most entries will pitch. *(Adaptation needed: Gonka's preferred submission shape is URL/text-in → Truth Score + reasoning trace + Request ID. Our Layer 0 input is a live DOM stream, not a URL — map each scored message to that same Truth-Score-and-Request-ID shape so the submission still fits their preferred format even though the trigger is passive.)*
