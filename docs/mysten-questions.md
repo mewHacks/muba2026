@@ -155,6 +155,39 @@ Both are named "helpful features" for Track 01 and our whole UX claim ("Google s
 - **E3.** We deleted a separate `WalletGuard` object after discovering anyone could mint a second, unpaused one for the same policy. General question: what's the recommended way to express "there is exactly one of these per policy" in Move?
 - **E4.** Funds live in `Balance<T>` inside a shared `TransferRequest`. HIGH-tier requests whose approvers never respond would have locked funds forever, so we added an owner-only cancel. Any better pattern for escrow-with-timeout on Sui?
 
+### E5. Our global deny list is a single hot shared object — how bad is that?
+
+Every transfer, from every user, takes `&DenyList` — one shared object for the whole system. That means every transaction in SHOU sequences through consensus on the same object.
+
+**Ask:**
+- How badly does that bite in practice? Is a single global shared object touched by every transaction a known scaling wall on Sui, or is read-only shared access cheaper than we think?
+- Better shapes we should consider: a per-policy denylist snapshot, an off-chain membership check with only a proof submitted on-chain, or something with dynamic fields? What would you do?
+- This is a "real-world readiness" answer as much as a technical one — we would rather know now than be told at judging.
+
+### E6. Shared vs owned objects — are we over-sharing?
+
+`SeniorityPolicy`, `TransferRequest` and `DenyList` are all shared, because guardians act on them from their own addresses. But most transfers are LOW tier and never involve a guardian at all.
+
+**Ask:** is there a design where the common case uses **owned** objects (fast path, no consensus) and only escalated transfers become shared? Or is shared unavoidable once a second party can act on the object?
+
+### E7. Has anyone built this on Sui already?
+
+**Ask:** *"Guardian-controlled spending limits on a wallet — co-approval above a threshold, cooldowns, an on-chain policy object. Have you seen this on Sui? Is there prior art we should know about, either to differentiate from or to build on?"*
+
+He sees every project in the ecosystem. If this exists, we need to know before a judge tells us. If it does not, that is worth knowing too.
+
+### E8. What would make this feel Sui-native rather than ported?
+
+**Ask:** *"If you looked at our Move code cold, would it read as designed for Sui, or as an EVM-shaped app translated across? What are we not using that we obviously should be?"*
+
+An open invitation for him to point at the primitive we have missed. Ask it late, after he has seen the code.
+
+### E9. Who pays gas for the guardian?
+
+Sponsored transactions solve gas for the elder. But the **guardian** also transacts — approving or blocking a transfer — and he is just as likely to hold no SUI.
+
+**Ask:** does one sponsor cover both parties in this kind of flow, or does each role need its own sponsorship path? Any pattern for "the app sponsors anyone acting on this policy object"?
+
 ---
 
 ## Quick reference if he asks what's built
