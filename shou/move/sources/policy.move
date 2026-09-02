@@ -7,6 +7,7 @@
 /// member reacting in the moment of an attack.
 module shou::policy;
 
+use shou::enclave::{Self, Enclave, RiskAttestation};
 use shou::redflag::{Self, DenyList};
 use sui::balance::Balance;
 use sui::clock::Clock;
@@ -47,6 +48,8 @@ const ENotOwnerOrApprover: vector<u8> = b"Caller must be the policy owner or a r
 const EInvalidTier: vector<u8> = b"Unrecognized risk tier";
 #[error]
 const ECeilingsInverted: vector<u8> = b"review_ceiling must be less than or equal to high_risk_ceiling";
+#[error]
+const EAttestationMismatch: vector<u8> = b"Risk attestation was signed for a different policy, recipient or amount";
 
 // Mirrors `RiskAssessment.tier` from the off-chain scorer
 // (packages/driver/src/types.ts).
@@ -234,6 +237,72 @@ fun amount_tier(policy: &SeniorityPolicy, amount: u64): u8 {
 /// Tier codes are ordered LOW < MEDIUM < HIGH, so "stricter" is just max.
 fun max_tier(a: u8, b: u8): u8 {
     if (a > b) a else b
+}
+
+/// The attested path. Identical to `submit_transfer`, except the tier is
+/// taken from a score the enclave signed rather than from whatever the
+/// caller typed — and the attestation is bound to this exact policy,
+/// recipient and amount, so a score for a small payment to a known
+/// contact cannot be replayed to wave through a large one to a stranger.
+///
+/// Both paths are safe, but they are safe for different reasons:
+///   - unattested: the claimed tier can only ever make things *stricter*
+///     (`max_tier`), so lying about it buys an attacker nothing.
+///   - attested: the tier is provably the output of the published
+///     scoring code, so a *low* score can be trusted too — which is what
+///     lets a legitimate everyday payment stay frictionless instead of
+///     being treated as suspect.
+public fun submit_transfer_attested<T>(
+    policy: &SeniorityPolicy,
+    deny_list: &DenyList,
+    enclave: &Enclave,
+    attestation: &RiskAttestation,
+    signature: vector<u8>,
+    payment: Coin<T>,
+    recipient: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): TransferRequest<T> {
+    enclave.verify(attestation, signature, clock);
+
+    // The signature is only meaningful if it covers *this* transfer.
+    assert!(attestation.policy_id() == object::id(policy), EAttestationMismatch);
+    assert!(attestation.recipient() == recipient, EAttestationMismatch);
+    assert!(attestation.amount() == payment.value(), EAttestationMismatch);
+
+    submit_transfer(policy, deny_list, payment, recipient, attestation.tier(), clock, ctx)
+}
+
+entry fun request_transfer_attested<T>(
+    policy: &SeniorityPolicy,
+    deny_list: &DenyList,
+    enclave: &Enclave,
+    attestation: &RiskAttestation,
+    signature: vector<u8>,
+    payment: Coin<T>,
+    recipient: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let request = submit_transfer_attested(
+        policy,
+        deny_list,
+        enclave,
+        attestation,
+        signature,
+        payment,
+        recipient,
+        clock,
+        ctx,
+    );
+    event::emit(TransferRequested {
+        request_id: object::id(&request),
+        policy_id: request.policy_id,
+        tier: request.risk_tier,
+        claimed_tier: attestation.tier(),
+        unlock_at_ms: request.unlock_at_ms,
+    });
+    transfer::share_object(request);
 }
 
 entry fun request_transfer<T>(

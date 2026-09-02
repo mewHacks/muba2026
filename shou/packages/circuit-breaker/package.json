@@ -1,0 +1,9 @@
+{
+  "name": "@shou/circuit-breaker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node --experimental-strip-types src/server.ts" },
+  "dependencies": { "@mysten/sui": "^1.45.2" },
+  "devDependencies": { "typescript": "^5.5.0", "@types/node": "^22.0.0" }
+}

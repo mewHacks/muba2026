@@ -1,0 +1,17 @@
+{
+  "name": "@shou/enclave",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/server.ts",
+    "fixture": "node --experimental-strip-types src/sign-fixture.ts"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.45.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^5.5.0"
+  }
+}

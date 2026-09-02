@@ -49,7 +49,14 @@ shou/
     tests/
       policy_tests.move
       redflag_tests.move
+  enclave/                # DEV A — TEE runtime: keys, signing, attestation,
+    src/                  #   session binding. Imports Dev B's scorer; owns
+      attestation.ts      #   none of the scoring logic itself.
+      server.ts
+      sign-fixture.ts
   packages/
+    gonka-client/           # DEV B — Gonka Router scoring. Runs INSIDE the
+      src/scorer.ts         #   enclave (see note in §7), not in the extension.
     driver/                 # DEV A — shared TS client, the seam both sides import
       src/
         client.ts
@@ -62,10 +69,6 @@ shou/
         content-script.ts
         background.ts
         badge.tsx
-    gonka-client/              # DEV B — Layer 0 + Layer 3 scoring wrapper
-      src/
-        scorer.ts
-        types.ts
     dashboard/                  # DEV B (or split if time allows) — guardian web UI
       src/
     redflag-service/             # DEV B — report intake + Gonka scoring + queue
@@ -95,9 +98,9 @@ Dev A never imports Gonka Router — `RiskAssessment` arrives already scored.
 
 | | |
 |---|---|
-| Package ID | `0x8896b073f6e4f6f86d0f217aeeb229cd40461d204872572d9f67eac78774e406` |
-| Modules | `policy`, `redflag` |
-| Tests | 30/30 passing (`sui move test`) |
+| Package ID | `0xca22881f7d75c28f9df1a5e4f4572056f60a67c5d3fa29186ff71a8938464953` |
+| Modules | `policy`, `redflag`, `enclave` |
+| Tests | 37/37 passing (`sui move test`) |
 
 `shou/move/Published.toml` tracks this per-environment and is committed — build against the ID there, not this table.
 
@@ -114,6 +117,19 @@ Dev A never imports Gonka Router — `RiskAssessment` arrives already scored.
 | `VecMap` deny list | Saturates Sui's 256KB object cap at a few thousand bans, after which no new ban can be recorded. | `Table` (dynamic fields, no cap). |
 | Ban was all-or-nothing | The PRD promises a *soft* ban that "allows daily necessities"; the code blocked everything. | `ban_ceiling` per entry — amounts at or below it still go through. |
 | Any approver could undo a pause | One approver could clear the owner's emergency stop by pausing "until now". | `pause` is monotonic (extend-only); `unpause` is owner-only. |
+
+### TEE layer (`shou::enclave` + `shou/enclave/`)
+
+Nautilus-pattern attestation, so §9's privacy claim is enforced rather than promised. Message text is scored inside the enclave and discarded; only a sha256 hash, a tier and a Truth Score leave it.
+
+- `EnclaveConfig` holds the PCR measurements (PCR0 boot / PCR1 code / PCR2 config) of the scoring code; `Enclave` holds the ephemeral public key generated in enclave memory at startup.
+- Every score is signed over a BCS `RiskAttestation` **bound to the exact policy, recipient and amount**, so a verdict for a small payment to a known contact cannot be replayed to wave through a large one to a stranger. Verified: `tampered_amount_invalidates_the_signature`.
+- Scores expire after 5 minutes — a stale verdict says nothing about the transfer in front of you.
+- `policy::request_transfer_attested` is the attested path. Both paths are safe but for different reasons: unattested, a claimed tier can only ever make things *stricter*; attested, the tier is provably the output of the published scoring code, so a **low** score can be trusted too — which is what keeps ordinary payments frictionless instead of treating every one as suspect.
+
+**Verified, not assumed:** `genuine_enclave_signature_verifies` checks a real ed25519 signature produced by the enclave against the bytes Move reconstructs. That test is also the guard against the TS and Move BCS layouts silently drifting apart — the failure mode where every real signature stops verifying on-chain and nothing else tells you.
+
+**PRODUCTION GAP, stated plainly:** a complete Nautilus deployment passes the raw AWS attestation document to `register_enclave` and verifies its COSE signature and certificate chain on-chain — that is what proves the key came from an enclave running the measured code. That parsing lives in Mysten's Nautilus Move library and is not reimplemented here; registration is AdminCap-gated instead. **Signature verification is fully real; the *provenance* of the registered key currently rests on the admin rather than on AWS's root of trust.** Do not describe this as a verified enclave in the pitch until that swap is made and it is running on a Nitro instance.
 
 **The demo moment this earns:** tell the contract a large transfer is LOW risk, and watch it refuse anyway. That is the difference between "our AI decides" and "the elder's own policy decides, and the chain enforces it" — and it is the honest answer to *"what if your AI is wrong, or compromised?"*
 
@@ -169,5 +185,18 @@ Two developers, ~5–6 working days. Ownership by file path so there's no ambigu
 | **6** | — | — | README, demo video, submission. |
 
 **Why this split holds up under time pressure:** Day 2 already leaves each side independently demoable (PRD §5's decoupling argument). If Day 3's integration slips, both developers still have something real to show separately rather than two unfinished halves of one thing.
+
+### Ownership note added after the TEE landed
+
+The TEE moved *where* Dev B's scorer runs, without changing what it is.
+
+- **Dev B still owns all scoring** — `packages/gonka-client/src/scorer.ts`: endpoint, models, prompts, consensus rule, Truth Score. Unchanged deliverable.
+- **It now executes inside the enclave** rather than in the extension, because a message that reaches Gonka straight from the browser never passes through a TEE, which would reduce §9's privacy claim to a promise. The extension POSTs to the circuit breaker, which forwards to the enclave, which calls Dev B's scorer.
+- **Dev A owns the enclave runtime only** — `shou/enclave/`: keypair generation, BCS serialization, signing, attestation freshness, session binding, the three Nautilus endpoints.
+- **The seam is the `Scorer` type** in `gonka-client/src/scorer.ts`, exactly as `types.ts` is the seam on the chain side. Same rule applies: changing its shape breaks the other half, so re-sync before doing it.
+
+Practical consequence for Dev B: your code runs somewhere with no disk and no log aggregation. Return a verdict; never write message text anywhere.
+
+**Blocker for Dev B to resolve with Jack:** a live call to `https://gonkarouter.io/api/v1/chat/completions` with model `kimi` returned **HTTP 404**. Those were Dev A's guesses, not documented values — confirm the real base URL and exact model IDs before building on them.
 
 **Standup discipline for 2 people on a tight clock:** 10 minutes each morning, one question each — "did the interface in `types.ts` change?" If yes, both stop and re-sync before writing more code against it. That file is the only thing that can silently desync the two halves.
