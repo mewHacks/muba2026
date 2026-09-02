@@ -9,3 +9,6 @@ shou/move/build/
 # Node
 node_modules/
 
+# macOS
+.DS_Store
+
