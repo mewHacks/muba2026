@@ -44,8 +44,8 @@ Skipped: message queue, container orchestration, multi-service split. `ponytail:
 shou/
   move/
     sources/
-      policy.move          # SeniorityPolicy, TransferRequest, WalletGuard
-      redflag.move          # DenyList, BanEntry, StaffCap
+      policy.move          # SeniorityPolicy, TransferRequest (pause lives on the policy)
+      redflag.move          # DenyList, BanEntry, AdminCap/StaffCap/OracleCap
     tests/
       policy_tests.move
       redflag_tests.move
@@ -75,179 +75,51 @@ shou/
     shou-architecture.md
 ```
 
-## 4. The shared interface (write this first, together, Day 1 morning)
+## 4. The shared interface (the one file both devs must agree on)
 
-This is the only file both developers need to agree on before splitting up. Put it in `packages/driver/src/types.ts`.
+**Source of truth: [`shou/packages/driver/src/types.ts`](../shou/packages/driver/src/types.ts).** Read it there rather than from a copy in this doc — an out-of-date copy here is worse than none, since it is exactly the file that silently desyncs the two halves.
 
-```ts
-// packages/driver/src/types.ts
+What Dev B needs to know about it:
 
-export type RiskTier = 'LOW' | 'MEDIUM' | 'HIGH';
+- `RiskAssessment` is what Dev B **produces** (tier, Truth Score, Gonka Request ID, category, message hash). Dev A only ever consumes it.
+- `CircuitBreakerAPI.submitRisk(sessionId, risk)` is the single call the extension makes. Everything Dev B builds ends here.
+- `ShouClient` is the chain-facing side. Dev B's dashboard calls it; Dev B never imports Move or `@mysten/sui` directly.
+- **The tier you submit is not necessarily the tier you get.** The contract independently escalates on amount and returns the stricter result, so always read `tier` off the returned `TransferState` rather than assuming your own value held.
+- There is no `BLOCKED_DENYLIST` status: a banned recipient aborts before a request object exists, so that surfaces as a thrown error, not a state.
 
-/** Output of Gonka Router scoring — Dev B produces this, Dev A only ever consumes it. */
-export interface RiskAssessment {
-  tier: RiskTier;
-  truthScore: number;      // 0–100, Gonka's Truth Score
-  requestId: string;       // Gonka Request ID — must be displayed in UI per submission reqs
-  category: string;        // e.g. "urgency + unknown recipient"
-  messageHash: string;     // sha256 of the source message — never the message itself
-}
-
-/** Dev B's extension calls this after every scored message. Dev A implements it. */
-export interface CircuitBreakerAPI {
-  submitRisk(sessionId: string, risk: RiskAssessment): Promise<void>;
-}
-
-/** The chain-facing client. Dev A implements against Move; Dev A's Circuit Breaker
- *  and Dev B's dashboard both call this — it's the only way either side touches Sui. */
-export interface ShouClient {
-  createPolicy(owner: string, approvers: string[], threshold: number,
-               cooldownMs: number, highRiskCeiling: number): Promise<{ policyId: string }>;
-
-  submitTransferRequest(policyId: string, amount: number, recipient: string,
-                         risk: RiskAssessment): Promise<{
-    requestId: string;
-    tier: RiskTier;
-    unlockAtMs: number;
-    status: 'PENDING' | 'AUTO_UNLOCK_SCHEDULED' | 'NEEDS_APPROVAL' | 'BLOCKED_DENYLIST';
-  }>;
-
-  approveTransfer(requestId: string, approver: string): Promise<{ status: string }>;
-
-  getTransferStatus(requestId: string): Promise<{ status: string; approvals: string[] }>;
-
-  reportRedFlag(address: string, evidence: { description: string; txHash?: string }):
-    Promise<{ plausibilityScore: number; banStatus: 'SOFT_BANNED' | 'QUEUED' }>;
-}
-```
-
-Dev B never imports Move or `@mysten/sui` — only this file's types, plus a thin HTTP wrapper Dev A exposes (`POST /risk` on the Circuit Breaker service, implementing `submitRisk`). Dev A never imports Gonka Router — only `RiskAssessment` arrives as an input, already scored.
+Dev A never imports Gonka Router — `RiskAssessment` arrives already scored.
 
 ## 5. Move module design
 
-**Implemented and passing — `shou/move/`, 16/16 tests green (`sui move build && sui move test`).** This replaced the original `abort 0` stub; the shape below is what's actually deployed, not a plan.
-
-**Deployed to testnet, round-tripped for real** (not just published — a full `create_policy` → `create_guard` → `create_deny_list` → `request_transfer` → `execute_and_send` sequence was run against these live objects, confirming `funds: "0"` / `executed: true` on the final object read):
+**Deployed to testnet and adversarially tested.** A security review found four critical issues in the first deployment; all are fixed, each has a regression test, and each fix was re-verified on-chain rather than only in unit tests.
 
 | | |
 |---|---|
-| Package ID | `0x924fb6c20412093e657aeb5086a2da9f093b06c257815236d74a0846afa14b38` |
+| Package ID | `0x8896b073f6e4f6f86d0f217aeeb229cd40461d204872572d9f67eac78774e406` |
 | Modules | `policy`, `redflag` |
-| `AdminCap` (owner: deployer) | `0x347c0654d38c5791ef752dbf5c900d2a56b66f80f5c3ef094e56706e355c2c0b` |
-| `UpgradeCap` | `0x8d756c1ccf6562b01ac0aed79098a29082a1d292d4e7232ba7de687efb1ac20b` |
+| Tests | 30/30 passing (`sui move test`) |
 
-`shou/move/Published.toml` tracks this per-environment and is committed — anyone building against testnet reads the package ID from there, not from this table (this table exists so Dev B doesn't have to go find it).
+`shou/move/Published.toml` tracks this per-environment and is committed — build against the ID there, not this table.
 
-`shou/packages/driver/src/client.ts` implements `ShouClient` against this deployment — typechecks clean (`npx tsc --noEmit`, `skipLibCheck: true` needed to work around an unrelated upstream `@mysten/sui@1.45.2` declaration bug, not a project issue) and every method was exercised by the round-trip above via direct `sui client call`/`ptb` (the same calls `client.ts` makes), before wiring the SDK version.
+### What the review found, and what changed
 
-```move
-module shou::policy;
+| Issue | Why it mattered | Fix |
+|---|---|---|
+| `risk_tier` was taken purely from the caller | A large transfer declared LOW executed with **zero** approvals and no cooldown — proved on testnet by moving 0.5 SUI to an attacker address under a policy that required guardian approval. Worse for real users: a **phone scam** never touches WhatsApp, so the AI honestly reports LOW and the money leaves instantly. | `review_ceiling` / `high_risk_ceiling` on the policy; the chain derives its own tier from the amount and takes the stricter of the two. The AI can escalate, never de-escalate. |
+| Any `DenyList` was accepted | An attacker could hand in a second, empty list and shed an active ban entirely. | `deny_list_id` bound into the policy at creation; verified on-chain (`EWrongDenyList`). |
+| Anyone could mint a second `WalletGuard` | A fresh guard is unpaused and still "belongs to" the policy, so any pause was one object away from meaningless. | `WalletGuard` **deleted**; pause state moved into the policy itself, which cannot be re-minted. |
+| HIGH-tier funds could be locked forever | Only an approver could `block`, so if guardians lost their keys the elder's money was stuck in the shared object permanently. | Owner-only `cancel_and_refund`. Refunds to the owner, so it grants an attacker nothing. |
+| `report` had no access control | Anyone could ban any address and cut off a legitimate merchant. | Gated behind `OracleCap`, held by the Gonka scoring service — matching Flow C, where the AI scores *before* a ban lands. |
+| `threshold = 0` was accepted | Silently turned M-of-N into 0-of-N, disabling HIGH-tier approval entirely. | `assert!(threshold > 0)`. |
+| `VecMap` deny list | Saturates Sui's 256KB object cap at a few thousand bans, after which no new ban can be recorded. | `Table` (dynamic fields, no cap). |
+| Ban was all-or-nothing | The PRD promises a *soft* ban that "allows daily necessities"; the code blocked everything. | `ban_ceiling` per entry — amounts at or below it still go through. |
+| Any approver could undo a pause | One approver could clear the owner's emergency stop by pausing "until now". | `pause` is monotonic (extend-only); `unpause` is owner-only. |
 
-// Errors use #[error] + EPascalCase (naming-conventions skill) — omitted
-// here for brevity, see shou/move/sources/policy.move for the full list.
+**The demo moment this earns:** tell the contract a large transfer is LOW risk, and watch it refuse anyway. That is the difference between "our AI decides" and "the elder's own policy decides, and the chain enforces it" — and it is the honest answer to *"what if your AI is wrong, or compromised?"*
 
-const TIER_LOW: u8 = 0;
-const TIER_MEDIUM: u8 = 1;
-const TIER_HIGH: u8 = 2;
+`shou/packages/driver/src/client.ts` implements `ShouClient` against this deployment and typechecks clean (`npx tsc --noEmit`; `skipLibCheck` works around an upstream `@mysten/sui@1.45.2` declaration bug, not a project issue).
 
-public struct SeniorityPolicy has key {
-    id: UID,
-    owner: address,
-    approvers: vector<address>,
-    threshold: u8,
-    cooldown_ms: u64,
-}
-
-public struct TransferRequest<phantom T> has key {
-    id: UID,
-    policy_id: ID,
-    recipient: address,
-    risk_tier: u8,          // 0=LOW 1=MEDIUM 2=HIGH — set from RiskAssessment.tier
-    approvals: vector<address>,
-    unlock_at_ms: u64,
-    executed: bool,
-    blocked: bool,
-    funds: Balance<T>,
-}
-
-// Self-serve panic button: owner or any registered approver can pause new
-// submissions. Doesn't affect transfers already pending. ponytail: no
-// automatic Circuit-Breaker-triggered pause yet — add a scoped capability
-// for that service when it exists.
-public struct WalletGuard has key {
-    id: UID,
-    owner: address,
-    policy_id: ID,
-    paused_until_ms: u64,
-}
-
-// Events past-tense per naming-conventions — dashboard listens on these
-// instead of polling.
-public struct PolicyCreated has copy, drop { policy_id: ID, owner: address }
-public struct TransferRequested has copy, drop { request_id: ID, policy_id: ID, tier: u8, unlock_at_ms: u64 }
-public struct TransferReleaseApproved has copy, drop { request_id: ID, approver: address }
-public struct TransferBlocked has copy, drop { request_id: ID, blocked_by: address }
-public struct TransferExecuted has copy, drop { request_id: ID, amount: u64, recipient: address }
-public struct WalletPaused has copy, drop { owner: address, paused_until_ms: u64 }
-
-// Composable core (returns objects/values) + entry wrapper (shares/sends)
-// for each action — composable-move-functions skill.
-public fun new_policy(approvers: vector<address>, threshold: u8, cooldown_ms: u64, ctx: &mut TxContext): SeniorityPolicy;
-entry fun create_policy(approvers: vector<address>, threshold: u8, cooldown_ms: u64, ctx: &mut TxContext);
-
-public fun new_guard(policy: &SeniorityPolicy, ctx: &mut TxContext): WalletGuard;
-entry fun create_guard(policy: &SeniorityPolicy, ctx: &mut TxContext);
-entry fun pause(guard: &mut WalletGuard, policy: &SeniorityPolicy, until_ms: u64, ctx: &TxContext);
-
-// LOW-tier requests still go through this object rather than paying out
-// inline: unlock_at_ms is "now", so a client chains request_transfer +
-// execute in one PTB for an instant release — no special-cased code path.
-public fun submit_transfer<T>(policy: &SeniorityPolicy, guard: &WalletGuard, deny_list: &DenyList,
-    payment: Coin<T>, recipient: address, risk_tier: u8, clock: &Clock, ctx: &mut TxContext): TransferRequest<T>;
-entry fun request_transfer<T>(/* same params */): (); // wraps submit_transfer + shares
-
-entry fun approve<T>(request: &mut TransferRequest<T>, policy: &SeniorityPolicy, ctx: &TxContext);
-
-// Guardian cancels a pending transfer — "guardian can only stop, not
-// approve faster" (shou-idea.md §7). Returns funds; entry wrapper sends
-// them to the owner.
-public fun block<T>(request: &mut TransferRequest<T>, policy: &SeniorityPolicy, ctx: &mut TxContext): Coin<T>;
-entry fun block_and_refund<T>(request: &mut TransferRequest<T>, policy: &SeniorityPolicy, ctx: &mut TxContext);
-
-// HIGH needs `threshold` approvals; LOW/MEDIUM need the cooldown elapsed.
-// Callable by anyone once unlocked, not just the owner.
-public fun execute<T>(request: &mut TransferRequest<T>, policy: &SeniorityPolicy, clock: &Clock, ctx: &mut TxContext): Coin<T>;
-entry fun execute_and_send<T>(request: &mut TransferRequest<T>, policy: &SeniorityPolicy, clock: &Clock, ctx: &mut TxContext);
-```
-
-```move
-module shou::redflag;
-
-// Minted once at package `init` to the publisher. Required to mint any
-// StaffCap — without this gate, anyone could mint themselves one and
-// clear a scammer's own ban.
-public struct AdminCap has key, store { id: UID }
-public struct StaffCap has key, store { id: UID }
-
-public struct BanEntry has store, drop { plausibility_score: u8, reported_at_ms: u64 }
-public struct DenyList has key { id: UID, banned: VecMap<address, BanEntry> }
-
-public struct AddressBanned has copy, drop { addr: address, plausibility_score: u8 }
-public struct AddressCleared has copy, drop { addr: address }
-
-public fun new_staff_cap(_admin: &AdminCap, ctx: &mut TxContext): StaffCap;
-entry fun create_staff_cap(admin: &AdminCap, recipient: address, ctx: &mut TxContext);
-
-// Anyone can report — Layer 3 landing on-chain. plausibility_score comes
-// from Gonka Router, already scored off-chain; this only enforces the
-// resulting state. Re-reporting an already-banned address refreshes the
-// score rather than erroring — repeat reports are corroborating evidence.
-entry fun report(list: &mut DenyList, addr: address, plausibility_score: u8, clock: &Clock);
-entry fun clear(list: &mut DenyList, _staff: &StaffCap, addr: address);
-public fun is_banned(list: &DenyList, addr: address): bool;
-```
-
-Full source: [shou/move/sources/policy.move](../shou/move/sources/policy.move), [shou/move/sources/redflag.move](../shou/move/sources/redflag.move). Tests: [shou/move/tests/](../shou/move/tests/).
+**Known gap for Dev B:** `requestTransfer` can only split from the gas coin when the coin type is SUI. For a real stablecoin the caller must pass `paymentCoinIds`; the client throws a clear error rather than silently building a broken transaction.
 
 ## 6. Sequence — Flow B (the demo)
 
@@ -265,7 +137,7 @@ content-script.ts ──▶ scorer.ts ──▶ Gonka Router (3-model consensus)
                         POST /risk  (Circuit Breaker, Dev A)
                                         │ submitRisk(sessionId, risk)
                                         ▼
-                     driver.submitTransferRequest(policyId, amount, recipient, risk)
+                     driver.requestTransfer(policyId, amount, recipient, risk)
                                         │
                                         ▼
                         Move: submit_transfer() → tier=HIGH → status=NEEDS_APPROVAL
@@ -291,7 +163,7 @@ Two developers, ~5–6 working days. Ownership by file path so there's no ambigu
 |---|---|---|---|
 | **1** | `move/sources/policy.move`, `move/sources/redflag.move` — full structs + entry fns + events. `move/tests/*` covering all 4 tiers, denylist, wrong-approver, double-approval. | `packages/gonka-client/src/scorer.ts` — Gonka Router HTTP wrapper, returns `RiskAssessment`. Build against a labeled test-message set (scam + benign), no extension yet. | Agree `packages/driver/src/types.ts` (Section 4) before splitting up. |
 | **2** | `sui move test` green. Deploy to testnet. `packages/driver/src/client.ts` implementing `ShouClient` against the deployed package. zkLogin + sponsored tx wired — **run our own salt service** (SSO-style: app stores/returns `user_salt` keyed to the OAuth login), not user-managed salt. Confirmed via docs.sui.io: the zkLogin address is only as recoverable as the salt — lose the salt and the address is gone even with valid OAuth login, so a self-managed salt would silently break the "lost-device recovery" claim in shou-idea.md §5. | `packages/extension/` — Manifest V3 scaffold, `content-script.ts` reading a **scripted** WhatsApp Web DOM (per PRD §14, not live-scraping robustness), `badge.tsx` rendering tier/score/Request ID. | ✅ Dev A's side demoable standalone (scripted risk input → chain). ✅ Dev B's side demoable standalone (message → badge). Neither blocks the other. |
-| **3** | `packages/circuit-breaker/src/server.ts` — implements `CircuitBreakerAPI.submitRisk`, correlates session risk × pending transfer, calls `driver.submitTransferRequest`. | `packages/dashboard/` — guardian view: pending requests (via on-chain event listener), approve button calling `driver.approveTransfer`. | **First real integration point** — Dev B's extension POSTs to Dev A's `/risk` endpoint. Test together. |
+| **3** | `packages/circuit-breaker/src/server.ts` — implements `CircuitBreakerAPI.submitRisk`, correlates session risk × pending transfer, calls `driver.requestTransfer`. | `packages/dashboard/` — guardian view: pending requests (via on-chain event listener), approve button calling `driver.approveTransfer`. | **First real integration point** — Dev B's extension POSTs to Dev A's `/risk` endpoint. Test together. |
 | **4** | Hash-anchoring: transfer/message hashes written on-chain for the audit trail (PRD §9). | `packages/redflag-service/` — report intake form, calls `scorer.ts`-style Gonka agent scoring, calls `driver.reportRedFlag`, staff queue view ranked by `amount × plausibility`. | |
 | **5** | Buffer / bug-fix on chain side. Help wire Flow C denylist enforcement into `submit_transfer`. | Buffer / bug-fix on extension + dashboard. Polish badge UI (Truth Score, reasoning line, Request ID all visibly rendered — Gonka video requirement). | Joint: full Flow B and Flow C rehearsal, live. |
 | **6** | — | — | README, demo video, submission. |

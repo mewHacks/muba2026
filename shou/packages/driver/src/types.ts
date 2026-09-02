@@ -18,56 +18,103 @@ export interface CircuitBreakerAPI {
   submitRisk(sessionId: string, risk: RiskAssessment): Promise<void>;
 }
 
+/**
+ * Note there is no BLOCKED_DENYLIST state: a banned recipient aborts
+ * inside submit_transfer, so no TransferRequest object is ever created to
+ * carry that status. The caller sees a thrown error instead.
+ */
 export type TransferStatus =
-  | 'PENDING'
-  | 'AUTO_UNLOCK_SCHEDULED'
-  | 'NEEDS_APPROVAL'
-  | 'BLOCKED_DENYLIST'
-  | 'BLOCKED_BY_GUARDIAN'
+  | 'PENDING' // LOW tier, unlocked, just not executed yet
+  | 'AUTO_UNLOCK_SCHEDULED' // MEDIUM tier, cooldown still running
+  | 'NEEDS_APPROVAL' // HIGH tier, below approval threshold
+  | 'APPROVED' // HIGH tier, threshold met, awaiting execution
+  | 'BLOCKED' // guardian blocked it, or the owner cancelled it
   | 'EXECUTED';
+
+export interface TransferState {
+  status: TransferStatus;
+  approvals: string[];
+  /** The tier the CHAIN assigned, which may be stricter than the one submitted. */
+  tier: RiskTier;
+  unlockAtMs: number;
+}
 
 /**
  * The chain-facing client. Dev A implements this against the deployed
- * `shou::policy` / `shou::redflag` Move modules; Dev A's Circuit
- * Breaker and Dev B's dashboard both call it — it's the only way either
- * side touches Sui.
+ * shou::policy / shou::redflag Move modules; Dev A's Circuit Breaker and
+ * Dev B's dashboard both call it — it's the only way either side touches
+ * Sui.
  */
 export interface ShouClient {
+  /**
+   * `denyListId` is bound into the policy permanently — a transfer can
+   * only ever be checked against this exact list, so an attacker cannot
+   * swap in an empty one to shed a ban.
+   *
+   * The two ceilings are the elder's own amount limits, enforced on-chain
+   * independently of any AI score: at or above `reviewCeiling` a transfer
+   * gets a cooldown, at or above `highRiskCeiling` it needs guardian
+   * approval — even if the scorer says the conversation looked fine.
+   */
   createPolicy(
     approvers: string[],
     threshold: number,
     cooldownMs: number,
+    denyListId: string,
+    reviewCeiling: number,
+    highRiskCeiling: number,
   ): Promise<{ policyId: string }>;
 
-  createGuard(policyId: string): Promise<{ guardId: string }>;
-
-  /** Locks funds into a request. `risk` is already scored — this never re-evaluates it. */
+  /**
+   * Locks funds into a request. The returned `tier` is what the CHAIN
+   * decided, which may be stricter than `risk.tier` — never assume the
+   * submitted tier is the effective one.
+   */
   requestTransfer(
     policyId: string,
-    guardId: string,
     denyListId: string,
     amount: number,
     recipient: string,
     risk: RiskAssessment,
-  ): Promise<{ requestId: string; tier: RiskTier; unlockAtMs: number; status: TransferStatus }>;
+  ): Promise<{ requestId: string } & TransferState>;
 
-  /** Only meaningful for HIGH-tier requests; a no-op on release for LOW/MEDIUM. */
-  approveTransfer(requestId: string, policyId: string, approver: string): Promise<{ status: TransferStatus }>;
+  /** Approver-only. Only affects release for HIGH-tier requests. */
+  approveTransfer(requestId: string, policyId: string): Promise<TransferState>;
 
-  /** Guardian-only. Cancels a pending transfer and refunds the owner. */
-  blockTransfer(requestId: string, policyId: string, approver: string): Promise<{ status: TransferStatus }>;
+  /** Approver-only. Stops a pending transfer and refunds the owner. */
+  blockTransfer(requestId: string, policyId: string): Promise<TransferState>;
 
-  /** Callable by anyone once unlocked — release doesn't require the owner's own tx. */
-  executeTransfer(requestId: string, policyId: string): Promise<{ status: TransferStatus }>;
+  /**
+   * Owner-only escape hatch. Without it, a HIGH-tier request whose
+   * approvers never respond would lock the owner's funds permanently.
+   * Refunds to the owner, so it grants an attacker nothing.
+   */
+  cancelTransfer(requestId: string, policyId: string): Promise<TransferState>;
 
-  getTransferStatus(requestId: string): Promise<{ status: TransferStatus; approvals: string[] }>;
+  /** Callable by anyone once the tier's release condition is met. */
+  executeTransfer(requestId: string, policyId: string): Promise<TransferState>;
 
-  /** Layer 3 — lands a Gonka-scored plausibility directly as an on-chain soft ban. */
+  getTransferStatus(requestId: string): Promise<TransferState>;
+
+  /** Owner or approver; only ever extends an existing pause. */
+  pause(policyId: string, untilMs: number): Promise<void>;
+
+  /** Owner only. */
+  unpause(policyId: string): Promise<void>;
+
+  /**
+   * Layer 3 — lands a Gonka-scored plausibility as an on-chain soft ban.
+   * Requires the OracleCap held by the scoring service, so an arbitrary
+   * user cannot ban a legitimate merchant. `banCeiling` is the "soft" in
+   * soft ban: amounts at or below it still go through.
+   */
   reportRedFlag(
     denyListId: string,
     address: string,
     plausibilityScore: number,
+    banCeiling: number,
   ): Promise<{ banned: true }>;
 
-  isRecipientBanned(denyListId: string, address: string): Promise<boolean>;
+  /** True only if a transfer of `amount` to `address` would be blocked. */
+  isAmountBlocked(denyListId: string, address: string, amount: number): Promise<boolean>;
 }
