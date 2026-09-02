@@ -34,9 +34,31 @@ Companion to [shou-idea.md](shou-idea.md) (problem/product PRD). This doc is imp
 | Extension | Manifest V3, vanilla content script + small React popup | No build-tool overkill for a badge and a form |
 | Backend glue | Node + Express, single process | One service, not microservices — nothing here needs more |
 | Dashboard | Next.js (or plain React, whichever the team already has scaffolding for) | Only real requirement: reads on-chain events + calls the driver |
-| Off-chain storage | SQLite or a single Postgres table for the Red Flag queue and message-hash log | No content stored — see PRD §9 — so this is small |
+| Off-chain storage | See "What is stored, and where" below | Deliberately almost nothing |
 
 Skipped: message queue, container orchestration, multi-service split. `ponytail: single Node process is enough at hackathon scale — split into services only if the demo needs independent scaling, which it won't.`
+
+### What is stored, and where — a design commitment, not an accident
+
+The honest version of "is it private", enumerated so it can be checked rather than promised.
+
+| Location | Holds | Message text? |
+|---|---|---|
+| Elder's browser | The conversation, as it already exists in WhatsApp Web | Yes — hers, on her device |
+| Network hop to enclave | Redacted text only (`packages/redact` runs on-device first) | Redacted |
+| Enclave memory | Redacted text, for the duration of one scoring call | Transiently |
+| Enclave session map | Tier, score, category, last message **hash**, timestamp. 30-minute TTL, in memory. | **No** |
+| Circuit breaker | Nothing. Forwards and forgets. | **No** |
+| On-chain | SHA-256 hash, tier, score | **No** |
+| Guardian dashboard | Tier, amount, recipient novelty | **No** |
+| **Any database** | **There is no database.** Nothing in SHOU persists a message, anywhere. | **No** |
+
+Two properties worth stating plainly because they are unusual:
+
+1. **There is no conversation store to leak, subpoena, or breach.** Not "we encrypt it" — it does not exist.
+2. **Redaction runs twice** — on-device before the message leaves, and again in the enclave before scoring. The second pass means a stale or bypassed extension cannot cause raw PII to be scored. `redact()` is idempotent, so this is free.
+
+**Requirement for Dev B:** the Red Flag report form (`packages/redflag-service`) takes a free-text description from a user. Run it through `@shou/redact` before it is scored or stored — it is the one remaining path where a human could paste PII into the system.
 
 ## 3. Repo layout
 
@@ -55,6 +77,9 @@ shou/
       server.ts
       sign-fixture.ts
   packages/
+    redact/                 # SHARED — PII stripping. Imported by the
+      src/redact.ts         #   extension (on-device) AND the enclave.
+      src/redact.test.ts    #   7 tests, `npm test`.
     gonka-client/           # DEV B — Gonka Router scoring. Runs INSIDE the
       src/scorer.ts         #   enclave (see note in §7), not in the extension.
     driver/                 # DEV A — shared TS client, the seam both sides import

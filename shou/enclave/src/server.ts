@@ -19,6 +19,7 @@
 
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
+import { redact } from '../../packages/redact/src/redact.ts';
 import {
   RiskTierCode,
   devHeuristicScorer,
@@ -139,10 +140,18 @@ const server = createServer(async (req, res) => {
         return json(400, { error: 'message, policyId, recipient and amount are all required' });
       }
 
-      // The only place plaintext exists. Hash first so the rest of the
-      // function never needs to touch it again.
-      const messageHash = new Uint8Array(createHash('sha256').update(body.message).digest());
-      const score = await scoreMessage(body.message);
+      // Redact BEFORE anything else touches the message. The extension
+      // is expected to have redacted already; doing it again here means
+      // a stale, bypassed or third-party client cannot cause raw PII to
+      // be scored. Redaction is idempotent, so double-running is free.
+      //
+      // Everything downstream — the model call, the hash, the session
+      // record — sees only the redacted form. There is no code path in
+      // this service that handles the raw message after this line.
+      const { text: safeMessage, removed } = redact(body.message);
+
+      const messageHash = new Uint8Array(createHash('sha256').update(safeMessage).digest());
+      const score = await scoreMessage(safeMessage);
       if (body.sessionId) recordSessionRisk(body.sessionId, score, messageHash);
 
       const timestampMs = Date.now();
@@ -175,6 +184,10 @@ const server = createServer(async (req, res) => {
         category: score.category,
         reasoning: score.reasoning,
         gonkaRequestIds: score.gonkaRequestIds,
+        // Counts only — which KINDS of identifier were stripped, never
+        // their values. Lets the UI show "we removed a phone number and
+        // an account number before scoring" as a visible privacy signal.
+        redacted: removed,
       });
     }
 
