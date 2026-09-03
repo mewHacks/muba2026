@@ -23,8 +23,12 @@ const W = { classifier: 0.35, verifier: 0.2, transaction: 0.25, indicators: 0.2 
 // ---------- lexicons ----------
 const URGENCY = [
   "immediately", "right now", "within the hour", "urgent", "last chance",
-  "sekarang juga", "segera", "cepat", "dalam masa",
-  "马上", "立刻", "尽快", "限时",
+  "hurry", "as soon as possible", "act now", "before it is too late",
+  // "sekarang juga" is the textbook phrasing, but real scam texts (and judges
+  // typing at a demo) shorten it to bare "sekarang". Matching only the long form
+  // meant the Macau-scam floor silently failed to fire on the shorter wording.
+  "sekarang", "segera", "cepat", "dalam masa", "jangan tunggu",
+  "马上", "立刻", "尽快", "限时", "现在", "快点",
 ];
 const AUTHORITY = [
   "pdrm", "police", "polis", "警察", "lhdn", "inland revenue", "bank negara", "bnm",
