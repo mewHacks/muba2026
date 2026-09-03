@@ -13,9 +13,9 @@ Current deployment (`shou/demo-ids.json` is the source of truth, regenerated
 per deploy — it is gitignored, so run the seeder after any republish):
 
 ```
-package    0x96b8a4b313fe2fa5f7a06501a3cd4e8b1084746d0dda5565c0460fbda63836b3
-denyList   0x54065b3de7e9b8cd3eb9c994e9be6ad406540657ee0b2d38548a9e56d0c3a453
-adminCap   0x6b7bfe442feabc9e3ff535d7962a8d5016357f4b47a1f17d0948ee68c35dade3
+package    0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f
+denyList   0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc
+adminCap   0xcf19f6d6a67e033787d47f9b2896f9cb1baa64d49b515d7a5f120a647b599a7e
 ```
 
 ---
@@ -80,9 +80,9 @@ Needs the enclave (:3100) running. Moves real testnet USDC.
 
 ```bash
 cd shou
-SHOU_PACKAGE_ID=0x96b8a4b313fe2fa5f7a06501a3cd4e8b1084746d0dda5565c0460fbda63836b3 \
-SHOU_ADMIN_CAP=0x6b7bfe442feabc9e3ff535d7962a8d5016357f4b47a1f17d0948ee68c35dade3 \
-SHOU_DENY_LIST=0x54065b3de7e9b8cd3eb9c994e9be6ad406540657ee0b2d38548a9e56d0c3a453 \
+SHOU_PACKAGE_ID=0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f \
+SHOU_ADMIN_CAP=0xcf19f6d6a67e033787d47f9b2896f9cb1baa64d49b515d7a5f120a647b599a7e \
+SHOU_DENY_LIST=0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc \
 node --experimental-strip-types packages/driver/src/e2e.ts
 ```
 

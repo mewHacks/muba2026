@@ -78,7 +78,21 @@ const DEFAULT_VERIFIER = 'MiniMaxAI/MiniMax-M2.7';
 
 // Total wall-clock the models may consume. The UI is waiting, so this is a
 // deadline shared across both calls, not a per-call timeout.
-const MODEL_DEADLINE_MS = 14_000;
+//
+// 14s was below this router's own latency for a novel prompt (measured at
+// 12-20s in LATENCY-FINDINGS.md), so most first-time messages lost the race:
+// the caller waited the full 14s AND got no model answer AND no request id —
+// the worst of both. 25s means an unseen message usually lands.
+//
+// It costs nothing on a repeat, because the router caches: the same prompt
+// returns in ~300ms. Warm the demo message once beforehand and this deadline
+// never comes near being spent.
+//
+// Tune without editing code: GONKA_DEADLINE_MS. Set it low (2000) when you
+// want the deterministic rules alone and do not care about model output —
+// that is the fast path for chain tests, where scoring is not what is under
+// test.
+const MODEL_DEADLINE_MS = Number(process.env.GONKA_DEADLINE_MS ?? 25_000);
 // Below this much remaining, a second opinion cannot land, so we skip it and
 // say so rather than spend the rest of the budget and return nothing.
 const MIN_VERIFIER_MS = 4_000;

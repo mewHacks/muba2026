@@ -119,16 +119,26 @@ Dev A never imports Gonka Router — `RiskAssessment` arrives already scored.
 
 ## 5. Move module design
 
-**Deployed to testnet and adversarially tested.** Successive security reviews found five critical issues across three deployments; all are fixed, each has a regression test, and each fix was re-verified on-chain rather than only in unit tests.
+**Deployed to testnet and adversarially tested.** Successive security reviews found five critical issues across four deployments; all are fixed, each has a regression test, and each fix was re-verified on-chain rather than only in unit tests. The current deployment also stops publishing the risk verdict in events — see the privacy note below.
 
 | | |
 |---|---|
-| Package ID | `0x96b8a4b313fe2fa5f7a06501a3cd4e8b1084746d0dda5565c0460fbda63836b3` |
-| DenyList | `0x54065b3de7e9b8cd3eb9c994e9be6ad406540657ee0b2d38548a9e56d0c3a453` |
+| Package ID | `0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f` |
+| DenyList | `0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc` |
 | Modules | `policy`, `redflag`, `enclave` |
 | Tests | 38/38 passing (`sui move test`) |
 
-Superseded: `0xf7f053a2…c003` — do not use. It contains the `execute` fund-theft bug described below.
+Superseded, do not use: `0xf7f053a2…c003` (contains the `execute` fund-theft bug
+described below) and `0x96b8a4b3…36b3` (publishes the risk tier in its events).
+
+**Privacy: the event no longer carries a verdict.** `TransferRequested` used to emit
+`tier`, `claimed_tier`, `truth_score` and `message_hash`. An event stream is the cheap
+way to index Sui in bulk, so that let anyone build a list of wallets flagged for scam
+vulnerability — a targeting list aimed at the people this contract defends. It now emits
+only `request_id`, `policy_id`, `unlock_at_ms` and `requires_approval`, which is all a
+guardian dashboard needs and reveals nothing, since it is equally true of a large
+ordinary payment. The verdict lives in our own store, keyed by `request_id` — the
+pattern Mysten recommended when asked.
 
 **The fifth issue, found last and worst: `execute` returned the coin to its caller.**
 

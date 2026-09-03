@@ -175,6 +175,13 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    // Reset session risk memory for a policy (used to start fresh test scenarios)
+    if (req.method === 'POST' && req.url === '/reset') {
+      const body = await readBody();
+      const resData = await enclaveFetch('/reset', body);
+      return json(200, resData);
+    }
+
     return json(404, { error: 'not found' });
   } catch (error) {
     return json(500, { error: error instanceof Error ? error.message : 'internal error' });

@@ -190,7 +190,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
   const orMissing = (v: unknown) =>
     v === undefined || v === null || v === '' ? '<em style="color:#6b7280">not returned</em>' : esc(v);
 
-  const sessionId = `zklogin-${Date.now()}`;
+  let sessionId = `zklogin-${Date.now()}`;
 
   /**
    * Scores the message currently in the textarea, inside the enclave.
@@ -247,6 +247,29 @@ if (!config.googleClientId || !config.enokiApiKey) {
         `;
       } catch (e) {
         transferFeedback.textContent = `Risk check failed: ${e instanceof Error ? e.message : e} (is the circuit breaker running on :4000?)`;
+      }
+    };
+  }
+
+  const resetBtn = document.getElementById('reset-btn') as HTMLButtonElement | null;
+  if (resetBtn && transferFeedback) {
+    resetBtn.onclick = async () => {
+      transferFeedback.textContent = 'Clearing risk memory…';
+      try {
+        await fetch('http://localhost:4000/reset', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ policyId: config.policyId, sessionId }),
+        });
+        scoredMessage = null;
+        sessionId = `zklogin-${Date.now()}`;
+        transferFeedback.innerHTML = `
+          <div style="padding:.5rem;background:#f3f4f6;border-radius:.25rem;color:#374151;margin-top:.5rem;">
+            🔄 <strong>Scenario reset.</strong> Past scam memory cleared. You can now test a fresh benign message!
+          </div>
+        `;
+      } catch (e) {
+        transferFeedback.textContent = `Reset failed: ${e instanceof Error ? e.message : e}`;
       }
     };
   }
@@ -308,6 +331,17 @@ if (!config.googleClientId || !config.enokiApiKey) {
           ? `Verdict from the scored conversation: ${esc(data.tier)}`
           : 'No conversation was scored — the amount limits alone applied.';
 
+        // WHO actually decided this. Without it, a verdict reached by the
+        // deterministic rules alone — because the router timed out and the
+        // model contributed nothing — renders identically to one the model
+        // produced. Same tier, same category, same confident badge. That
+        // reads as "our AI caught it" when the AI was not there, which is
+        // the one claim we cannot afford to get wrong in front of a judge.
+        const ids: string[] = data.gonkaRequestIds ?? [];
+        const provenance = ids.length
+          ? `Scored by ${ids.length} Gonka model${ids.length > 1 ? 's' : ''} · <code>${esc(ids[0])}</code>`
+          : 'Scored by the built-in rules — no model answered in time, so this verdict is not from Gonka.';
+
         transferFeedback.innerHTML = `
           <div style="padding:.5rem;background:#fef3c7;border-radius:.25rem;color:#92400e;margin-top:.5rem;">
             <strong>🛡️ Attestation signed (${orMissing(data.tier)})</strong><br/>
@@ -317,6 +351,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
               Category: ${orMissing(data.category)}
             </div>
             <div style="margin-top:.5rem;font-size:.85rem;">${vouched}</div>
+            <div style="margin-top:.35rem;font-size:.8rem;${ids.length ? '' : 'color:#92400e;font-weight:600;'}">${provenance}</div>
             <div style="margin-top:.5rem;color:#6b7280;font-size:.8rem;">
               Signed only. Nothing is on chain until this is submitted to
               <code>policy::request_transfer_attested</code>.

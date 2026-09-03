@@ -15818,7 +15818,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
   );
   const orMissing = (v) => v === void 0 || v === null || v === "" ? '<em style="color:#6b7280">not returned</em>' : esc(v);
-  const sessionId = `zklogin-${Date.now()}`;
+  let sessionId = `zklogin-${Date.now()}`;
   let scoredMessage = null;
   async function scoreCurrentMessage(message) {
     const resp = await fetch("http://localhost:4000/risk", {
@@ -15861,6 +15861,28 @@ if (!config.googleClientId || !config.enokiApiKey) {
       }
     };
   }
+  const resetBtn = document.getElementById("reset-btn");
+  if (resetBtn && transferFeedback) {
+    resetBtn.onclick = async () => {
+      transferFeedback.textContent = "Clearing risk memory\u2026";
+      try {
+        await fetch("http://localhost:4000/reset", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ policyId: config.policyId, sessionId })
+        });
+        scoredMessage = null;
+        sessionId = `zklogin-${Date.now()}`;
+        transferFeedback.innerHTML = `
+          <div style="padding:.5rem;background:#f3f4f6;border-radius:.25rem;color:#374151;margin-top:.5rem;">
+            \u{1F504} <strong>Scenario reset.</strong> Past scam memory cleared. You can now test a fresh benign message!
+          </div>
+        `;
+      } catch (e) {
+        transferFeedback.textContent = `Reset failed: ${e instanceof Error ? e.message : e}`;
+      }
+    };
+  }
   if (sendBtn && transferFeedback && recipientInput && amountInput) {
     sendBtn.onclick = async () => {
       if (!config.policyId) {
@@ -15897,6 +15919,8 @@ if (!config.googleClientId || !config.enokiApiKey) {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || "prepare failed");
         const vouched = data.hadSessionRisk ? `Verdict from the scored conversation: ${esc(data.tier)}` : "No conversation was scored \u2014 the amount limits alone applied.";
+        const ids = data.gonkaRequestIds ?? [];
+        const provenance = ids.length ? `Scored by ${ids.length} Gonka model${ids.length > 1 ? "s" : ""} \xB7 <code>${esc(ids[0])}</code>` : "Scored by the built-in rules \u2014 no model answered in time, so this verdict is not from Gonka.";
         transferFeedback.innerHTML = `
           <div style="padding:.5rem;background:#fef3c7;border-radius:.25rem;color:#92400e;margin-top:.5rem;">
             <strong>\u{1F6E1}\uFE0F Attestation signed (${orMissing(data.tier)})</strong><br/>
@@ -15906,6 +15930,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
               Category: ${orMissing(data.category)}
             </div>
             <div style="margin-top:.5rem;font-size:.85rem;">${vouched}</div>
+            <div style="margin-top:.35rem;font-size:.8rem;${ids.length ? "" : "color:#92400e;font-weight:600;"}">${provenance}</div>
             <div style="margin-top:.5rem;color:#6b7280;font-size:.8rem;">
               Signed only. Nothing is on chain until this is submitted to
               <code>policy::request_transfer_attested</code>.

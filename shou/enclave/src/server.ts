@@ -323,6 +323,23 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    if (req.method === 'POST' && req.url === '/reset') {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
+      const { policyId, sessionId } = body as { policyId?: string; sessionId?: string };
+      if (policyId) {
+        for (const [id, entry] of sessions) {
+          if (entry.policyId === policyId) sessions.delete(id);
+        }
+      } else if (sessionId) {
+        sessions.delete(sessionId);
+      } else {
+        sessions.clear();
+      }
+      return json(200, { status: 'cleared', remaining: sessions.size });
+    }
+
     return json(404, { error: 'not found' });
   } catch (error) {
     // Deliberately does not echo the request body — an error path that
