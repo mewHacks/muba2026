@@ -48,6 +48,12 @@ const LURE = [
   "investment opportunity", "peluang pelaburan", "投资机会",
   "you have won", "anda menang", "中奖", "lucky draw", "cabutan bertuah",
   "parcel", "bungkusan", "包裹", "customs fee", "clearance fee",
+  // Advance-fee fraud: the victim pays to "release" money that does not exist.
+  // Absent from the lexicon, a loan scam scored 0 on keywords and, with the models
+  // down, fell through to LOW - i.e. it would have executed.
+  "processing fee", "upfront fee", "release fee", "advance fee", "administration fee",
+  "yuran pemprosesan", "yuran pendahuluan", "手续费", "预付费",
+  "loan approved", "loan is approved", "pinjaman diluluskan", "pinjaman anda diluluskan",
 ];
 
 const hits = (h: string, needles: string[]) => needles.filter((n) => h.includes(n));
