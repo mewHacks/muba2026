@@ -1,8 +1,8 @@
 {
-  "name": "jaga-gonka",
+  "name": "shou-gonka",
   "version": "0.1.0",
   "private": true,
-  "description": "JAGA risk committee - multi-model scam assessment on the Gonka network",
+  "description": "SHOU risk committee - multi-model scam assessment on the Gonka network",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

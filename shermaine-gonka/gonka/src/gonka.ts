@@ -17,9 +17,9 @@
 const BASE_URL = "https://api.gonkarouter.io/v1";
 
 export const MODELS = {
-  classifier: process.env.GONKA_MODEL_CLASSIFIER ?? "deepseek-v4-flash-0731",
-  verifier: process.env.GONKA_MODEL_VERIFIER ?? "kimi-k2-6",
-  explainer: process.env.GONKA_MODEL_EXPLAINER ?? "minimax-m2-7",
+  classifier: process.env.GONKA_MODEL_CLASSIFIER ?? "deepseek-ai/DeepSeek-V4-Flash-0731",
+  verifier: process.env.GONKA_MODEL_VERIFIER ?? "moonshotai/Kimi-K2.6",
+  explainer: process.env.GONKA_MODEL_EXPLAINER ?? "MiniMaxAI/MiniMax-M2.7",
 };
 
 export const PROMPT_VERSION = "shou-prompts-v2";
@@ -57,7 +57,7 @@ export async function callGonka(
   user: string,
   opts: { maxTokens?: number; retries?: number; timeoutMs?: number } = {},
 ): Promise<GonkaCall> {
-  const { maxTokens = 600, retries = 1, timeoutMs = 20000 } = opts;
+  const { maxTokens = 600, retries = 1, timeoutMs = 45000 } = opts;
   const apiKey = process.env.GONKA_API_KEY;
   if (!apiKey) throw new Error("GONKA_API_KEY is not set. Copy .env.example to .env.");
 
