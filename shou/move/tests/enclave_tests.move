@@ -19,9 +19,9 @@ const RECIPIENT: address = @0xC1;
 // struct in sources/enclave.move. If those drift, every real signature
 // silently stops verifying on-chain, and this test is the alarm.
 const ENCLAVE_PUBKEY: vector<u8> =
-    x"cd50a61933c82cb2725b54f515ece1f5c59406ef153e2be2ce317400de4cfca5";
+    x"32f0d2c60a99cf73a8c82b54a2b2cae5e4479f234446e58cb2248328326902c5";
 const FIXTURE_SIGNATURE: vector<u8> =
-    x"0651a8be63dc1017f47578747e9fe8f55bcda069a7c30efbfb3c2db1984dcb0d74161bca01054b68bb4d4871a1a8078d6904a98e3e49003036d9869aadb7750c";
+    x"059b159302fe14418f05e305299f4777eeacc343c8fb12d32de4270fdb464abd8301d474f0cd1f3e10ec84ee898363c3e1f3008ab084d671853efca120dd3f0e";
 const FIXTURE_TIMESTAMP_MS: u64 = 1700000000000;
 const FIXTURE_MESSAGE_HASH: vector<u8> = x"00112233";
 const FIXTURE_POLICY_ID: address = @0x00000000000000000000000000000000000000000000000000000000000000cc;

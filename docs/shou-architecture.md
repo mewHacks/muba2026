@@ -184,6 +184,19 @@ Four real bugs only surfaced by running it, all invisible to the 37 passing unit
 
 **Known gap for Dev B:** `requestTransfer` can only split from the gas coin when the coin type is SUI. For a real stablecoin the caller must pass `paymentCoinIds`; the client throws a clear error rather than silently building a broken transaction.
 
+### If the enclave restarts mid-demo — read this before you panic
+
+The enclave generates its signing key **in memory at startup and never persists it**. That is correct for a real TEE: a restart is supposed to mean a new key. But it means any restart — laptop sleep, Ctrl-C, a crash — leaves the *old* public key registered on-chain while the enclave signs with a *new* one. Every attestation then aborts with `EInvalidSignature`, which looks exactly like a contract bug and is not one.
+
+The enclave now prints a loud warning on every startup saying so. The fix takes thirty seconds:
+
+```bash
+SHOU_ENCLAVE_CONFIG=<config id> SHOU_ADMIN_CAP=<cap id> \
+  node --experimental-strip-types packages/driver/src/reregister-enclave.ts
+```
+
+It reads the enclave's current key from `/get_attestation`, re-registers it, and prints the new `Enclave` object id to use for the rest of the run. The previously registered `Enclave` object still exists but its key is dead — do not reuse it.
+
 ## 6. Sequence — Flow B (the demo)
 
 ```

@@ -87,6 +87,7 @@ export interface ShouClient {
     amount: number,
     recipient: string,
     risk: RiskAssessment,
+    coinType?: string,
   ): Promise<{ requestId: string } & TransferState>;
 
   /** Registers the PCR measurements of the enclave build. Admin-gated. */
@@ -118,23 +119,30 @@ export interface ShouClient {
     enclaveId: string,
     attestation: EnclaveAttestation,
     signatureHex: string,
+    coinType?: string,
   ): Promise<{ requestId: string } & TransferState>;
 
+  // NOTE ON `coinType`: it defaults to SUI. If the transfer is in USDC
+  // (which it is, for the real product) you MUST pass the coin type — a
+  // missing one silently builds the Move call with the wrong type
+  // argument and aborts on-chain. It is declared here rather than left
+  // as an implementation detail precisely so it cannot be missed.
+
   /** Approver-only. Only affects release for HIGH-tier requests. */
-  approveTransfer(requestId: string, policyId: string): Promise<TransferState>;
+  approveTransfer(requestId: string, policyId: string, coinType?: string): Promise<TransferState>;
 
   /** Approver-only. Stops a pending transfer and refunds the owner. */
-  blockTransfer(requestId: string, policyId: string): Promise<TransferState>;
+  blockTransfer(requestId: string, policyId: string, coinType?: string): Promise<TransferState>;
 
   /**
    * Owner-only escape hatch. Without it, a HIGH-tier request whose
    * approvers never respond would lock the owner's funds permanently.
    * Refunds to the owner, so it grants an attacker nothing.
    */
-  cancelTransfer(requestId: string, policyId: string): Promise<TransferState>;
+  cancelTransfer(requestId: string, policyId: string, coinType?: string): Promise<TransferState>;
 
   /** Callable by anyone once the tier's release condition is met. */
-  executeTransfer(requestId: string, policyId: string): Promise<TransferState>;
+  executeTransfer(requestId: string, policyId: string, coinType?: string): Promise<TransferState>;
 
   getTransferStatus(requestId: string): Promise<TransferState>;
 

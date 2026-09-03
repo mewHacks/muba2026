@@ -28,6 +28,7 @@
 
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import type { PublicKey } from '@mysten/sui/cryptography';
+import { decodeJwt, genAddressSeed, toZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 
 /** Weight for the elder's own signer — enough to meet the threshold alone. */
 export const ELDER_WEIGHT = 2;
@@ -83,4 +84,55 @@ export function canAuthorise(signers: ('elder' | 'guardian' | 'second')[]): bool
   const weights = { elder: ELDER_WEIGHT, guardian: RECOVERY_WEIGHT, second: RECOVERY_WEIGHT };
   const total = [...new Set(signers)].reduce((sum, s) => sum + weights[s], 0);
   return total >= THRESHOLD;
+}
+
+/**
+ * Turns a completed zkLogin session into a multisig member.
+ *
+ * The multisig needs a *public identifier*, not the zkLogin address. It
+ * derives from the same four inputs the address does — `sub` (who),
+ * `iss` (which provider), `aud` (which app) and the per-user salt — so
+ * the same Google account under the same app always yields the same
+ * member, and therefore the same wallet.
+ *
+ * The corollary is worth stating plainly: change the OAuth client ID and
+ * `aud` changes, which changes this identifier, which changes the
+ * multisig address. It is a different wallet. That is exactly the
+ * fragility that makes the recovery members necessary — they are what
+ * keeps the funds reachable when this identifier can no longer be
+ * reproduced.
+ *
+ * @param jwt  the id_token returned by the provider
+ * @param salt the per-user salt (Enoki supplies this; losing it is fatal
+ *             to the zkLogin signer, though not to the wallet)
+ */
+export function zkLoginMember(jwt: string, salt: string | bigint): PublicKey {
+  const claims = decodeJwt(jwt);
+  if (!claims.sub || !claims.aud || !claims.iss) {
+    throw new Error('JWT is missing sub, aud or iss — cannot derive a zkLogin identifier');
+  }
+  // `aud` may be a string or an array; zkLogin uses a single value.
+  const aud = Array.isArray(claims.aud) ? claims.aud[0]! : claims.aud;
+
+  const addressSeed = genAddressSeed(salt, 'sub', claims.sub, aud);
+  return toZkLoginPublicIdentifier(addressSeed, claims.iss, { legacyAddress: false });
+}
+
+/**
+ * The elder's actual wallet, built from a live zkLogin session plus the
+ * two recovery parties. This is the address her family sends money to.
+ */
+export function walletFromZkLogin(input: {
+  jwt: string;
+  salt: string | bigint;
+  guardian: PublicKey;
+  second: PublicKey;
+}): { address: string; multisig: MultiSigPublicKey } {
+  const members: RecoveryMembers = {
+    elder: zkLoginMember(input.jwt, input.salt),
+    guardian: input.guardian,
+    second: input.second,
+  };
+  const multisig = buildRecoveryMultisig(members);
+  return { address: multisig.toSuiAddress(), multisig };
 }

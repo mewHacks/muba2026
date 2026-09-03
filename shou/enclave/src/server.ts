@@ -43,10 +43,11 @@ const GONKA_MODELS = (process.env.GONKA_MODELS ?? 'minimax,kimi').split(',');
 // A restart produces a new key and requires re-registering on-chain.
 const keypair = generateEnclaveKeypair();
 
-// Dev B's scorer, or the dev stand-in when no credentials are present.
-const scoreMessage: Scorer = GONKA_API_KEY
-  ? gonkaScorer({ url: GONKA_URL, apiKey: GONKA_API_KEY, models: GONKA_MODELS })
-  : devHeuristicScorer;
+// Dev B's scorer, or the dev stand-in when no credentials are present or testing.
+const scoreMessage: Scorer =
+  GONKA_API_KEY && process.env.SHOU_TEST_SCORER !== '1'
+    ? gonkaScorer({ url: GONKA_URL, apiKey: GONKA_API_KEY, models: GONKA_MODELS })
+    : devHeuristicScorer;
 
 /**
  * Per-session risk state, held in ENCLAVE memory only.
@@ -62,6 +63,7 @@ const scoreMessage: Scorer = GONKA_API_KEY
  * plaintext is already gone by the time anything lands here.
  */
 interface SessionRisk {
+  policyId: string;
   tier: RiskTierName;
   truthScore: number;
   category: string;
@@ -71,9 +73,20 @@ interface SessionRisk {
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
+/**
+ * Hard cap on live sessions. Without it, an unauthenticated caller can
+ * grow this map with unique session ids until the process dies — and a
+ * Nitro enclave has far less memory than a laptop, so it dies sooner.
+ */
+const MAX_SESSIONS = 10_000;
 const sessions = new Map<string, SessionRisk>();
 
-function recordSessionRisk(sessionId: string, score: ScoreResult, messageHash: Uint8Array): void {
+function recordSessionRisk(
+  sessionId: string,
+  policyId: string,
+  score: ScoreResult,
+  messageHash: Uint8Array,
+): void {
   const existing = sessions.get(sessionId);
   // Keep the worst verdict seen in the window: a scammer who softens
   // their language right before asking for money must not be able to
@@ -81,6 +94,7 @@ function recordSessionRisk(sessionId: string, score: ScoreResult, messageHash: U
   const keepExisting =
     existing && RiskTierCode[existing.tier] >= RiskTierCode[score.tier];
   sessions.set(sessionId, {
+    policyId,
     tier: keepExisting ? existing!.tier : score.tier,
     truthScore: Math.max(existing?.truthScore ?? 0, score.truthScore),
     category: keepExisting ? existing!.category : score.category,
@@ -88,6 +102,21 @@ function recordSessionRisk(sessionId: string, score: ScoreResult, messageHash: U
     lastMessageHash: messageHash,
     updatedAtMs: Date.now(),
   });
+
+  if (sessions.size > MAX_SESSIONS) {
+    // Map iterates in insertion order, so the front is the oldest.
+    // Drop expired entries first; if none are expired we are under
+    // active flooding, so evict the oldest regardless.
+    const now = Date.now();
+    for (const [id, entry] of sessions) {
+      if (sessions.size <= MAX_SESSIONS) break;
+      if (id !== sessionId && now - entry.updatedAtMs > SESSION_TTL_MS) sessions.delete(id);
+    }
+    for (const id of sessions.keys()) {
+      if (sessions.size <= MAX_SESSIONS) break;
+      if (id !== sessionId) sessions.delete(id);
+    }
+  }
 }
 
 function currentSessionRisk(sessionId: string): SessionRisk | undefined {
@@ -98,6 +127,35 @@ function currentSessionRisk(sessionId: string): SessionRisk | undefined {
     return undefined;
   }
   return entry;
+}
+
+/**
+ * The worst live verdict for this policy, across every session.
+ *
+ * WHY NOT JUST THE NAMED SESSION. `sessionId` arrives from the caller
+ * and this server has no authentication, so anything keyed solely on it
+ * can be laundered: score a scam conversation to HIGH, then ask for an
+ * attestation under a *fresh* session id and the lookup finds nothing,
+ * defaulting to LOW. A compromised extension is enough to do this.
+ *
+ * The policy id cannot be swapped the same way — it is the thing the
+ * attestation is *for*, and the chain checks it against the policy the
+ * transfer actually targets. So we take the worst of the named session
+ * and every other live session for the same policy. Swapping the session
+ * id now buys nothing: the HIGH is still found.
+ */
+function worstRiskForPolicy(policyId: string, sessionId: string): SessionRisk | undefined {
+  let worst = currentSessionRisk(sessionId);
+  const now = Date.now();
+  for (const [id, entry] of sessions) {
+    if (entry.policyId !== policyId) continue;
+    if (now - entry.updatedAtMs > SESSION_TTL_MS) {
+      sessions.delete(id);
+      continue;
+    }
+    if (!worst || RiskTierCode[entry.tier] > RiskTierCode[worst.tier]) worst = entry;
+  }
+  return worst;
 }
 
 const server = createServer(async (req, res) => {
@@ -152,7 +210,11 @@ const server = createServer(async (req, res) => {
 
       const messageHash = new Uint8Array(createHash('sha256').update(safeMessage).digest());
       const score = await scoreMessage(safeMessage);
-      if (body.sessionId) recordSessionRisk(body.sessionId, score, messageHash);
+      // A missing sessionId used to mean the verdict was simply dropped —
+      // so a scored HIGH could vanish before the transfer was attested.
+      // Fall back to the policy id, which is always present, so a verdict
+      // is never lost and worstRiskForPolicy can always find it.
+      recordSessionRisk(body.sessionId || body.policyId, body.policyId, score, messageHash);
 
       const timestampMs = Date.now();
       const fields = {
@@ -207,12 +269,16 @@ const server = createServer(async (req, res) => {
         });
       }
 
-      // No conversation scored for this session means we have nothing to
+      // No conversation scored for this policy means we have nothing to
       // vouch for. Report LOW rather than refusing: the chain still
       // applies the elder's amount ceilings independently, so an absent
       // AI verdict degrades to "amount rules only" instead of blocking a
       // legitimate payment. This is the phone-scam case.
-      const risk = currentSessionRisk(body.sessionId);
+      //
+      // Keyed by POLICY, not by the caller-supplied session id — see
+      // worstRiskForPolicy. A fresh session id can no longer launder away
+      // a HIGH scored earlier in the same conversation.
+      const risk = worstRiskForPolicy(body.policyId, body.sessionId);
       const tier = risk?.tier ?? 'LOW';
       const truthScore = risk?.truthScore ?? 0;
       const messageHash = risk?.lastMessageHash ?? new Uint8Array(32);
@@ -255,8 +321,30 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`SHOU enclave listening on :${PORT}`);
-  console.log(`enclave public key: ${toHex(keypair.publicKeyRaw)}`);
-  if (!GONKA_API_KEY) console.warn('WARNING: GONKA_API_KEY unset — scoring uses the dev heuristic');
-});
+export function startServer(port = PORT): Promise<{ port: number; close: () => Promise<void> }> {
+  return new Promise((resolve) => {
+    server.listen(port, () => {
+      const addr = server.address();
+      const actualPort = typeof addr === 'object' && addr ? addr.port : port;
+      console.log(`SHOU enclave listening on :${actualPort}`);
+      console.log(`enclave public key: ${toHex(keypair.publicKeyRaw)}`);
+      console.log(
+        '\n  This key is NEW — it was generated in memory just now, as a real\n' +
+          '  TEE would on every restart. Any Enclave object registered on-chain\n' +
+          '  against a PREVIOUS key is now dead, and attestations verified\n' +
+          '  against it will abort with EInvalidSignature.\n' +
+          '  If you have restarted mid-demo, re-register before continuing:\n' +
+          '    node --experimental-strip-types ../packages/driver/src/reregister-enclave.ts\n',
+      );
+      if (!GONKA_API_KEY) console.warn('WARNING: GONKA_API_KEY unset — scoring uses the dev heuristic');
+      resolve({
+        port: actualPort,
+        close: () => new Promise<void>((r) => server.close(() => r())),
+      });
+    });
+  });
+}
+
+if (process.env.SHOU_TEST_SCORER !== '1') {
+  startServer();
+}

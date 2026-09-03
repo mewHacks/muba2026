@@ -10,6 +10,18 @@
 // in this part of the design.
 
 import { EnokiFlow } from '@mysten/enoki';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { walletFromZkLogin } from '../../driver/src/recovery.ts';
+
+// Stand-ins for the son and a second relative. In the real product these
+// are their own keys on their own devices; here they only need to be
+// deterministic so the wallet address is stable across reloads.
+const DEMO_GUARDIAN = Ed25519Keypair.deriveKeypairFromSeed(
+  '0'.repeat(63) + '1',
+).getPublicKey();
+const DEMO_SECOND = Ed25519Keypair.deriveKeypairFromSeed(
+  '0'.repeat(63) + '2',
+).getPublicKey();
 
 interface Config {
   googleClientId: string;
@@ -100,6 +112,29 @@ if (!config.googleClientId || !config.enokiApiKey) {
     if (state.address) {
       show('Signed in', 'No seed phrase was created at any point in this flow.');
       els.address.textContent = state.address;
+
+      // The zkLogin address is only her SIGNER. Her actual wallet is the
+      // multisig that also contains the two recovery members — which is
+      // what keeps the funds reachable if this signer ever stops working.
+      const wallet = document.getElementById('wallet')!;
+      try {
+        if (session?.jwt && state.salt) {
+          const { address } = walletFromZkLogin({
+            jwt: session.jwt,
+            salt: state.salt,
+            guardian: DEMO_GUARDIAN,
+            second: DEMO_SECOND,
+          });
+          wallet.textContent = address;
+          trace(`recovery wallet: ${address}`);
+        } else {
+          wallet.textContent = 'needs jwt + salt';
+          trace(`cannot derive wallet — jwt:${Boolean(session?.jwt)} salt:${Boolean(state.salt)}`);
+        }
+      } catch (error) {
+        wallet.textContent = 'derivation failed';
+        trace(`wallet derivation THREW: ${error instanceof Error ? error.message : error}`);
+      }
       els.signIn.hidden = true;
       els.signOut.hidden = false;
       // Handy for wiring into the multisig: this is the address that
