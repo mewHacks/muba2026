@@ -1,0 +1,23 @@
+{
+  "name": "jaga-gonka",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JAGA risk committee - multi-model scam assessment on the Gonka network",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "ping": "tsx test/ping.ts",
+    "eval": "tsx test/eval.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
