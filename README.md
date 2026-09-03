@@ -2,7 +2,7 @@
 
 # 守 SHOU
 
-**S**eniority **H**olds **O**ver **U**rgency
+**S**cam-**H**alting **O**n-chain **U**tility
 
 `守` — *shǒu*, to guard, to keep watch over.
 
@@ -486,6 +486,6 @@ We would rather state these than have them found:
 
 ## Team
 
-**Hana** — Move contracts, TEE enclave, driver SDK, zkLogin and recovery.
+**Hana** — Overall planning, Move contracts, TEE enclave, driver SDK, zkLogin and recovery.
 **Shermaine** — Gonka Router integration, Chrome extension, guardian dashboard.
-**Daniel and Yi Wen** - Research, business and financial value, target users, statistics
+**Daniel and Yi Wen** - Research, business and financial value, target users, statistics, rules and regulatory, existing competitors
