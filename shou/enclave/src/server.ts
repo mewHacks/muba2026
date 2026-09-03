@@ -39,9 +39,15 @@ import {
 // portal. Both defaulting to 3000 meant whichever started second died
 // with EADDRINUSE — on demo day, most likely this one.
 const PORT = Number(process.env.PORT ?? 3100);
-const GONKA_URL = process.env.GONKA_ROUTER_URL ?? 'https://gonkarouter.io/api/v1/chat/completions';
+// Verified working, replacing Dev A's guesses that returned 404 / 400 invalid_model.
+// GONKA_MODELS is [classifier, verifier]. Kimi is deliberately absent: it answers,
+// but this router's median latency for it is 26.5s and it was never once under 23s,
+// which does not fit in front of a waiting user. See packages/gonka-client/src/scorer.ts.
+const GONKA_URL = process.env.GONKA_ROUTER_URL ?? 'https://api.gonkarouter.io/v1/chat/completions';
 const GONKA_API_KEY = process.env.GONKA_API_KEY;
-const GONKA_MODELS = (process.env.GONKA_MODELS ?? 'minimax,kimi').split(',');
+const GONKA_MODELS = (
+  process.env.GONKA_MODELS ?? 'deepseek-ai/DeepSeek-V4-Flash-0731,MiniMaxAI/MiniMax-M2.7'
+).split(',');
 
 // Generated in enclave memory at startup; never leaves, never persisted.
 // A restart produces a new key and requires re-registering on-chain.

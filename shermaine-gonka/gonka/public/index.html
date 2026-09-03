@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SHOU — protected allowance wallet</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--card:#fff;--ink:#12151a;--muted:#5d6674;--line:#e3e6ea;--accent:#1f6feb;
+    --ok:#0f7b4f;--okbg:#e8f6ef;--warn:#8a5800;--warnbg:#fdf3e0;--bad:#b3261e;--badbg:#fdecea;--r:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{padding:20px 28px;background:var(--card);border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:26px;letter-spacing:-.02em}
+  .tag{color:var(--muted);font-size:15px}
+  .chips{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:#eef1f5;border:1px solid var(--line);
+    border-radius:999px;padding:3px 10px;color:var(--muted)}
+  main{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:20px;padding:20px 28px;align-items:start}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .card+.card{margin-top:18px}
+  h2{margin:0 0 12px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+  textarea,input,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .presets{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
+  .preset{font-size:12.5px;padding:6px 10px;border:1px solid var(--line);background:#fff;border-radius:999px;cursor:pointer}
+  .preset:hover{border-color:var(--accent);color:var(--accent)}
+  button.go{margin-top:16px;width:100%;padding:14px;font-size:16px;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:11px;cursor:pointer}
+  button.go:disabled{opacity:.55;cursor:default}
+  .stage{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:11px;opacity:.45;transition:opacity .25s}
+  .stage.active{opacity:1}
+  .stage .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .role{font-weight:600;font-size:15px}
+  .model{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);margin-top:3px}
+  .score{font-variant-numeric:tabular-nums;font-weight:700;font-size:19px}
+  .finding{margin-top:8px;color:var(--muted);font-size:14px}
+  .receipt{margin-top:9px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+  .receipt a{color:var(--accent)}
+  .warnline{margin-top:8px;font-size:13px;color:var(--warn);background:var(--warnbg);border:1px solid #f0dcb4;border-radius:8px;padding:7px 10px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .tier{border-radius:var(--r);padding:20px;border:1px solid transparent}
+  .tier.HIGH{background:var(--badbg);border-color:#f3c9c5;color:var(--bad)}
+  .tier.MEDIUM{background:var(--warnbg);border-color:#f0dcb4;color:var(--warn)}
+  .tier.LOW{background:var(--okbg);border-color:#c4e5d5;color:var(--ok)}
+  .tier .badge{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+  .tier .plain{font-size:21px;line-height:1.4;margin:8px 0 0;color:var(--ink)}
+  .tier .local{font-size:19px;margin-top:6px;color:var(--ink);opacity:.82}
+  .meta{margin-top:12px;font-size:13px;color:var(--muted)}
+  .pill{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:12px;margin:0 6px 6px 0;color:var(--muted)}
+  ul.reasons{margin:8px 0 0;padding-left:18px;font-size:14px;color:var(--muted)}
+  ul.reasons li{margin-bottom:4px}
+  pre.mono{white-space:pre-wrap;background:#f2f4f7;border:1px solid var(--line);border-radius:10px;padding:12px;
+    font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;overflow-x:auto}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+  .err{background:var(--badbg);border:1px solid #f3c9c5;color:var(--bad);padding:12px;border-radius:10px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>SHOU</h1>
+    <span class="tag">Banks have fraud departments. Self-custody wallets have nothing.</span>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>1 · The transfer Mak is about to make</h2>
+      <div class="presets" id="presets"></div>
+
+      <label for="msg">Message she received — type your own, this is live</label>
+      <textarea id="msg" placeholder="Paste or type a message…"></textarea>
+
+      <div class="row">
+        <div><label for="amount">Amount (RM)</label><input id="amount" type="number" value="5000" /></div>
+        <div><label for="hour">Local hour</label><input id="hour" type="number" min="0" max="23" value="22" /></div>
+      </div>
+      <label for="recipient">Recipient</label>
+      <input id="recipient" value="Unknown account" />
+      <div class="row">
+        <div><label for="usual">Her usual max (RM)</label><input id="usual" type="number" value="150" /></div>
+        <div><label for="lasthour">Transfers in last hour</label><input id="lasthour" type="number" value="0" /></div>
+      </div>
+      <div class="row">
+        <div><label for="isnew">First-time recipient?</label>
+          <select id="isnew"><option value="true">Yes</option><option value="false">No</option></select></div>
+        <div><label for="lang">Explain to her in</label>
+          <select id="lang"><option value="en">English</option><option value="ms">Bahasa Malaysia</option>
+            <option value="zh">中文</option><option value="ta">தமிழ்</option></select></div>
+      </div>
+      <button class="go" id="go">Send RM<span id="goAmt">5000</span></button>
+    </div>
+  </section>
+
+  <section>
+    <div id="error" class="card err hidden"></div>
+    <div id="degraded" class="card hidden" style="border-color:#f0dcb4;background:var(--warnbg)"></div>
+
+    <div class="card">
+      <h2>2 · How the score is built</h2>
+      <div class="stage active" id="stage-local">
+        <div class="top"><span class="role">Local checks — never leave this device</span><span class="score" id="localScore">—</span></div>
+        <div class="model">deterministic · no model, no network</div>
+        <div class="finding" id="localFinding">Transaction anomaly and scam-indicator rules run before anything is sent.</div>
+      </div>
+      <div id="stages"></div>
+      <p class="note">
+        The two reviewers above see the <strong>same redacted message</strong> and cannot see each
+        other's answer, so a gap between them is real disagreement. The transaction is scored by
+        arithmetic, not by a model. <strong>Code computes the final score</strong>; models supply
+        evidence and wording, and can never lower a hard floor.
+      </p>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none">
+      <h2>3 · What happens to the money</h2>
+      <div class="tier" id="tier">
+        <div class="badge" id="tBadge"></div>
+        <p class="plain" id="tPlain"></p>
+        <p class="local" id="tLocal"></p>
+      </div>
+      <div class="meta" id="tMeta"></div>
+      <ul class="reasons" id="tReasons"></ul>
+      <div class="meta" id="tContract"></div>
+    </div>
+
+    <div class="card" id="privacyCard" style="display:none">
+      <h2>4 · Exactly what left this device</h2>
+      <pre class="mono" id="redacted"></pre>
+      <p class="note" id="redactNote"></p>
+    </div>
+
+    <div class="card" id="attCard" style="display:none">
+      <h2>5 · Bound to this one transfer</h2>
+      <pre class="mono" id="att"></pre>
+      <p class="note">
+        The assessment is bound to this policy, recipient, amount and expiry, so a LOW result
+        cannot be replayed against a different transfer. Message content is committed with an
+        HMAC, not a bare hash — a plain digest of a short scam line can be brute-forced.
+      </p>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let SCENARIOS = [];
+
+function stageCard(t) {
+  const sub = t.substituted
+    ? `<div class="warnline">Requested <b>${t.requestedModel}</b> but the router served <b>${t.servedModel}</b> — treat this as one opinion, not two independent ones.</div>` : "";
+  const err = t.error ? `<div class="warnline">${t.error}</div>` : "";
+  const receipt = t.receiptUrl
+    ? `<div class="receipt">Gonka request <a href="${t.receiptUrl}" target="_blank" rel="noopener">${t.gonkaRequestId}</a></div>` : "";
+  return `<div class="stage active">
+      <div class="top"><span class="role">${t.roleLabel}</span><span class="score">${t.score ?? "—"}</span></div>
+      <div class="model">${t.servedModel !== "none" ? t.servedModel : t.requestedModel} · ${t.latencyMs}ms</div>
+      <div class="finding">${t.finding}</div>${receipt}${sub}${err}
+    </div>`;
+}
+
+function pending() {
+  $("stages").innerHTML = ["Classifier — what kind of scam is this?",
+    "Verifier — is there an innocent explanation?",
+    "Explainer — plain language for her"]
+    .map((r) => `<div class="stage active"><div class="top"><span class="role">${r}</span>
+      <span class="score"><span class="spin"></span></span></div>
+      <div class="finding">Working…</div></div>`).join("");
+}
+
+async function assess() {
+  const body = {
+    message: $("msg").value,
+    language: $("lang").value,
+    policyId: "0xDEMO_POLICY",
+    sender: "0xMAK",
+    recipient: $("recipient").value,
+    tx: {
+      amountMYR: Number($("amount").value),
+      recipientLabel: $("recipient").value,
+      recipientIsNew: $("isnew").value === "true",
+      usualMaxMYR: Number($("usual").value),
+      transfersLastHour: Number($("lasthour").value),
+      localHour: Number($("hour").value),
+    },
+  };
+
+  $("go").disabled = true;
+  ["error", "degraded"].forEach((i) => $(i).classList.add("hidden"));
+  ["resultCard", "privacyCard", "attCard"].forEach((i) => ($(i).style.display = "none"));
+  pending();
+
+  try {
+    const res = await fetch("/api/assess", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || "Assessment failed");
+
+    $("localScore").textContent = d.deterministic.transactionScore;
+    $("localFinding").textContent = d.deterministic.hardFloorFired
+      ? `Hard rule fired (${d.deterministic.hardFloorFired}). No model is allowed to score this below ${d.deterministic.indicatorFloor}.`
+      : `Transaction anomaly ${d.deterministic.transactionScore}/100. No hard rule fired.`;
+
+    $("stages").innerHTML = d.traces.map(stageCard).join("");
+
+    if (d.degraded) { $("degraded").classList.remove("hidden"); $("degraded").textContent = d.degraded; }
+
+    $("resultCard").style.display = "";
+    $("tier").className = "tier " + d.tier;
+    $("tBadge").textContent = `${d.tier} · risk ${d.riskScore}/100 · confidence ${d.confidence}%`;
+    $("tPlain").textContent = d.explanation;
+    $("tLocal").textContent = d.language === "en" ? "" : d.explanationLocalised;
+
+    const cv = d.crossVerification;
+    const pills = [];
+    if (d.category && d.category !== "none") pills.push("pattern: " + d.category);
+    if (cv.classifierScore !== null && cv.verifierScore !== null) {
+      pills.push(`cross-check ${cv.classifierScore} vs ${cv.verifierScore} (Δ${cv.delta})`);
+      pills.push(cv.conflicted ? "reviewers conflicted" : "reviewers consistent");
+    }
+    if (cv.adjudicated) pills.push("adjudicated (bounded ±15)");
+    $("tMeta").innerHTML = pills.map((p) => `<span class="pill">${p}</span>`).join("") +
+      `<div class="note">Decided in ${d.latencyMs}ms.</div>`;
+
+    $("tReasons").innerHTML = d.reasons.slice(0, 6)
+      .map((r) => `<li>${r.safeText}</li>`).join("");
+
+    $("tContract").innerHTML =
+      `<strong>shou::policy → ${d.contractAction.action.replace("_", " ")}</strong>
+       <div class="note">${d.contractAction.ruleFired}</div>
+       <div class="note">A guardian can stop this transfer and refund Mak. A guardian can never
+       redirect it, take it, or release a cooldown early.</div>`;
+
+    $("privacyCard").style.display = "";
+    $("redacted").textContent = d.redactedInput || "(no message supplied)";
+    $("redactNote").textContent = d.redactedCount
+      ? `${d.redactedCount} personal detail(s) were replaced on this device before anything was sent. The receipts above prove these inferences ran on Gonka — they prove provenance, not that the models were right.`
+      : `No personal details were found to redact. The receipts above prove these inferences ran on Gonka — provenance, not correctness.`;
+
+    $("attCard").style.display = "";
+    $("att").textContent = JSON.stringify({ ...d.attestation, tierCode: d.tierCode }, null, 2);
+  } catch (e) {
+    $("error").classList.remove("hidden");
+    $("error").textContent = e.message;
+    $("stages").innerHTML = "";
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+function apply(s) {
+  $("msg").value = s.message; $("lang").value = s.language;
+  $("amount").value = s.tx.amountMYR; $("recipient").value = s.tx.recipientLabel;
+  $("isnew").value = String(s.tx.recipientIsNew); $("usual").value = s.tx.usualMaxMYR;
+  $("lasthour").value = s.tx.transfersLastHour; $("hour").value = s.tx.localHour;
+  $("goAmt").textContent = s.tx.amountMYR;
+}
+
+$("amount").addEventListener("input", (e) => ($("goAmt").textContent = e.target.value));
+$("go").addEventListener("click", assess);
+
+fetch("/api/scenarios").then((r) => r.json()).then((d) => {
+  SCENARIOS = d.scenarios;
+  $("chips").innerHTML = Object.entries(d.models).map(([k, v]) => `<span class="chip">${k}: ${v}</span>`).join("");
+  $("presets").innerHTML = SCENARIOS.map((s, i) =>
+    `<button class="preset" data-i="${i}">${s.hard ? "◆ " : ""}${s.label}</button>`).join("");
+  $("presets").addEventListener("click", (e) => {
+    const i = e.target.dataset.i; if (i !== undefined) apply(SCENARIOS[i]);
+  });
+  apply(SCENARIOS[0]);
+});
+</script>
+</body>
+</html>

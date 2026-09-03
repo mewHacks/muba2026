@@ -108,17 +108,37 @@ regression test. 38 Move tests passing.
 Both of these are strengths if you raise them first, and damaging if a judge
 finds them.
 
-**No AWS Nitro instance.** The Nautilus signing and on-chain signature
+**No AWS Nitro instance — this is an enclave-*compatible* prototype.** Call it
+that, not "running in a TEE". The Nautilus signing and on-chain signature
 verification are fully real. What is missing is the attestation *document* —
 so key registration is admin-gated rather than proven by AWS. It is labelled
 `PRODUCTION GAP` in the contract itself. Say: *"signature verification is
 real; the key's provenance is currently asserted by us, not by AWS."*
 
-**Gonka Router is 404ing**, so scoring falls back to a heuristic that labels
-itself `DEV MODE heuristic — not a real classifier` on screen. If it is
-still down at demo time, say so out loud before anyone reads it off your
-screen. The architecture point stands either way: the scorer runs *inside*
-the enclave, which is why the message never leaves the device unprotected.
+**Gonka scoring is live.** The 404 is fixed — the URL and model ids were
+guesses; the working ones are `https://api.gonkarouter.io/v1/chat/completions`
+with `deepseek-ai/DeepSeek-V4-Flash-0731` and `MiniMaxAI/MiniMax-M2.7`. Real
+request ids come back on screen and resolve to public receipts.
+
+Two honest caveats to say before a judge finds them:
+
+- **Cross-verification is best-effort, not guaranteed.** The account is
+  throttled and cannot run the models concurrently, so the second model runs
+  only if the 14s deadline allows. When it does not, the response says
+  `not cross-verified` in its own reasoning trace. Say *"two models when the
+  router gives us two, and it tells you when it only gave us one"* — do not
+  claim every request is cross-verified, because the screen will contradict
+  you.
+- **The router substitutes models.** We asked for Kimi and were served
+  MiniMax on a live call. We detect and disclose it rather than pretending
+  the requested model answered.
+
+If the Router is down at demo time, scoring degrades to deterministic rules
+and labels itself. That path is worth demonstrating on purpose: the obvious
+scam still lands HIGH from a hard floor, a legitimate payment still lands
+LOW, and a subtle scam is held at MEDIUM for review rather than released.
+The architecture point stands either way: the scorer runs *inside* the
+enclave, which is why the message never leaves the device unprotected.
 
 **Never claim a live TEE, and never claim Gonka is running if it isn't.** The
 Sui judge is a Mysten engineer; Nautilus is a Mysten product. One follow-up
