@@ -9,7 +9,8 @@
     "start": "tsx src/server.ts",
     "ping": "tsx test/ping.ts",
     "eval": "tsx test/eval.ts",
-    "offline": "tsx test/offline.ts"
+    "offline": "tsx test/offline.ts",
+    "demo-check": "tsx test/demo-check.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

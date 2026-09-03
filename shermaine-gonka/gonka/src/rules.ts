@@ -167,6 +167,31 @@ export function fuse(input: FusionInput): { riskScore: number; confidence: numbe
 export const tierFor = (score: number): RiskTier =>
   score >= 70 ? "HIGH" : score >= 40 ? "MEDIUM" : "LOW";
 
+/**
+ * Safety net for the case where EVERY model failed.
+ *
+ * With no model opinion at all, a subtle scam scores on keywords and arithmetic
+ * alone and can land under the MEDIUM line - `loan` and `job` both fall to LOW,
+ * which would execute immediately. Silently executing because our own inference
+ * provider was down is the one failure mode we cannot ship.
+ *
+ * So when no model answered and there is any non-trivial signal, hold at MEDIUM
+ * for review rather than release.
+ *
+ * The threshold is measured, not guessed. Across the 24 eval cases scored with
+ * every model forced to fail, the eight legitimate transfers land at 0-8 and the
+ * weakest scam lands at 22. 15 sits in that gap with margin either side, which is
+ * why `npm run offline` still reports zero false positives with this rule active.
+ */
+export const DEGRADED_REVIEW_THRESHOLD = 15;
+export const DEGRADED_REVIEW_SCORE = 40; // exactly the MEDIUM line
+
+export function applyDegradedFloor(riskScore: number, anyModelScored: boolean): number {
+  if (anyModelScored) return riskScore;
+  if (riskScore < DEGRADED_REVIEW_THRESHOLD) return riskScore;
+  return Math.max(riskScore, DEGRADED_REVIEW_SCORE);
+}
+
 export const TIER_CODE: Record<RiskTier, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
 
 /**

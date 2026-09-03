@@ -4,7 +4,7 @@ import { MODELS, callGonka, receiptUrlFor } from "../src/gonka.js";
 /** Run this first. The models page and the docs spell ids differently; only one answers. */
 const CANDIDATES = [
   ...Object.values(MODELS),
-  "moonshotai/Kimi-K2.6", "deepseek/DeepSeek-V4-Flash", "minimax/MiniMax-M2.7",
+  "moonshotai/Kimi-K2.6",
   "DeepSeek-V4-Flash", "Kimi-K2.6", "MiniMax-M2.7",
 ];
 
