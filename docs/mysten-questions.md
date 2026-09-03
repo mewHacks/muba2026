@@ -142,7 +142,7 @@ Both are named "helpful features" for Track 01 and our whole UX claim ("Google s
 
 - **D1.** For a hackathon, is there a **hosted salt service** for testnet, or do we run our own? Docs are clear that losing the salt permanently loses the address, so we've planned an SSO-style salt service — is that still the recommendation?
 - **D2.** Is the Mysten **prover** available for testnet, and are there rate limits we'd hit during a live demo?
-- **D3.** Sponsored transactions: hosted sponsor/paymaster for testnet, or roll our own relayer? Smallest correct implementation for a demo?
+- **D3. ~~Sponsored transactions: hosted or roll our own?~~ ANSWERED — Enoki sponsors per-app, covering every signed-in user. See E9.**
 - **D4.** Does a zkLogin signer compose cleanly with our shared-object PTBs, or are there gotchas with `maxEpoch` expiring mid-demo?
 - **D5.** A zkLogin address is derived, not a keypair — no seed phrase, no export, and access dies with the salt or the OAuth client ID. For a product holding an elderly user's remittance, we plan to put the zkLogin signer inside a **multisig** with the guardian holding an ordinary keypair as the recovery path. Is that the pattern you'd recommend, and are there gotchas combining a zkLogin signer with a multisig on shared objects?
 
@@ -182,11 +182,11 @@ He sees every project in the ecosystem. If this exists, we need to know before a
 
 An open invitation for him to point at the primitive we have missed. Ask it late, after he has seen the code.
 
-### E9. Who pays gas for the guardian?
+### E9. Who pays gas for the guardian? — **ANSWERED, do not ask**
 
-Sponsored transactions solve gas for the elder. But the **guardian** also transacts — approving or blocking a transfer — and he is just as likely to hold no SUI.
+Raphael: *"When you set it up with Enoki, you can choose to sponsor anybody that uses your app. If you built your app to allow Enoki transactions and your users are logged in through Enoki zkLogin, you will get a transactionless flow."*
 
-**Ask:** does one sponsor cover both parties in this kind of flow, or does each role need its own sponsorship path? Any pattern for "the app sponsors anyone acting on this policy object"?
+**Sponsorship is per-app, not per-user.** One configuration covers the elder and the guardian both. The approval stays an ordinary on-chain call — no redesign needed, and the guardian never needs SUI. The condition is that he signs in through Enoki zkLogin too, rather than connecting a raw wallet, so the guardian dashboard needs the same sign-in flow as the elder's page.
 
 ---
 
@@ -285,3 +285,43 @@ read it adversarially. Is there anything in the Sui tooling — a linter,
 `sui move prove`, a static check — that would have caught a `public fun`
 returning `Coin<T>` from a shared object? Or is that purely a review
 problem right now?"*
+
+---
+
+## Answers captured from Raphael (Mysten)
+
+### On gas: does the guardian need SUI too?
+
+**Asked:** the elder never holds SUI so we plan Enoki-sponsored transactions — but the
+guardian also has to approve on-chain and has no gas either. Sponsor both sides, or is
+there a pattern where approval isn't a transaction?
+
+**Answer:** *"When you set it up with Enoki, you can choose to sponsor anybody that uses
+your app. If you built your app to allow Enoki transactions and your users are logged in
+through Enoki zkLogin, you will get a transactionless flow."*
+
+**So: sponsor both sides.** There is no need to design the approval as a non-transaction.
+Sponsorship is per-app, not per-user, so the guardian is covered by the same configuration
+as the elder.
+
+**What this changes for us**
+
+- The guardian signs in with **Enoki zkLogin too** — he is not a raw wallet holder. The
+  guardian dashboard needs the same sign-in flow as the elder's page, which we already
+  have working in `packages/zklogin-demo`.
+- `approveTransfer` and `blockTransfer` stay ordinary on-chain calls. No redesign.
+- This removes the gas blocker on the guardian dashboard, which was the main open
+  question against E9.
+
+**Next to verify before relying on it**
+
+- **Does sponsorship cover a multisig sender?** This is the real open question. The
+  answer describes users "logged in through Enoki zkLogin", but per D5 the elder's funds
+  sit at a **weighted multisig address** that merely *contains* a zkLogin member — the
+  sender is the multisig, not the zkLogin address. The guardian may be a plain zkLogin
+  user and therefore fine, while the elder is not. Ask this next.
+- Enoki sponsorship requires the **Move call targets to be allowlisted** in the portal.
+  Confirm `policy::approve`, `policy::block_and_refund`, `policy::execute_and_send` and
+  `policy::request_transfer_attested` are registered for our package id — and note the
+  package id changes on every republish, so this must be redone after each redeploy.
+- Confirm testnet and mainnet sponsorship budgets are configured separately.

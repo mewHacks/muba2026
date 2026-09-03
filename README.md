@@ -376,7 +376,12 @@ jurisdictions. This market did not financially exist for banks until last year.
   signature, her coins, and passes the amount ceilings — but it must be closed before
   an attested LOW is ever allowed to skip escalation.
 - **Enclave revocation.** A compromised key is currently valid forever.
-- **Sponsored transactions** via Enoki, so a guardian can approve without holding gas.
+- **Sponsored transactions** via Enoki, so neither the elder nor the guardian holds SUI.
+  Confirmed with Mysten: sponsorship is configured per *app*, not per user, so one setup
+  covers both roles and the guardian's approval stays an ordinary on-chain call. The
+  guardian signs in with Enoki zkLogin rather than connecting a wallet. Open point: the
+  elder's funds sit at a multisig address containing a zkLogin member, and we still need
+  to confirm sponsorship covers a multisig sender.
 
 **Product**
 

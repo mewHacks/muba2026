@@ -1,0 +1,13 @@
+{
+  // Two git index/ref corruptions happened during this build because the
+  // editor's git integration was writing to .git while a terminal was too.
+  // Autofetch runs `git fetch` on a timer and autorefresh re-runs status on
+  // every file change; both take locks. On a hackathon clock, a corrupted
+  // index at the wrong moment is expensive, and neither feature is worth it.
+  // Fetch manually instead.
+  "git.autofetch": false,
+  "git.autorefresh": false,
+
+  // The repo has no Python. Stops the Pylance/Jedi prompt.
+  "python.languageServer": "None"
+}
