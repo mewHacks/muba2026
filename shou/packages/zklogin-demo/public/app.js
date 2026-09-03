@@ -15815,25 +15815,31 @@ if (!config.googleClientId || !config.enokiApiKey) {
   );
   const orMissing = (v) => v === void 0 || v === null || v === "" ? '<em style="color:#6b7280">not returned</em>' : esc(v);
   const sessionId = `zklogin-${Date.now()}`;
+  let scoredMessage = null;
+  async function scoreCurrentMessage(message) {
+    const resp = await fetch("http://localhost:4000/risk", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      // Pass the policy so the enclave files this verdict against it.
+      // Without it the HIGH lands under the zero address and the
+      // transfer step, which looks up by the real policy, misses it.
+      body: JSON.stringify({ sessionId, message, policyId: config.policyId || void 0 })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "risk check failed");
+    scoredMessage = message;
+    return data;
+  }
   if (checkRiskBtn && transferFeedback) {
     checkRiskBtn.onclick = async () => {
       const message = messageInput?.value.trim();
       if (!message) {
-        transferFeedback.textContent = "Type the message you received first.";
+        transferFeedback.textContent = "Type the message she received first.";
         return;
       }
       transferFeedback.textContent = "Scoring inside the enclave\u2026";
       try {
-        const resp = await fetch("http://localhost:4000/risk", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          // Pass the policy so the enclave files this verdict against it.
-          // Without it the HIGH lands under the zero address and the
-          // transfer step, which looks up by the real policy, misses it.
-          body: JSON.stringify({ sessionId, message, policyId: config.policyId || void 0 })
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || "risk check failed");
+        const data = await scoreCurrentMessage(message);
         const high = data.tier === "HIGH";
         const medium = data.tier === "MEDIUM";
         const colours = high ? "background:#fee2e2;color:#991b1b" : medium ? "background:#fef3c7;color:#92400e" : "background:#dcfce7;color:#166534";
@@ -15861,6 +15867,16 @@ if (!config.googleClientId || !config.enokiApiKey) {
       if (!Number.isFinite(amount) || amount <= 0) {
         transferFeedback.textContent = "Enter an amount greater than zero.";
         return;
+      }
+      const message = messageInput?.value.trim();
+      if (message && message !== scoredMessage) {
+        transferFeedback.textContent = "Scoring the message inside the enclave first\u2026";
+        try {
+          await scoreCurrentMessage(message);
+        } catch (e) {
+          transferFeedback.textContent = `Could not score the message: ${e instanceof Error ? e.message : e}`;
+          return;
+        }
       }
       transferFeedback.textContent = "Asking the enclave to sign a verdict bound to this transfer\u2026";
       try {

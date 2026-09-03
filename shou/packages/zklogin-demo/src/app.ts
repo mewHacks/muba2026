@@ -187,25 +187,42 @@ if (!config.googleClientId || !config.enokiApiKey) {
 
   const sessionId = `zklogin-${Date.now()}`;
 
+  /**
+   * Scores the message currently in the textarea, inside the enclave.
+   *
+   * Tracked so the transfer step can tell "already scored" from "never
+   * looked at". In the shipped product the extension scores each message
+   * as it arrives, so a verdict always exists by the time money moves;
+   * requiring a human to click a button first is a demo artifact, and one
+   * that silently produces a LOW when you forget.
+   */
+  let scoredMessage: string | null = null;
+
+  async function scoreCurrentMessage(message: string): Promise<Record<string, any>> {
+    const resp = await fetch('http://localhost:4000/risk', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      // Pass the policy so the enclave files this verdict against it.
+      // Without it the HIGH lands under the zero address and the
+      // transfer step, which looks up by the real policy, misses it.
+      body: JSON.stringify({ sessionId, message, policyId: config.policyId || undefined }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'risk check failed');
+    scoredMessage = message;
+    return data;
+  }
+
   if (checkRiskBtn && transferFeedback) {
     checkRiskBtn.onclick = async () => {
       const message = messageInput?.value.trim();
       if (!message) {
-        transferFeedback.textContent = 'Type the message you received first.';
+        transferFeedback.textContent = 'Type the message she received first.';
         return;
       }
       transferFeedback.textContent = 'Scoring inside the enclave…';
       try {
-        const resp = await fetch('http://localhost:4000/risk', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          // Pass the policy so the enclave files this verdict against it.
-          // Without it the HIGH lands under the zero address and the
-          // transfer step, which looks up by the real policy, misses it.
-          body: JSON.stringify({ sessionId, message, policyId: config.policyId || undefined }),
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || 'risk check failed');
+        const data = await scoreCurrentMessage(message);
 
         const high = data.tier === 'HIGH';
         const medium = data.tier === 'MEDIUM';
@@ -246,6 +263,22 @@ if (!config.googleClientId || !config.enokiApiKey) {
       if (!Number.isFinite(amount) || amount <= 0) {
         transferFeedback.textContent = 'Enter an amount greater than zero.';
         return;
+      }
+
+      // Score first if this exact message has not been scored yet.
+      // Otherwise clicking "send" before "check" silently attests LOW with
+      // category `no-conversation-scored` — technically honest, but it
+      // makes a button labelled "scammed transfer" report no risk, which
+      // is the worst possible thing to have on screen in front of a judge.
+      const message = messageInput?.value.trim();
+      if (message && message !== scoredMessage) {
+        transferFeedback.textContent = 'Scoring the message inside the enclave first…';
+        try {
+          await scoreCurrentMessage(message);
+        } catch (e) {
+          transferFeedback.textContent = `Could not score the message: ${e instanceof Error ? e.message : e}`;
+          return;
+        }
       }
 
       transferFeedback.textContent = 'Asking the enclave to sign a verdict bound to this transfer…';
