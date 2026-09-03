@@ -150,49 +150,15 @@ non-custodial *and* make it impossible to spend your own money.
 
 ### How it fits together
 
-```mermaid
-flowchart TB
-    EXT["Chrome extension<br/>WhatsApp Web, Messenger"]
-    WALLET["Wallet page<br/>zkLogin sign-in"]
-    DASH["Guardian dashboard"]
+![SHOU architecture](docs/img/architecture.png)
 
-    CB["Circuit breaker<br/>carries verdicts, stores nothing"]
+The dashed box is the trust boundary. Raw message text goes in; only a hash, a tier and
+a signature come out — which is why Gonka is called from *inside* it rather than from the
+extension. `policy.move` then verifies that signature on-chain itself, so the circuit
+breaker and driver carry the verdict but cannot alter it.
 
-    subgraph TEE["Enclave (TEE)"]
-        RED["Redact PII"]
-        SIGN["Score, then sign"]
-    end
-
-    GONKA["Gonka Router<br/>all models, strictest wins"]
-    DRIVER["Driver SDK"]
-
-    subgraph SUI["Sui Testnet"]
-        POLICY["policy.move<br/>tiers and escrow"]
-        ENCMOD["enclave.move<br/>checks signature"]
-        FLAG["redflag.move<br/>deny list"]
-    end
-
-    EXT -->|chat message| CB
-    CB --> RED
-    RED -->|redacted| SIGN
-    SIGN <-->|score| GONKA
-    SIGN -->|hash, tier, signature| CB
-
-    WALLET -->|wants to send| CB
-    CB -->|attestation| DRIVER
-    DASH -->|approve or block| DRIVER
-    DRIVER --> POLICY
-    POLICY --> ENCMOD
-    POLICY --> FLAG
-
-    classDef wip stroke-dasharray: 5 5
-    class EXT,DASH wip
-```
-
-Dashed boxes are in progress. Raw message text enters the enclave and never leaves —
-only a hash, a tier and a signature — which is why Gonka is called from inside it.
-`policy.move` then checks that signature on-chain itself, so the services carrying the
-verdict cannot alter it.
+The Chrome extension and guardian dashboard are still in progress; everything else in
+this diagram is running.
 
 ### Project structure
 
