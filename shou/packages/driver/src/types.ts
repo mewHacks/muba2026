@@ -51,6 +51,50 @@ export interface TransferState {
 }
 
 /**
+ * A policy as the guardian dashboard needs to read it. Separate from the
+ * write-side arguments of `createPolicy` because the dashboard needs the
+ * threshold and the approver set to say "1 of 2 people have approved" —
+ * the request object carries the approvals but not the number required.
+ */
+export interface PolicyView {
+  policyId: string;
+  owner: string;
+  approvers: string[];
+  threshold: number;
+  cooldownMs: number;
+  reviewCeiling: string;
+  highRiskCeiling: string;
+  pausedUntilMs: number;
+}
+
+/**
+ * One row of the guardian dashboard: a request plus the facts a guardian
+ * needs to decide on it.
+ *
+ * `claimedTier` is what the caller (or the enclave) submitted and `tier`
+ * is what the chain assigned. When they differ the chain escalated on its
+ * own — that difference is the whole "the AI's verdict is a floor" claim,
+ * so it is surfaced rather than smoothed over.
+ *
+ * Note what is absent: the message, and any description of it. A guardian
+ * gets a tier and an amount, never a transcript of what her mother was
+ * told. See shou-idea.md §9.
+ */
+export interface TransferRequestView extends TransferState {
+  requestId: string;
+  policyId: string;
+  recipient: string;
+  /** Base units of the coin type — 6 decimals for USDC. */
+  amount: string;
+  claimedTier: RiskTier | null;
+  truthScore: number | null;
+  /** Checkpoint time of the requesting transaction, or null if not yet checkpointed. */
+  requestedAtMs: number | null;
+  /** Address that submitted the request — the elder. */
+  requestedBy: string;
+}
+
+/**
  * The chain-facing client. Dev A implements this against the deployed
  * shou::policy / shou::redflag Move modules; Dev A's Circuit Breaker and
  * Dev B's dashboard both call it — it's the only way either side touches
@@ -164,6 +208,19 @@ export interface ShouClient {
     plausibilityScore: number,
     banCeiling: number,
   ): Promise<{ banned: true }>;
+
+  /** Read-side, for the guardian dashboard: the threshold and approver set. */
+  getPolicy(policyId: string): Promise<PolicyView>;
+
+  /**
+   * Every transfer request ever raised against `policyId`, newest first.
+   *
+   * Sourced from `TransferRequested` events and then re-read from the
+   * objects themselves, because the event only records the state at
+   * creation — an approval or a block that happened afterwards does not
+   * amend it. The object is the truth; the event is only how we find it.
+   */
+  listTransferRequests(policyId: string, limit?: number): Promise<TransferRequestView[]>;
 
   /** True only if a transfer of `amount` to `address` would be blocked. */
   isAmountBlocked(denyListId: string, address: string, amount: number): Promise<boolean>;

@@ -13,9 +13,11 @@ import type { Signer } from '@mysten/sui/cryptography';
 
 import type {
   EnclaveAttestation,
+  PolicyView,
   RiskAssessment,
   RiskTier,
   ShouClient,
+  TransferRequestView,
   TransferState,
   TransferStatus,
 } from './types.js';
@@ -59,6 +61,21 @@ function hexToBytes(hex: string): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < clean.length; i += 2) bytes.push(parseInt(clean.slice(i, i + 2), 16));
   return bytes;
+}
+
+/**
+ * A Move `Balance<T>` decodes differently depending on the transport and
+ * SDK version — sometimes `{ value: "1000000" }`, sometimes the bare
+ * string. Guessing wrong here would show the guardian the wrong amount,
+ * which is the one number they actually decide on, so handle both.
+ */
+function balanceValue(funds: unknown): string {
+  if (funds === null || funds === undefined) return '0';
+  if (typeof funds === 'string' || typeof funds === 'number') return String(funds);
+  const value = (funds as { value?: unknown }).value;
+  if (value === null || value === undefined) return '0';
+  if (typeof value === 'object') return balanceValue(value);
+  return String(value);
 }
 
 interface ChangedObject {
@@ -414,6 +431,115 @@ export class SuiShouClient implements ShouClient {
       status = 'PENDING';
     }
     return { status, approvals, tier, unlockAtMs };
+  }
+
+  async getPolicy(policyId: string): Promise<PolicyView> {
+    const { object } = await this.client.getObject({
+      objectId: policyId,
+      include: { json: true },
+    });
+    const decoded = (object as { json?: unknown } | undefined)?.json;
+    if (!decoded) throw new Error(`SeniorityPolicy ${policyId} not found or has no readable content`);
+    const fields = decoded as {
+      owner: string;
+      approvers: string[];
+      threshold: number | string;
+      cooldown_ms: string;
+      review_ceiling: string;
+      high_risk_ceiling: string;
+      paused_until_ms: string;
+    };
+    return {
+      policyId,
+      owner: fields.owner,
+      approvers: fields.approvers ?? [],
+      threshold: Number(fields.threshold),
+      cooldownMs: Number(fields.cooldown_ms),
+      // Left as strings: both ceilings can legitimately be u64::MAX (the
+      // documented way to opt out of amount escalation), which does not
+      // survive a round trip through a JS number.
+      reviewCeiling: String(fields.review_ceiling),
+      highRiskCeiling: String(fields.high_risk_ceiling),
+      pausedUntilMs: Number(fields.paused_until_ms),
+    };
+  }
+
+  async listTransferRequests(policyId: string, limit = 25): Promise<TransferRequestView[]> {
+    // A bare generic event type matches every instantiation on gRPC, so
+    // this finds USDC and SUI requests alike without knowing the coin.
+    const { events } = await this.client.listEvents({
+      filter: { eventType: `${this.packageId}::policy::TransferRequested` },
+      order: 'descending',
+      limit,
+    });
+
+    const timestamps = new Map<string, number | null>();
+    const rows: TransferRequestView[] = [];
+
+    for (const event of events) {
+      const json = (event.json ?? {}) as Record<string, unknown>;
+      // gRPC decodes Move struct fields in snake_case; other transports
+      // have used camelCase. Read both rather than depending on which
+      // one this full node happens to be.
+      const pick = (snake: string, camel: string): unknown => json[snake] ?? json[camel];
+      const requestId = String(pick('request_id', 'requestId') ?? '');
+      const eventPolicyId = String(pick('policy_id', 'policyId') ?? '');
+      if (!requestId) continue;
+      // The filter is per package, not per policy — one deployment can
+      // guard several elders, and a guardian must not see another
+      // family's transfers.
+      if (eventPolicyId !== policyId) continue;
+
+      // The event is only how we FIND the request. Its own fields are a
+      // snapshot from creation time, so status comes from the object.
+      let state: TransferState;
+      let recipient = '';
+      let amount = '0';
+      try {
+        const { object } = await this.client.getObject({
+          objectId: requestId,
+          include: { json: true },
+        });
+        const decoded = (object as { json?: unknown } | undefined)?.json as
+          | { recipient?: string; funds?: unknown }
+          | undefined;
+        recipient = decoded?.recipient ?? '';
+        amount = balanceValue(decoded?.funds);
+        state = await this.getTransferStatus(requestId);
+      } catch {
+        // A request whose object has been deleted is not an error worth
+        // failing the whole page over — skip the row.
+        continue;
+      }
+
+      if (!timestamps.has(event.transactionDigest)) {
+        try {
+          // Same discriminated union as signAndExecuteTransaction returns.
+          const result = await this.client.getTransaction({ digest: event.transactionDigest });
+          timestamps.set(
+            event.transactionDigest,
+            result.$kind === 'Transaction' ? result.Transaction.timestampMs ?? null : null,
+          );
+        } catch {
+          timestamps.set(event.transactionDigest, null);
+        }
+      }
+
+      const claimed = pick('claimed_tier', 'claimedTier');
+      const truth = pick('truth_score', 'truthScore');
+      rows.push({
+        requestId,
+        policyId: eventPolicyId,
+        recipient,
+        amount,
+        claimedTier: claimed === undefined || claimed === null ? null : RISK_TIER_NAME[Number(claimed)] ?? null,
+        truthScore: truth === undefined || truth === null ? null : Number(truth),
+        requestedAtMs: timestamps.get(event.transactionDigest) ?? null,
+        requestedBy: event.sender,
+        ...state,
+      });
+    }
+    return rows;
   }
 
   async pause(policyId: string, untilMs: number): Promise<void> {
