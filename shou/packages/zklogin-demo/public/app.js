@@ -15720,7 +15720,9 @@ var log = [];
 function trace(line) {
   log.push(line);
   els.debug.textContent = log.join("\n");
-  if (new URLSearchParams(location.search).has("debug")) els.debugCard.hidden = false;
+  if (new URLSearchParams(location.search).has("debug") && els.debugCard) {
+    els.debugCard.open = true;
+  }
   console.log("[shou]", line);
 }
 function show(status, detail = "") {

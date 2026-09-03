@@ -94,14 +94,25 @@ public struct TransferRequest<phantom T> has key {
 }
 
 public struct PolicyCreated has copy, drop { policy_id: ID, owner: address }
+/// Deliberately carries no risk verdict.
+///
+/// An event stream is the cheap, public way to index Sui in bulk. Emitting
+/// the risk tier here would let anyone build a list of wallets that get
+/// flagged for scam vulnerability — which is a targeting list for exactly
+/// the people this contract exists to defend against. The scam category,
+/// truth score and message hash are worse still: they describe the victim's
+/// situation, not the transfer.
+///
+/// `requires_approval` is all a guardian dashboard needs to act, and it
+/// leaks nothing, because it is equally true of a large ordinary payment as
+/// of a flagged one. Whether a transfer was flagged, and why, lives in our
+/// own off-chain store keyed by `request_id` — the pattern Mysten recommend
+/// for anything you want derived but not published.
 public struct TransferRequested has copy, drop {
     request_id: ID,
     policy_id: ID,
-    tier: u8,
-    claimed_tier: u8,
     unlock_at_ms: u64,
-    message_hash: vector<u8>,
-    truth_score: u8,
+    requires_approval: bool,
 }
 public struct TransferReleaseApproved has copy, drop { request_id: ID, approver: address }
 public struct TransferBlocked has copy, drop { request_id: ID, blocked_by: address }
@@ -300,11 +311,8 @@ entry fun request_transfer_attested<T>(
     event::emit(TransferRequested {
         request_id: object::id(&request),
         policy_id: request.policy_id,
-        tier: request.risk_tier,
-        claimed_tier: attestation.tier(),
         unlock_at_ms: request.unlock_at_ms,
-        message_hash: attestation.message_hash(),
-        truth_score: attestation.truth_score(),
+        requires_approval: request.risk_tier == TIER_HIGH,
     });
     transfer::share_object(request);
 }
@@ -322,11 +330,8 @@ entry fun request_transfer<T>(
     event::emit(TransferRequested {
         request_id: object::id(&request),
         policy_id: request.policy_id,
-        tier: request.risk_tier,
-        claimed_tier: risk_tier,
         unlock_at_ms: request.unlock_at_ms,
-        message_hash: vector[],
-        truth_score: 0,
+        requires_approval: request.risk_tier == TIER_HIGH,
     });
     transfer::share_object(request);
 }

@@ -71,13 +71,14 @@
     <div id="transfer-feedback" style="margin-top:0.75rem;font-size:.9rem;"></div>
   </div>
 
-  <!-- Hidden unless the URL carries ?debug=1. It is how we found the silent
-       sign-in failure, so it stays in the build — but a judge should see a
-       product, not a developer console. -->
-  <div class="card" id="debug-card" hidden>
-    <div class="label">Diagnostics</div>
-    <pre id="debug" style="white-space:pre-wrap;font-size:.8rem;color:#444;margin:.25rem 0 0"></pre>
-  </div>
+  <!-- Collapsed by default for clean senior UX. Expandable on click or via ?debug=1. -->
+  <details id="debug-card" style="margin-top: 1.5rem; font-size: 0.85rem; color: #6b7280;">
+    <summary style="cursor: pointer; padding: 0.5rem 0; user-select: none;">🛠️ Developer Diagnostics (zkLogin &amp; Session)</summary>
+    <div class="card" style="margin-top: 0.5rem;">
+      <div class="label">Diagnostics</div>
+      <pre id="debug" style="white-space:pre-wrap;font-size:.8rem;color:#444;margin:.25rem 0 0"></pre>
+    </div>
+  </details>
 
   <script type="module" src="/app.js"></script>
 </body>

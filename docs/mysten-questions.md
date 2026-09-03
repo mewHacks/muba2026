@@ -325,3 +325,41 @@ as the elder.
   `policy::request_transfer_attested` are registered for our package id — and note the
   package id changes on every republish, so this must be redone after each redeploy.
 - Confirm testnet and mainnet sponsorship budgets are configured separately.
+
+### On privacy: the risk tier was public on-chain
+
+**Asked:** `TransferRequested` emits the risk tier and a message hash, and the tier is a
+public field on a shared object — so anyone indexing Sui could build a list of wallets
+that get flagged for scam risk, which is a targeting list for scammers. Any way to
+signal "needs guardian review" to an off-chain dashboard without publishing it?
+
+**Answer:** *"Usually if you want to derive something and store it off chain you have to
+create your own database and store events that you index."*
+
+**What that means for us.** There is no on-chain hiding place, so the fix is not to
+publish the verdict at all. The chain carries only what it must *enforce*; the verdict
+and its reasoning live in our own store, keyed by `request_id`.
+
+**Implemented.** `TransferRequested` previously carried `tier`, `claimed_tier`,
+`message_hash` and `truth_score`. It now carries only:
+
+```move
+public struct TransferRequested has copy, drop {
+    request_id: ID,
+    policy_id: ID,
+    unlock_at_ms: u64,
+    requires_approval: bool,
+}
+```
+
+`requires_approval` is everything a guardian dashboard needs to act, and it reveals
+nothing: it is equally true of a large ordinary payment as of a flagged one, so an
+observer cannot tell a scam verdict from a big grocery bill. The scam category, truth
+score and Gonka request ids are joined in from our own store. 38 Move tests still pass.
+
+**Residual, stated honestly.** `TransferRequest.risk_tier` is still a public field on the
+shared object, because `execute` has to branch on it and the owner's own screen reads it.
+Bulk indexing is what the event stream made cheap; reading the field requires already
+knowing the object id. Closing it fully would mean replacing the field with
+`requires_approval` and losing the LOW/MEDIUM distinction on chain — worth doing, not
+worth doing the night before submission.
