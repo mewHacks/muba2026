@@ -4,5 +4,11 @@
   "private": true,
   "type": "module",
   "main": "src/scorer.ts",
-  "devDependencies": { "typescript": "^5.5.0", "@types/node": "^22.0.0" }
+  "scripts": {
+    "test": "node --experimental-strip-types --test src/scorer.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
 }

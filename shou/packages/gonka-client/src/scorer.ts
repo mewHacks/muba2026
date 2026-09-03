@@ -30,7 +30,7 @@
 //    deepseek-ai/DeepSeek-V4-Flash-0731
 //    MiniMaxAI/MiniMax-M2.7
 //  The short forms ("kimi", "minimax", "MiniMax-M2.7") return HTTP 400
-//  invalid_model. Kimi answers, but see MODEL NOTES below.
+//  invalid_model. See MODEL NOTES below for why Kimi is not used.
 //
 //  ─── MODEL NOTES, measured over 5 novel prompts each ───
 //    DeepSeek-V4-Flash  median  2.6s   max  4.4s   usable JSON 5/5
@@ -38,6 +38,19 @@
 //    Kimi-K2.6          median 26.5s   max 30.2s   never under 23s
 //  Kimi is not in the live path: it is a good model that this router
 //  serves too slowly to sit in front of a waiting user.
+//
+//  Re-checked 2026-09-03: Kimi no longer answers this router at all —
+//  a bare "reply ok" prompt returned HTTP 524 (gateway timeout) after
+//  126s, and a 60s attempt returned nothing. A third-model path was
+//  built against it and removed again for that reason. Two models is
+//  the shape, deliberately, not an unfinished three.
+//
+//  ─── COLD START, measured the same day ───
+//  The first call after an idle period pays a large one-off penalty:
+//  DeepSeek took 26.7s cold, then 0.68s for the same prompt and 1.79s
+//  for a NOVEL one. So a cold first message exceeds the 14s deadline and
+//  falls to deterministic rules, and everything after it is fast. Warm
+//  the router before demoing — see docs/RUNBOOK.md.
 //
 //  ─── WHY THE CALLS ARE SEQUENTIAL ───
 //  Concurrent calls return HTTP 429 "too many concurrent requests for
@@ -125,6 +138,19 @@ const AUTHORITY = [
   'pdrm', 'police', 'polis', '警察', 'lhdn', 'inland revenue', 'bank negara', 'bnm',
   'court', 'mahkamah', '法院', '传票', 'saman', 'warrant', 'waran',
   'kastam', 'customs', 'imigresen', 'immigration', 'nsrc', 'sspn',
+  // Bukit Aman is the single most-cited authority in Malaysian scam
+  // scripts — it is federal police HQ, and "calling from Bukit Aman" is
+  // the opening line of the Macau scam. Its absence meant a textbook
+  // script scored MEDIUM on deterministic rules alone, because the
+  // authority+urgency floor never fired. Caught by shou/verify.sh.
+  'bukit aman', 'ccid', 'commercial crime', 'jsjk',
+  // Ranks, which carry the impersonation even when no agency is named.
+  'inspector', 'sergeant', 'sarjan', 'inspektor', 'pegawai polis', 'police officer',
+  // The accusation itself. A real bank does not open with this, and an
+  // ordinary message essentially never contains it.
+  'money laundering', 'pengubahan wang haram', 'amla',
+  // Other agencies that appear in these scripts.
+  'sprm', 'macc', 'mcmc', 'securities commission', 'suruhanjaya sekuriti',
 ];
 const SECRECY = [
   'do not tell', "don't tell", 'dont tell', 'jangan beritahu', 'jangan bagitahu',
@@ -145,9 +171,40 @@ const LURE = [
   'loan approved', 'loan is approved', 'pinjaman diluluskan', 'pinjaman anda diluluskan',
 ];
 
+/**
+ * A stranger introducing themselves. Family and friends do not — nobody
+ * opens a message to their own mother with "my name is".
+ *
+ * On its own this is harmless (a delivery driver, a new neighbour), which
+ * is why it scores little alone and only matters combined with an ask.
+ */
+const COLD_OPEN = [
+  'my name is', 'let me introduce myself', 'allow me to introduce', 'permit me to',
+  'i am writing to you', 'i am writing to inform', 'i write to you',
+  'dear madam', 'dear sir', 'dear friend', 'dear beloved', 'hello madam', 'good day madam',
+  'nama saya', 'perkenalkan', '我叫', '我的名字',
+];
+
+/**
+ * A direct request for money.
+ *
+ * Deliberately narrow. "send me" alone would fire on "can you send me the
+ * photos from the wedding", so every entry here is anchored to money or to
+ * an explicit appeal for financial help.
+ */
+const SOLICITATION = [
+  'i need $', 'i need rm', 'i need usd', 'i need sgd', 'i need myr', 'i need £', 'i need €',
+  'send me money', 'send me the money', 'send me $', 'send me rm',
+  'financial help', 'financial assistance', 'financial support',
+  'your help with this', 'help me with this', 'help me financially',
+  'lend me', 'borrow some money', 'sponsor me', 'a small donation', 'your kind donation',
+  'transfer to my account', 'bantuan kewangan', 'pinjam duit', 'hantar duit',
+  '汇钱给我', '转账给我', '需要钱',
+];
+
 const hits = (haystack: string, needles: string[]) => needles.filter((n) => haystack.includes(n));
 
-interface IndicatorResult {
+export interface IndicatorResult {
   score: number;
   /** Pattern names only. Safe to render: these are our words, not the sender's. */
   patterns: string[];
@@ -155,7 +212,7 @@ interface IndicatorResult {
   floor: number;
 }
 
-function indicators(message: string): IndicatorResult {
+export function indicators(message: string): IndicatorResult {
   const m = message.toLowerCase();
   const patterns: string[] = [];
   let score = 0;
@@ -165,12 +222,16 @@ function indicators(message: string): IndicatorResult {
   const s = hits(m, SECRECY);
   const c = hits(m, CREDENTIAL);
   const l = hits(m, LURE);
+  const o = hits(m, COLD_OPEN);
+  const k = hits(m, SOLICITATION);
 
   if (u.length) { patterns.push('urgency'); score += 20; }
   if (a.length) { patterns.push('authority-impersonation'); score += 25; }
   if (s.length) { patterns.push('secrecy'); score += 25; }
   if (l.length) { patterns.push('financial-lure'); score += 20; }
   if (c.length) { patterns.push('credential-request'); score += 40; }
+  if (o.length) { patterns.push('stranger-introduction'); score += 15; }
+  if (k.length) { patterns.push('money-request'); score += 25; }
 
   // Hard floors. No model is permitted to talk these down.
   let hardFloor: string | null = null;
@@ -183,6 +244,17 @@ function indicators(message: string): IndicatorResult {
     floor = 80; // the classic Macau-scam signature
   } else if (a.length && u.length) {
     hardFloor = 'authority+urgency';
+    floor = 70;
+  } else if (o.length && k.length) {
+    // A stranger who introduces themselves and then asks for money. This is
+    // the advance-fee and romance-scam opening, and it is the shape that
+    // reaches an elderly target through Facebook and WhatsApp — the two
+    // channels Malaysian police name most often.
+    //
+    // It carries none of the classic pressure markers: no urgency, no
+    // authority, no secrecy. That is exactly why it needed its own rule —
+    // a polite, patient ask defeated every other lexicon here.
+    hardFloor = 'stranger+money-request';
     floor = 70;
   }
 
@@ -399,6 +471,72 @@ function stripLeakedContent(reasoning: string, message: string): string {
   return reasoning;
 }
 
+export interface FusionInput {
+  classifierScore: number | null;
+  verifierScore: number | null;
+  indicatorScore: number;
+  /** Hard floor from the deterministic layer; no model may go below it. */
+  floor: number;
+}
+
+export interface FusionResult {
+  truthScore: number;
+  tier: RiskTierName;
+  anyModelScored: boolean;
+  /** True when the degraded review floor was applied because no model answered. */
+  heldForReview: boolean;
+}
+
+/**
+ * Turns whatever answered into one number. Code owns this, not a model.
+ *
+ * Weights renormalise over the parts that are actually present, so a model
+ * that failed drops out rather than dragging the mean toward zero — the bug
+ * in the original scaffold, where a timeout scored as 0 and could talk a
+ * real scam down below the MEDIUM line.
+ */
+export function fuseScores(input: FusionInput): FusionResult {
+  const parts: Array<[number, number]> = [];
+  if (input.classifierScore !== null) parts.push([input.classifierScore, W.classifier]);
+  if (input.verifierScore !== null) parts.push([input.verifierScore, W.verifier]);
+
+  // The keyword layer votes only when it FIRED. A zero here means "none of
+  // my lists matched", which is not the same claim as a model's considered
+  // zero — the lexicons cover the scam scripts we knew to write down, and
+  // silence from them is absence of evidence, not evidence of absence.
+  //
+  // Counting that silence as a confident 0 at weight 0.2 actively diluted
+  // real verdicts: a stranger cold-asking an elderly woman for $8000 was
+  // scored 80 and 70 by the two models, and the keyword layer's 0 pulled
+  // the result to 56 — MEDIUM instead of HIGH, on a message both models had
+  // correctly called an advance-fee scam.
+  //
+  // Indicators still RAISE without limit through `floor` below, which is
+  // the direction that layer is actually meant to work in.
+  if (input.indicatorScore > 0) parts.push([input.indicatorScore, W.indicators]);
+
+  // Nothing answered at all — no models, no indicators. Fall back to the
+  // indicator score so the degraded floor below still has a number to work
+  // from, and so this can never divide by zero.
+  const weighted = parts.length
+    ? parts.reduce((acc, [v, w]) => acc + v * w, 0) /
+      parts.reduce((acc, [, w]) => acc + w, 0)
+    : input.indicatorScore;
+
+  let truthScore = Math.round(Math.max(weighted, input.floor));
+
+  const anyModelScored = input.classifierScore !== null || input.verifierScore !== null;
+
+  let heldForReview = false;
+  if (!anyModelScored && truthScore >= DEGRADED_REVIEW_THRESHOLD) {
+    truthScore = Math.max(truthScore, DEGRADED_REVIEW_SCORE);
+    heldForReview = true;
+  }
+
+  truthScore = Math.max(0, Math.min(100, truthScore));
+  return { truthScore, tier: tierFor(truthScore), anyModelScored, heldForReview };
+}
+
 // ─── the integration ─────────────────────────────────────────────────
 
 /**
@@ -478,25 +616,20 @@ export function gonkaScorer(config: GonkaConfig): Scorer {
       }
     }
 
-    // Code owns the number. Any model that failed drops out of the weighting
-    // rather than dragging the average toward zero.
-    const parts: Array<[number, number]> = [];
-    if (classifierScore !== null) parts.push([classifierScore, W.classifier]);
-    if (verifierScore !== null) parts.push([verifierScore, W.verifier]);
-    parts.push([ind.score, W.indicators]);
-    const totalWeight = parts.reduce((acc, [, w]) => acc + w, 0);
-    const weighted = parts.reduce((acc, [v, w]) => acc + v * w, 0) / totalWeight;
-
-    let truthScore = Math.round(Math.max(weighted, ind.floor));
-
-    const anyModelScored = classifierScore !== null || verifierScore !== null;
-    if (!anyModelScored && truthScore >= DEGRADED_REVIEW_THRESHOLD) {
-      truthScore = Math.max(truthScore, DEGRADED_REVIEW_SCORE);
+    // Code owns the number, not a model. Extracted into fuseScores so the
+    // arithmetic is unit-testable without a router: the drop-out rule, the
+    // hard floors and the degraded review floor are what decide whether
+    // money moves, and they were previously only reachable over the network.
+    const fused = fuseScores({
+      classifierScore,
+      verifierScore,
+      indicatorScore: ind.score,
+      floor: ind.floor,
+    });
+    const { truthScore, tier, anyModelScored } = fused;
+    if (fused.heldForReview) {
       notes.push('held for review rather than cleared, because no model was available');
     }
-
-    truthScore = Math.max(0, Math.min(100, truthScore));
-    const tier = tierFor(truthScore);
 
     if (classifierScore !== null && verifierScore !== null) {
       const delta = Math.abs(classifierScore - verifierScore);
