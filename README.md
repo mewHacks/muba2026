@@ -28,10 +28,10 @@ than a ceiling — it can tighten her limits, never loosen them. Tell the contra
 large transfer is low-risk and it escalates anyway, which is why you do not have to
 trust our model.
 
-**Status:** wallet guardian deployed to Sui testnet — 57 tests passing, five critical
-security bugs found and fixed, a seven-step end-to-end run in real USDC. Gonka scoring
-is live and returns real request ids. The Chrome extension front-end and guardian
-dashboard are in progress. ([details](docs/DECISIONS.md))
+**Status:** wallet guardian deployed to Sui testnet — 91 tests passing, five critical
+security bugs found and fixed, a seven-step end-to-end run in real USDC. Scoring,
+redaction, the enclave, the Chrome extension and the guardian dashboard are all built.
+([details](docs/DECISIONS.md))
 
 ---
 
@@ -44,8 +44,8 @@ dashboard are in progress. ([details](docs/DECISIONS.md))
 | `docs/img/01-signin.png` | zkLogin sign-in and the derived wallet address |
 | `docs/img/02-risk.png` | A scam message scored, with truth score and Gonka request ID |
 | `docs/img/03-escrow.png` | A transfer held in escrow, awaiting the guardian |
-| `docs/img/04-dashboard.png` | *Guardian dashboard — pending Dev B* |
-| `docs/img/05-extension.png` | *Chrome extension badge in a live chat — in progress* |
+| `docs/img/04-dashboard.png` | A held transfer on the guardian dashboard, with the chain's escalation shown |
+| `docs/img/05-extension.png` | Chrome extension badge in a live chat, and the popup's Truth Score and Request IDs |
 | `docs/img/06-terminal.png` | The escalation demo overruling the AI |
 
 ---
@@ -87,9 +87,9 @@ scam. Together, the conversation decides how the money behaves.
 
 **1 · Passive detection.** The extension reads the on-screen chat DOM in WhatsApp Web
 and Messenger automatically — no copy-pasting, no button to press — and shows an
-inline 🟢/🟡/🔴 badge. A Gonka Router classifier scores each message and a second model
-verifies it, with the **strictest tier wins**: one model missing a scam can never clear
-a transfer that another flagged.
+inline 🟢/🟡/🔴 badge. Every message goes to a Gonka Router classifier, then to a
+second model for cross-verification if the shared deadline allows, and
+**deterministic rules set floors that no model is permitted to talk down**.
 
 **2 · Private and tamper-evident.** Inference runs inside a TEE, so message content is
 never exposed to operators — only a hash, a tier and a signature leave, and PII is
@@ -109,8 +109,9 @@ her funds — and because zkLogin has no seed phrase, funds sit behind a weighte
 multisig where she acts alone, her son alone cannot, and two relatives together can
 recover.
 
-Layers 1–2 are the Sui submission; layers 0 and 3 are the Gonka submission. The
-extension front-end and the Red Flag review UI are still in progress.
+Layers 1–2 are the Sui submission; layers 0 and 3 are the Gonka submission. The Red
+Flag evidence-review UI is the one piece still in progress; the extension and the
+dashboard are built.
 
 ---
 
@@ -157,8 +158,8 @@ a signature come out — which is why Gonka is called from *inside* it rather th
 extension. `policy.move` then verifies that signature on-chain itself, so the circuit
 breaker and driver carry the verdict but cannot alter it.
 
-The Chrome extension and guardian dashboard are still in progress; everything else in
-this diagram is running.
+Everything in this diagram is built and running; the Red Flag evidence-review UI is
+the one piece still in progress.
 
 ### Project structure
 
@@ -174,8 +175,10 @@ muba2026/
     └── packages/
         ├── driver/             Sui SDK client, e2e + demo scripts, shared interface
         ├── circuit-breaker/    correlates conversation risk with transfers
-        ├── gonka-client/       multi-model scorer and consensus rule
+        ├── gonka-client/       classifier + verifier scorer, deterministic floors
         ├── redact/             PII stripping
+        ├── extension/          Chrome extension — passive DOM scoring, inline badge
+        ├── dashboard/          guardian dashboard — approve or block a held transfer
         └── zklogin-demo/       sign-in, recovery multisig, transfer panel
 ```
 
@@ -228,7 +231,9 @@ glossed.
 
 One vertical slice is finished end to end rather than four sketched:
 
-- Deployed to testnet, **57 tests passing** (38 Move, 6 multisig, 7 redaction, 6 session)
+- Deployed to testnet, **91 tests passing** (38 Move, 6 multisig, 7 redaction, 6 session,
+  22 extension, 12 scoring), and `shou/verify.sh` runs all of them plus the live
+  scoring path in one command
 - A **seven-step end-to-end run moving real testnet USDC**, not a mock
 - **Five critical security bugs found and fixed** under adversarial review, each with a
   regression test — including a fund-theft bug in our own deployed contract, provable
@@ -285,26 +290,46 @@ Three things we have not seen combined elsewhere:
 
 **Use of different models**
 
-Not a model list — a **consensus rule**. A classifier model scores the message and a
-second model verifies it, and the **strictest tier wins**, on the reasoning that one
-model missing a scam should never be able to clear a transfer that another flagged.
-Every call's Gonka Request ID is retained and rendered alongside the truth score and
+Not a model list, and not a vote — **two models in distinct roles, with code owning
+the final number.**
+
+**DeepSeek-V4-Flash is the classifier** (median 2.6s), and **MiniMax-M2.7 is a
+skeptical second reviewer** (median 19.6s) that sees the same redacted message but not
+the classifier's answer, so a gap between them is real disagreement rather than
+anchoring. Both calls share one **14-second wall-clock deadline**, because a user is
+watching a badge: if under 4s remain when the classifier returns, the second opinion is
+skipped and the output says *"not cross-verified"* rather than spending the rest of the
+budget and returning nothing.
+
+**The calls are sequential, deliberately.** Issued concurrently this router returns
+HTTP 429, and when it does not 429 it throttles — the same DeepSeek call measured
+2,472ms alone and 17,560ms alongside one other request. Parallelism costs roughly 7x
+here and buys nothing, so the obvious `Promise.all` shape is exactly wrong.
+
+**Code computes the score, not a model.** A weighted blend (classifier 0.35, verifier
+0.2, deterministic indicators 0.2) renormalises over whoever actually answered, so a
+model that fails drops out instead of dragging the average toward zero. Over that sit
+**hard floors no model can lower**: a credential request floors at 85, the
+authority + urgency + secrecy signature of a Macau scam at 80, authority + urgency at
+70. And if *every* model fails, anything scoring above 15 on deterministic rules alone
+is raised to 40 — the MEDIUM line — so an outage holds a transfer for review instead of
+silently clearing it.
+
+Every state that is not a clean two-model run is **named on screen**: `not
+cross-verified`, `classifier unavailable`, `the two models disagreed by N points`,
+`held for review rather than cleared, because no model was available`. Each call's
+Gonka Request ID is retained and rendered in the UI beside the Truth Score and the
 reasoning trace, in the shape Gonka asks for.
 
-**Live, with the honesty built in.** A real call returns
-`req-1788443104429892837-474902`, tier HIGH, category `urgency_secrecy_financial_fraud`.
-Two things we disclose on screen rather than paper over:
-
-- The account is throttled and cannot run both models concurrently, so the verifier runs
-  only if the deadline allows. When it does not, the reasoning trace says
-  `not cross-verified` — we claim two models when we got two, not always.
-- The router sometimes **substitutes a model**. We asked for Kimi and were served
-  MiniMax on a live call. We detect that and say so.
-
-Underneath sits a deterministic floor that fires without any model at all: an obvious
-scam still lands HIGH, a legitimate payment still lands LOW, and a subtle one is held at
-MEDIUM for review rather than released. Model downtime degrades the product; it does not
-open it.
+> **Kimi-K2.6 is deliberately not in the live path.** It was excluded on measured
+> latency — median 26.5s, never once under 23s across five novel prompts, against a
+> 14-second deadline. Re-checked on 3 Sep 2026 it no longer answers this router at all:
+> a bare *"reply ok"* prompt returned **HTTP 524 after 126s**, and a 60s attempt
+> returned nothing. Two models is the deliberate shape, not an unfinished three. Figures
+> are recorded at the top of
+> [packages/gonka-client/src/scorer.ts](shou/packages/gonka-client/src/scorer.ts); the
+> wider latency investigation is in
+> [shermaine-gonka/LATENCY-FINDINGS.md](shermaine-gonka/LATENCY-FINDINGS.md).
 
 ---
 
@@ -376,7 +401,14 @@ jurisdictions. This market did not financially exist for banks until last year.
 cd shou/enclave                   && SHOU_TEST_SCORER=1 npm start   # :3100
 cd shou/packages/circuit-breaker  && npm start                      # :4000
 cd shou/packages/zklogin-demo     && npm start                      # :3000
+cd shou/packages/dashboard        && npm start                      # :4200  guardian
+cd shou/packages/extension        && npm run build                  # then load unpacked
 ```
+
+The extension loads from `chrome://extensions` → Developer mode → **Load unpacked** →
+`shou/packages/extension/dist`. Open its Settings and press *Fetch policy id from
+dashboard*; it refuses to score without one rather than filing verdicts under a
+placeholder policy.
 
 The two demos that need no browser:
 
@@ -398,18 +430,38 @@ We would rather state these than have them found:
 
 - **No Nitro instance.** Signature verification is real; the key's provenance is
   currently asserted by us rather than proven by AWS hardware.
-- **Cross-verification is best-effort.** Gonka scoring is live, but the account is
-  throttled and cannot run both models at once, so the second model runs only when the
-  deadline allows — the screen says `not cross-verified` when it did not. The router
-  has also substituted a different model than the one requested; we detect and disclose
-  that rather than claiming the requested model answered.
-- **The browser signs but does not submit.** The page produces a real signed attestation
-  bound to the policy, recipient and amount; the on-chain submission is exercised by
-  `e2e.ts` rather than from the browser. Wiring those two together is the honest answer
-  to "what is incomplete".
-- **The Chrome extension front-end and guardian dashboard are still in progress.** The
-  scoring pipeline behind them — redaction, enclave, consensus, attestation — is built
-  and tested.
+- **Only two of the three models are in the live path.** DeepSeek classifies and
+  MiniMax cross-verifies; Kimi is excluded on measured latency (median 26.5s against a
+  14-second deadline), not on quality. A second opinion is also skipped whenever the
+  classifier leaves under 4s of budget, and the UI says so when that happens rather
+  than implying two models agreed.
+- **The offline heuristic is still reachable without credentials.** With no
+  `GONKA_API_KEY`, or with `SHOU_TEST_SCORER=1`, scoring falls back to a keyword
+  stand-in that labels itself *"DEV MODE heuristic — not a real classifier"* on screen.
+  It is a test fixture, not a detector, and nothing claims otherwise on screen.
+- **The first message scored after an idle period will miss the deadline.** This
+  router pays a large one-off cold-start penalty: measured on 3 Sep 2026, DeepSeek took
+  26.7s cold, then 0.68s for the same prompt and 1.79s for a novel one. So a cold first
+  call exceeds the 14-second deadline and the verdict falls to deterministic rules,
+  labelled `classifier unavailable` on screen. **Warm the router before demoing.**
+- **The 14-second deadline is marginal against this router's current latency, not
+  comfortable.** In one warm run a full two-model assessment finished in 6.4s with both
+  Request IDs returned; in another, minutes later, the classifier alone exceeded 14s. In
+  both cases the deterministic floors held the scam at HIGH and the UI said it was
+  degraded — the safety net is doing exactly what it is for, but it is carrying more of
+  the load than the design intends.
+- **The extension's DOM selectors are the fragile part of the build.** Both WhatsApp Web
+  and Messenger ship obfuscated, frequently-changing class names. They are isolated in
+  one file with a diagnostic that names which half broke, and the logic layered on top
+  is unit-tested, but the selectors themselves cannot be tested without shipping a
+  snapshot of someone else's markup. Messenger is the weaker of the two — it has no
+  stable equivalent of WhatsApp's `message-in`, so incoming is inferred from the row's
+  accessible label.
+- **The guardian dashboard signs with a local keypair, not zkLogin.** Every approval is
+  a real on-chain call, but in production the guardian would sign in with Enoki and the
+  server would be static hosting. It binds to `127.0.0.1` for that reason.
+- **The Red Flag evidence-review UI is not built.** `redflag.move` and
+  `reportRedFlag()` are, and are tested.
 - **WhatsApp DOM reading is demo-only** and not ToS-compliant for production.
 
 ---
