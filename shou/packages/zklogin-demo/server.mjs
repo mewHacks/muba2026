@@ -13,7 +13,7 @@
 
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { dirname, extname, join } from 'node:path';
+import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -79,8 +79,19 @@ const server = createServer((req, res) => {
   // serves the same page again and the client finishes the flow.
   const file = url.pathname === '/' || url.pathname === '/auth/callback' ? '/index.html' : url.pathname;
 
+  // Traversal guard. `new URL()` already normalises `..` out of the path,
+  // so `/../server.mjs` never reaches here — but that is this code being
+  // correct by accident. Resolve the path and confirm it really is inside
+  // public/, so it stays correct if the parsing above ever changes.
+  const root = resolve(HERE, 'public');
+  const target = resolve(root, '.' + file);
+  if (target !== root && !target.startsWith(root + sep)) {
+    res.writeHead(403).end('forbidden');
+    return;
+  }
+
   try {
-    const body = readFileSync(join(HERE, 'public', file));
+    const body = readFileSync(target);
     res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
     res.end(body);
   } catch {
