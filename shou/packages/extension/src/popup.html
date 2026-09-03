@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SHOU</title>
+<style>
+  :root{
+    --card:#fff;--ink:#12151a;--muted:#5d6674;--line:#e3e6ea;--accent:#1f6feb;
+    --ok:#0f7b4f;--okbg:#e8f6ef;--warn:#8a5800;--warnbg:#fdf3e0;--bad:#b3261e;--badbg:#fdecea;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;width:352px;background:#f6f7f9;color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{padding:12px 14px;background:var(--card);border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:9px}
+  h1{margin:0;font-size:17px;letter-spacing:-.01em}
+  header .tag{font-size:11.5px;color:var(--muted)}
+  main{padding:12px 14px 14px}
+  .tier{border-radius:12px;padding:13px;border:1px solid transparent;margin-bottom:11px}
+  .tier.HIGH{background:var(--badbg);border-color:#f3c9c5}
+  .tier.MEDIUM{background:var(--warnbg);border-color:#f0dcb4}
+  .tier.LOW{background:var(--okbg);border-color:#c4e5d5}
+  .tier .lead{font-size:15.5px;line-height:1.42}
+  .tier .sig{margin-top:7px;font-size:12px;color:var(--muted)}
+  h2{margin:14px 0 7px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px}
+  .reasoning{font-size:13px;color:var(--muted);white-space:pre-wrap}
+  /* break-all on the container, not just the list items: the message
+     fingerprint is a bare 64-character hash in a 352px popup, and
+     without this it runs straight out of the card. */
+  .ids{margin:0;padding:0;list-style:none;word-break:break-all;
+    font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+  .ids li{margin-bottom:4px}
+  .ids a{color:var(--accent)}
+  .pill{display:inline-block;background:#eef1f5;border:1px solid var(--line);border-radius:999px;
+    padding:2px 8px;font-size:11.5px;margin:0 5px 5px 0;color:var(--muted)}
+  .row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}
+  .err{background:var(--badbg);border:1px solid #f3c9c5;color:var(--bad);border-radius:11px;
+    padding:11px;font-size:13px;margin-bottom:11px}
+  .empty{color:var(--muted);font-size:13px}
+  footer{padding:11px 14px;border-top:1px solid var(--line);background:var(--card);
+    display:flex;gap:9px;flex-wrap:wrap}
+  a.btn{flex:1 1 130px;text-align:center;text-decoration:none;font-weight:600;font-size:13px;
+    border:1px solid var(--line);border-radius:9px;padding:9px;color:var(--ink);background:#fff}
+  a.btn:hover{border-color:var(--accent);color:var(--accent)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<header><h1>SHOU</h1><span class="tag">watching this conversation</span></header>
+<main>
+  <div id="error" class="err hidden"></div>
+  <div id="body"></div>
+</main>
+<footer>
+  <a class="btn" id="dashboard" href="#" target="_blank">Guardian dashboard</a>
+  <a class="btn" id="options" href="#">Settings</a>
+</footer>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

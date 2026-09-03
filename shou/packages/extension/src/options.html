@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>SHOU — settings</title>
+<style>
+  :root{--card:#fff;--ink:#12151a;--muted:#5d6674;--line:#e3e6ea;--accent:#1f6feb;
+    --ok:#0f7b4f;--okbg:#e8f6ef;--bad:#b3261e;--badbg:#fdecea;--warn:#8a5800;--warnbg:#fdf3e0}
+  *{box-sizing:border-box}
+  body{margin:0;background:#f6f7f9;color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  main{max-width:620px;margin:0 auto;padding:30px 24px 60px}
+  h1{font-size:23px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:14.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 5px}
+  label:first-child{margin-top:0}
+  input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+    font:13.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;color:var(--ink)}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .check{display:flex;gap:9px;align-items:flex-start;margin-top:4px}
+  .check input{margin-top:4px}
+  button{font:inherit;font-weight:600;border-radius:10px;padding:11px 17px;cursor:pointer;
+    border:1px solid var(--line);background:#fff;color:var(--ink)}
+  button.primary{background:var(--accent);color:#fff;border-color:transparent}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button.primary:hover{opacity:.92}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+  .status{margin-top:14px;font-size:13.5px;border-radius:10px;padding:10px 12px}
+  .status.ok{background:var(--okbg);color:var(--ok);border:1px solid #c4e5d5}
+  .status.bad{background:var(--badbg);color:var(--bad);border:1px solid #f3c9c5}
+  .warnbox{background:var(--warnbg);border:1px solid #f0dcb4;color:var(--warn);border-radius:12px;
+    padding:13px 15px;font-size:13.5px;margin-bottom:16px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>SHOU settings</h1>
+  <p class="sub">Where to send messages for scoring, and which wallet policy they belong to.</p>
+
+  <div class="warnbox">
+    <strong>Demo build.</strong> Reading messages off WhatsApp Web is not permitted by its Terms of
+    Service and is here only so this can be shown on our own accounts. The production message
+    source is the WhatsApp Business API, behind the same scoring pipeline.
+  </div>
+
+  <div class="card">
+    <label for="policyId">Wallet policy id</label>
+    <input type="text" id="policyId" placeholder="0x…" spellcheck="false" />
+    <div class="hint">
+      The on-chain policy this wallet runs under. Scoring is refused without it rather than
+      filed against a placeholder — an unfiled verdict is one a swapped session id can lose.
+    </div>
+
+    <label for="circuitBreakerUrl">Circuit breaker</label>
+    <input type="text" id="circuitBreakerUrl" spellcheck="false" />
+    <div class="hint">Messages go here and no further; it forwards to the enclave. Default <code>http://127.0.0.1:4000</code>.</div>
+
+    <label for="dashboardUrl">Guardian dashboard</label>
+    <input type="text" id="dashboardUrl" spellcheck="false" />
+    <div class="hint">Only used for the link in the popup. Default <code>http://127.0.0.1:4200</code>.</div>
+
+    <label>Scoring</label>
+    <div class="check">
+      <input type="checkbox" id="enabled" />
+      <span>Check messages as they arrive. Turning this off stops all scoring — your wallet's own
+      amount limits still apply on-chain, because they never depended on this extension.</span>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="save">Save</button>
+      <button id="fetch">Fetch policy id from dashboard</button>
+      <button id="test">Test connection</button>
+    </div>
+    <div class="status hidden" id="status"></div>
+  </div>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>

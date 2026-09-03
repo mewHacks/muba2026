@@ -1,0 +1,19 @@
+{
+  "name": "@shou/extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "start": "npm run build",
+    "test": "node --experimental-strip-types --test src/adapters.test.ts src/adapters.dom.test.ts"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "linkedom": "^0.18.13",
+    "typescript": "^5.5.0"
+  }
+}

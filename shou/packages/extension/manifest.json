@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "SHOU — scam guard",
+  "version": "0.1.0",
+  "description": "Scores the conversation you are in, inside a TEE, and tells your wallet what it found. Nothing you type leaves this device unredacted.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "http://localhost:4000/*",
+    "http://127.0.0.1:4000/*",
+    "http://localhost:4200/*",
+    "http://127.0.0.1:4200/*"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*",
+        "https://www.messenger.com/*",
+        "https://messenger.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SHOU — scam guard",
+    "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "options_page": "options.html",
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+}
