@@ -136,6 +136,66 @@ her son alone never does, two relatives together can recover.
 | Sign-in | **zkLogin + Enoki** | An 80-year-old will not write down twelve words. |
 | Recovery | **Weighted multisig** (2·1·1, threshold 2) | Weights, not counts — the only shape that lets her act alone while still allowing recovery. |
 
+### How it fits together
+
+```mermaid
+flowchart TB
+    subgraph device["Elder's device"]
+        EXT["Browser extension<br/><i>pending Dev B</i>"]
+        WALLET["Wallet page<br/>zkLogin + Enoki"]
+    end
+
+    subgraph localsvc["Local services"]
+        CB["Circuit breaker<br/>Node HTTP, port 4000<br/><i>holds no message text</i>"]
+        subgraph tee["Enclave — Nautilus pattern, port 3100"]
+            RED["Redaction<br/>strips PII"]
+            SCORE["Scorer"]
+            SIGN["ed25519 + BCS<br/>signs the verdict"]
+        end
+    end
+
+    GONKA["Gonka Router<br/>minimax, kimi"]
+
+    DRIVER["Driver SDK<br/>@mysten/sui 2.28 over gRPC"]
+    MSIG["Weighted multisig<br/>2 / 1 / 1, threshold 2"]
+    DASH["Guardian dashboard<br/><i>pending Dev B</i>"]
+
+    subgraph sui["Sui Testnet"]
+        POLICY["policy.move<br/>tiers, escrow, approvals"]
+        ENCMOD["enclave.move<br/>verifies the signature"]
+        FLAG["redflag.move<br/>deny list"]
+    end
+
+    EXT -->|"message"| CB
+    CB -->|"forwards, never stores"| RED
+    RED --> SCORE
+    SCORE -->|"redacted text"| GONKA
+    GONKA -->|"tier + reasoning"| SCORE
+    SCORE --> SIGN
+    SIGN -->|"hash, tier, signature<br/>the message never leaves"| CB
+
+    WALLET -->|"derives"| MSIG
+    WALLET -->|"transfer request"| CB
+    CB -->|"signed attestation"| DRIVER
+    DASH -->|"approve / block"| DRIVER
+    MSIG -->|"owns"| POLICY
+
+    DRIVER -->|"programmable transaction"| POLICY
+    POLICY -->|"checks attestation"| ENCMOD
+    POLICY -->|"checks recipient"| FLAG
+
+    classDef pending stroke-dasharray: 5 5
+    class EXT,DASH pending
+```
+
+The boundary that matters is the enclave box: **raw message text enters and never
+comes back out.** Only a hash, a tier and a signature cross that line — which is why
+Gonka is called from inside it rather than from the extension.
+
+The second thing to read off the diagram: `policy.move` verifies the enclave's
+signature *itself*, on-chain. The circuit breaker and driver carry the verdict but
+cannot alter it, because any change invalidates the signature.
+
 ### Why Sui, honestly — the stub-it-out test
 
 | Remove Sui. Does it still work? | |
@@ -284,3 +344,4 @@ We would rather state these than have them found:
 
 **Hana** — Move contracts, TEE enclave, driver SDK, zkLogin and recovery.
 **Shermaine** — Gonka Router integration, browser extension, guardian dashboard.
+**Daniel and Yi Wen** - Research, business value, target users, statistics
