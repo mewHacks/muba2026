@@ -15713,12 +15713,14 @@ var els = {
   signIn: document.getElementById("signin"),
   signOut: document.getElementById("signout"),
   detail: document.getElementById("detail"),
-  debug: document.getElementById("debug")
+  debug: document.getElementById("debug"),
+  debugCard: document.getElementById("debug-card")
 };
 var log = [];
 function trace(line) {
   log.push(line);
   els.debug.textContent = log.join("\n");
+  if (new URLSearchParams(location.search).has("debug")) els.debugCard.hidden = false;
   console.log("[shou]", line);
 }
 function show(status, detail = "") {

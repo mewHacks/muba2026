@@ -41,12 +41,17 @@ const els = {
   signOut: document.getElementById('signout') as HTMLButtonElement,
   detail: document.getElementById('detail')!,
   debug: document.getElementById('debug')!,
+  debugCard: document.getElementById('debug-card')!,
 };
 
 const log: string[] = [];
 function trace(line: string) {
   log.push(line);
   els.debug.textContent = log.join('\n');
+  // Reveal the panel only when explicitly asked for. The trace is what
+  // diagnosed the silent sign-in failure, so it keeps recording either
+  // way — it just stays off screen during a demo.
+  if (new URLSearchParams(location.search).has('debug')) els.debugCard.hidden = false;
   console.log('[shou]', line);
 }
 

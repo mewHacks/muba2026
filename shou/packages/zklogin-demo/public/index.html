@@ -71,7 +71,10 @@
     <div id="transfer-feedback" style="margin-top:0.75rem;font-size:.9rem;"></div>
   </div>
 
-  <div class="card">
+  <!-- Hidden unless the URL carries ?debug=1. It is how we found the silent
+       sign-in failure, so it stays in the build — but a judge should see a
+       product, not a developer console. -->
+  <div class="card" id="debug-card" hidden>
     <div class="label">Diagnostics</div>
     <pre id="debug" style="white-space:pre-wrap;font-size:.8rem;color:#444;margin:.25rem 0 0"></pre>
   </div>

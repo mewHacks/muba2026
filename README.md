@@ -29,9 +29,9 @@ large transfer is low-risk and it escalates anyway, which is why you do not have
 trust our model.
 
 **Status:** wallet guardian deployed to Sui testnet — 57 tests passing, five critical
-security bugs found and fixed, a seven-step end-to-end run in real USDC. Scoring,
-redaction and the enclave are built; the extension front-end is in progress.
-([details](docs/DECISIONS.md))
+security bugs found and fixed, a seven-step end-to-end run in real USDC. Gonka scoring
+is live and returns real request ids. The Chrome extension front-end and guardian
+dashboard are in progress. ([details](docs/DECISIONS.md))
 
 ---
 
@@ -87,9 +87,9 @@ scam. Together, the conversation decides how the money behaves.
 
 **1 · Passive detection.** The extension reads the on-screen chat DOM in WhatsApp Web
 and Messenger automatically — no copy-pasting, no button to press — and shows an
-inline 🟢/🟡/🔴 badge. Every message is scored by all configured Gonka Router models in
-parallel, and the **strictest tier wins**: one model missing a scam can never clear a
-transfer that another flagged.
+inline 🟢/🟡/🔴 badge. A Gonka Router classifier scores each message and a second model
+verifies it, with the **strictest tier wins**: one model missing a scam can never clear
+a transfer that another flagged.
 
 **2 · Private and tamper-evident.** Inference runs inside a TEE, so message content is
 never exposed to operators — only a hash, a tier and a signature leave, and PII is
@@ -319,16 +319,26 @@ Three things we have not seen combined elsewhere:
 
 **Use of different models**
 
-Not a model list — a **consensus rule**. Every configured model is queried in parallel
-and the **strictest tier wins**, on the reasoning that one model missing a scam should
-never be able to clear a transfer that another flagged. Each call's Gonka Request ID
-is retained and rendered in the UI alongside the truth score and reasoning trace, in
-the shape Gonka asks for.
+Not a model list — a **consensus rule**. A classifier model scores the message and a
+second model verifies it, and the **strictest tier wins**, on the reasoning that one
+model missing a scam should never be able to clear a transfer that another flagged.
+Every call's Gonka Request ID is retained and rendered alongside the truth score and
+reasoning trace, in the shape Gonka asks for.
 
-> **Current status:** the Router is returning 404 for both models, so scoring falls back
-> to a keyword heuristic that labels itself *"DEV MODE heuristic — not a real
-> classifier"* on screen. The consensus logic is written and wired; the endpoint is not
-> yet resolved. **Update this line once it is.**
+**Live, with the honesty built in.** A real call returns
+`req-1788443104429892837-474902`, tier HIGH, category `urgency_secrecy_financial_fraud`.
+Two things we disclose on screen rather than paper over:
+
+- The account is throttled and cannot run both models concurrently, so the verifier runs
+  only if the deadline allows. When it does not, the reasoning trace says
+  `not cross-verified` — we claim two models when we got two, not always.
+- The router sometimes **substitutes a model**. We asked for Kimi and were served
+  MiniMax on a live call. We detect that and say so.
+
+Underneath sits a deterministic floor that fires without any model at all: an obvious
+scam still lands HIGH, a legitimate payment still lands LOW, and a subtle one is held at
+MEDIUM for review rather than released. Model downtime degrades the product; it does not
+open it.
 
 ---
 
@@ -422,9 +432,15 @@ We would rather state these than have them found:
 
 - **No Nitro instance.** Signature verification is real; the key's provenance is
   currently asserted by us rather than proven by AWS hardware.
-- **Gonka Router is returning 404** at time of writing, so scoring falls back to a
-  keyword heuristic that labels itself *"DEV MODE heuristic — not a real classifier"*
-  on screen. The architecture is unaffected; the model call is not.
+- **Cross-verification is best-effort.** Gonka scoring is live, but the account is
+  throttled and cannot run both models at once, so the second model runs only when the
+  deadline allows — the screen says `not cross-verified` when it did not. The router
+  has also substituted a different model than the one requested; we detect and disclose
+  that rather than claiming the requested model answered.
+- **The browser signs but does not submit.** The page produces a real signed attestation
+  bound to the policy, recipient and amount; the on-chain submission is exercised by
+  `e2e.ts` rather than from the browser. Wiring those two together is the honest answer
+  to "what is incomplete".
 - **The Chrome extension front-end and guardian dashboard are still in progress.** The
   scoring pipeline behind them — redaction, enclave, consensus, attestation — is built
   and tested.
