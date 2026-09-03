@@ -200,3 +200,88 @@ Sponsored transactions solve gas for the elder. But the **guardian** also transa
 | Verified on-chain | tier escalation blocks a large "LOW" transfer; deny-list substitution rejected; full LOW request → execute |
 | Not yet verified on-chain | the attested TEE path end-to-end (blocked on gas + the clock-skew fix redeploy) |
 | Not built | zkLogin, sponsored transactions, stablecoin (using SUI) |
+
+---
+
+## F. Post-security-review questions (NEW — ask these before section E)
+
+These come out of a review that found a fund-theft bug in our own deployed
+package. They are the highest-signal questions we have: each one is a real
+Move design decision we already made and could still be wrong about.
+
+### F1. Returning `Coin<T>` from a shared object is a theft vector — what's the idiom? ⭐ ASK THIS ONE
+
+We shipped this, on testnet:
+
+```move
+public fun execute<T>(request: &mut TransferRequest<T>, ...): Coin<T>
+```
+
+`TransferRequest` is shared, and release is intentionally permissionless so
+a relayer can trigger it and the elder can stay offline. But because the
+coin is *returned*, anyone could watch for the event, wait for the transfer
+to unlock, and compose a PTB that calls `execute` and sends the coin to
+themselves. Every guard passed. The emitted `TransferExecuted` still named
+the intended recipient, so on an explorer it looked like a normal payment.
+
+We fixed it by making `execute` `public(package)` and exposing only
+`entry fun execute_and_send`, which pays `request.recipient`.
+
+**The question:** the composability guidance says public functions should
+return objects rather than transfer internally, so callers can compose in a
+PTB. That guidance is exactly what produced this bug. **Where is the line?**
+Is `public(package)` + an entry wrapper the idiomatic answer for anything
+holding value in a shared object, or is there a pattern that keeps
+composability without letting the caller choose the destination?
+
+*Why this is a good question to ask him: it is a genuine tension in Sui's own
+recommended style, we hit it in production, and we can show the fix rejected
+on-chain with `NonEntryFunctionInvoked`.*
+
+### F2. One-shot attestations — is a hot potato the right tool?
+
+Our enclave signs a `RiskAttestation` bound to (policy, recipient, amount)
+with a 5-minute freshness window. Nothing consumes it: within that window
+the same signed bytes verify any number of times.
+
+Today it is not exploitable — every submission still needs the owner's
+signature and her own coins, and the amount ceilings apply regardless. But
+it is only safe by accident, and it becomes critical the moment we let an
+attested LOW skip amount escalation.
+
+**The question:** for one-shot verification, is the idiomatic Sui answer a
+hot-potato `VerifiedAttestation` (no abilities, must be consumed by value in
+the same PTB), or a `Table` of used message hashes? The hot potato costs no
+storage but only protects *within* a transaction — does it actually stop
+replay across two separate transactions, or do we need the table?
+
+### F3. How do you revoke a compromised enclave?
+
+`Enclave` is shared and holds the registered public key. There is no
+deregister, freeze, or `revoked` flag — so a leaked enclave key stays valid
+forever, and our only recourse is migrating every policy to a new package.
+
+**The question:** what does Nautilus do here in production? Is revocation
+expected to live in the app layer (a `revoked: bool` an AdminCap can flip),
+or does the attestation-document path give you natural expiry via PCR
+rotation, so long-lived registrations are the wrong mental model?
+
+### F4. We bind the policy to a DenyList but not to an EnclaveConfig — inconsistent?
+
+An earlier review caught that any `DenyList` could be swapped in, so
+`SeniorityPolicy` now stores `deny_list_id` and asserts on it. But
+`submit_transfer_attested` takes no `EnclaveConfig` — **any** registered
+enclave can sign for **any** policy.
+
+**The question:** should the policy pin an `EnclaveConfig` id the same way,
+or is a single trusted enclave registry per package the intended shape? We
+are unsure whether per-policy enclave binding is real defence or just
+ceremony.
+
+### F5. Cheap, ask if there is time
+
+*"We found a fund-theft bug in our own package by having a second reviewer
+read it adversarially. Is there anything in the Sui tooling — a linter,
+`sui move prove`, a static check — that would have caught a `public fun`
+returning `Coin<T>` from a shared object? Or is that purely a review
+problem right now?"*
