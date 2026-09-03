@@ -17,47 +17,21 @@ MUBA Blockchain Hackathon 2026 · Sui Track 01 (Payments & Stablecoins) · Gonka
 
 ## Executive summary
 
-Elder financial scams are not a detection problem. They are an **authority** problem.
+Elder financial scams are not a detection problem but an **authority** problem: by the
+time money moves the victim has usually already been warned, and sends it anyway
+because someone she trusts is telling her to. That authority cannot rest with her —
+she is being manipulated right now — nor with her family, who are a leading vector for
+elder financial abuse, so it rests with rules she set while calm. SHOU pairs a **Chrome
+extension** that passively scores her conversations inside a TEE with an **on-chain
+policy** that decides how her money behaves, and the AI's verdict is a floor rather
+than a ceiling — it can tighten her limits, never loosen them. Tell the contract a
+large transfer is low-risk and it escalates anyway, which is why you do not have to
+trust our model.
 
-By the time money moves, the victim has usually already been warned — by a bank
-notice, a pop-up, a relative. She sends it anyway, because a person she trusts is
-on the phone telling her to, and in that moment she is the least capable person in
-the world of overruling them. A warning does not stop a coerced person.
-
-So the question is not *"how do we detect the scam?"* It is *"who has the authority
-to stop the transfer?"* It cannot be the elder — she is being manipulated right now.
-It cannot be her family — relatives are a leading vector for elder financial abuse.
-
-**SHOU's answer: her own rules, pre-committed while she was calm, enforced where
-nobody — not her family, not an attacker, not us — can quietly override them.**
-
-It is two halves that only work together:
-
-**A Chrome extension** sitting in the conversation where the scam actually happens —
-Facebook and WhatsApp Web, the two channels Malaysian police name most often. It reads
-messages as they arrive and scores them for the patterns that precede a transfer:
-manufactured urgency, secrecy, impersonation, a request for money. **She does nothing.**
-She does not install a scanner, run a check, or decide to be suspicious — which matters,
-because a person who is being manipulated will not do any of those things. Detection has
-to be passive or it does not happen at all.
-
-**A wallet guardian** that turns that verdict into something with teeth. A red badge is
-just another warning, and warnings do not stop a coerced person — so the risk score
-flows into a spending policy she set in advance. Small amounts still move instantly.
-Large ones, or ones during a flagged conversation, wait for someone she trusts.
-
-The scoring runs inside a trusted execution environment, so the message never leaves it
-— only a hash, a tier and a signature. The contract then treats that verdict as a
-**floor, never a ceiling**: it can tighten her limits, never loosen them. Tell it a large
-transfer is low-risk and it escalates anyway.
-
-That is the whole thesis, and it is why you do not have to trust our model.
-
-**Status:** the wallet guardian is deployed to Sui testnet and adversarially reviewed —
-57 tests passing, five critical security bugs found and fixed, and a seven-step
-end-to-end run that moves real testnet USDC. The scoring pipeline, redaction and
-enclave are built and tested; **the Chrome extension front-end is in progress**. See
-[docs/DECISIONS.md](docs/DECISIONS.md).
+**Status:** wallet guardian deployed to Sui testnet — 57 tests passing, five critical
+security bugs found and fixed, a seven-step end-to-end run in real USDC. Scoring,
+redaction and the enclave are built; the extension front-end is in progress.
+([details](docs/DECISIONS.md))
 
 ---
 
@@ -105,70 +79,64 @@ consent, manufactured under pressure.
 
 ## Solution
 
-**A Chrome extension that watches, and a wallet that listens to it.**
+**A Chrome extension and wallet guardian that protect passively, not reactively.**
 
-Neither half is useful alone. An extension that only shows a warning is one more
-notification to dismiss — and the whole problem is that warnings do not stop someone
-who is being talked through the transfer step by step. A wallet with spending limits
-but no awareness of the conversation cannot tell a grocery payment from a scam.
-Together, the conversation decides how the money behaves.
+An extension that only warns is one more notification to dismiss. A wallet with
+spending limits but no awareness of the conversation cannot tell groceries from a
+scam. Together, the conversation decides how the money behaves.
 
-### What she experiences
+**1 · Passive detection.** The extension reads the on-screen chat DOM in WhatsApp Web
+and Messenger automatically — no copy-pasting, no button to press — and shows an
+inline 🟢/🟡/🔴 badge. Every message is scored by all configured Gonka Router models in
+parallel, and the **strictest tier wins**: one model missing a scam can never clear a
+transfer that another flagged.
 
-1. A scam conversation starts in **Facebook Messenger or WhatsApp Web**. She does
-   nothing differently.
-2. The extension scores each message **as it arrives**. Nothing is installed, opened
-   or checked by her. A quiet badge turns amber, then red.
-3. She opens her wallet to send money — because she has been persuaded to, which is
-   the entire point.
-4. The wallet already knows the conversation was flagged. The transfer **does not
-   fail; it waits**, and someone she trusts is asked.
-5. Her son opens a message in plain English: *"Mum is trying to send $600 to an
-   address she has never used, during a chat that looks like a scam."* He blocks it,
-   and the money returns to her.
+**2 · Private and tamper-evident.** Inference runs inside a TEE, so message content is
+never exposed to operators — only a hash, a tier and a signature leave, and PII is
+stripped before scoring. That hash is anchored on-chain inside the signed attestation,
+so a verdict cannot be altered afterwards without invalidating the signature.
 
-At no point did she have to suspect anything.
+**3 · Behavioural circuit breaker into Seniority Mode.** When a live flagged
+conversation correlates with an unusual payment, the transfer does not fail — it
+**waits**, and high-risk transfers require trusted-family co-approval, enforced as an
+on-chain Sui policy rather than by our backend. Reported scammers get a **soft ban**
+that blocks suspicious amounts while still allowing daily necessities.
 
-### The four layers
+**4 · Safe by construction.** The AI's verdict is a floor, never a ceiling. Guardians
+can block a transfer and refund it **to her**, but never redirect it to themselves.
+`AdminCap` appears nowhere in `policy.move`, so there is no code path by which we touch
+her funds — and because zkLogin has no seed phrase, funds sit behind a weighted
+multisig where she acts alone, her son alone cannot, and two relatives together can
+recover.
 
-The middle two are the Sui submission; the outer two are the Gonka submission.
-
-| Layer | What it does | Status |
-|---|---|---|
-| **0 · Detection** — *Chrome extension* | Reads the conversation in Messenger and WhatsApp Web, scores each message passively | Scoring, redaction and enclave complete; **extension front-end in progress** |
-| **1 · Circuit breaker** | Correlates a flagged conversation with a transfer in the same session | Complete |
-| **2 · Seniority Mode** — *wallet guardian* | On-chain tiered approval, cooldowns, guardian threshold, deny list | Complete, deployed |
-| **3 · Red Flag reporting** | Community scam reporting with staff/oracle review | Contract complete; **review UI in progress** |
-
-### Key features
-
-**Her policy is the authority.** She sets the ceilings while calm. Small amounts
-move instantly; medium amounts wait out a cooldown; large amounts need a guardian.
-
-**The AI can only tighten, never loosen.** `submit_transfer` takes
-`max_tier(amount_tier, reported_tier)`. This is the answer to *"what if your AI is
-wrong, or compromised?"* — it cannot lower her limits, only raise them.
-
-**Guardians can block, never redirect.** A guardian can stop a transfer and refund
-it **to her**. There is no path by which a family member moves her money to
-themselves. This matters because family members are a leading vector for elder
-financial abuse.
-
-**Non-custodial by construction, not by promise.** `AdminCap` appears nowhere in
-`policy.move`. There is no code path by which we touch her funds — checkable in
-source, not asserted in a pitch.
-
-**The message never leaves the enclave.** Scoring happens inside a TEE. Only a hash,
-a risk tier and a signature come out. PII is stripped before anything is scored, in
-the client and again in the enclave.
-
-**Recovery without handing over control.** zkLogin has no seed phrase and cannot be
-exported, so funds sit behind a weighted multisig: she alone meets the threshold,
-her son alone never does, two relatives together can recover.
+Layers 1–2 are the Sui submission; layers 0 and 3 are the Gonka submission. The
+extension front-end and the Red Flag review UI are still in progress.
 
 ---
 
-## Tech stack, and why
+## User flow
+
+Every path starts the same way: she does nothing differently, and the extension scores
+each message as it arrives.
+
+| Scenario | What happens |
+|---|---|
+| Clean chat, small amount | 🟢 → she sends → executes immediately |
+| Clean chat, over her review ceiling | 🟢 → she sends → cooldown → executes |
+| **Scam chat** | 🔴 → she sends → escrowed, `NEEDS_APPROVAL` → son notified → he blocks → **refunded to her** |
+| Scam chat, guardian says it's fine | 🔴 → escrowed → son approves → executes |
+| **She insists** | Escrowed → she retries → refused, `EThresholdNotMet` → wait for guardian, or cancel → refunded |
+| Guardian never responds | Escrowed → she cancels → refunded. Funds are never stranded |
+| **AI wrong or compromised** | Says 🟢 on a large amount → chain escalates to HIGH anyway → needs guardian |
+| No chat was scored | No verdict → her amount ceilings apply on their own |
+| Recipient reported as a scammer | Deny list hit → large amounts blocked, daily necessities still allowed |
+
+The model can tighten, never loosen. And SHOU is a guardrail, not a cage: you cannot be
+non-custodial *and* make it impossible to spend your own money.
+
+---
+
+## Tech stack
 
 | Layer | Technology | Why this one |
 |---|---|---|
@@ -184,99 +152,85 @@ her son alone never does, two relatives together can recover.
 
 ```mermaid
 flowchart TB
-    subgraph device["Elder's device"]
-        EXT["Chrome extension<br/>Messenger, WhatsApp Web<br/><i>front-end in progress</i>"]
-        WALLET["Wallet page<br/>zkLogin + Enoki"]
+    EXT["Chrome extension<br/>WhatsApp Web, Messenger"]
+    WALLET["Wallet page<br/>zkLogin sign-in"]
+    DASH["Guardian dashboard"]
+
+    CB["Circuit breaker<br/>carries verdicts, stores nothing"]
+
+    subgraph TEE["Enclave (TEE)"]
+        RED["Redact PII"]
+        SIGN["Score, then sign"]
     end
 
-    subgraph localsvc["Local services"]
-        CB["Circuit breaker<br/>Node HTTP, port 4000<br/><i>holds no message text</i>"]
-        subgraph tee["Enclave — Nautilus pattern, port 3100"]
-            RED["Redaction<br/>strips PII"]
-            SCORE["Scorer"]
-            SIGN["ed25519 + BCS<br/>signs the verdict"]
-        end
-    end
+    GONKA["Gonka Router<br/>all models, strictest wins"]
+    DRIVER["Driver SDK"]
 
-    GONKA["Gonka Router<br/>minimax, kimi"]
-
-    DRIVER["Driver SDK<br/>@mysten/sui 2.28 over gRPC"]
-    MSIG["Weighted multisig<br/>2 / 1 / 1, threshold 2"]
-    DASH["Guardian dashboard<br/><i>pending Dev B</i>"]
-
-    subgraph sui["Sui Testnet"]
-        POLICY["policy.move<br/>tiers, escrow, approvals"]
-        ENCMOD["enclave.move<br/>verifies the signature"]
+    subgraph SUI["Sui Testnet"]
+        POLICY["policy.move<br/>tiers and escrow"]
+        ENCMOD["enclave.move<br/>checks signature"]
         FLAG["redflag.move<br/>deny list"]
     end
 
-    EXT -->|"message"| CB
-    CB -->|"forwards, never stores"| RED
-    RED --> SCORE
-    SCORE -->|"redacted text"| GONKA
-    GONKA -->|"tier + reasoning"| SCORE
-    SCORE --> SIGN
-    SIGN -->|"hash, tier, signature<br/>the message never leaves"| CB
+    EXT -->|chat message| CB
+    CB --> RED
+    RED -->|redacted| SIGN
+    SIGN <-->|score| GONKA
+    SIGN -->|hash, tier, signature| CB
 
-    WALLET -->|"derives"| MSIG
-    WALLET -->|"transfer request"| CB
-    CB -->|"signed attestation"| DRIVER
-    DASH -->|"approve / block"| DRIVER
-    MSIG -->|"owns"| POLICY
+    WALLET -->|wants to send| CB
+    CB -->|attestation| DRIVER
+    DASH -->|approve or block| DRIVER
+    DRIVER --> POLICY
+    POLICY --> ENCMOD
+    POLICY --> FLAG
 
-    DRIVER -->|"programmable transaction"| POLICY
-    POLICY -->|"checks attestation"| ENCMOD
-    POLICY -->|"checks recipient"| FLAG
-
-    classDef pending stroke-dasharray: 5 5
-    class EXT,DASH pending
+    classDef wip stroke-dasharray: 5 5
+    class EXT,DASH wip
 ```
 
-The boundary that matters is the enclave box: **raw message text enters and never
-comes back out.** Only a hash, a tier and a signature cross that line — which is why
-Gonka is called from inside it rather than from the extension.
+Dashed boxes are in progress. Raw message text enters the enclave and never leaves —
+only a hash, a tier and a signature — which is why Gonka is called from inside it.
+`policy.move` then checks that signature on-chain itself, so the services carrying the
+verdict cannot alter it.
 
-The second thing to read off the diagram: `policy.move` verifies the enclave's
-signature *itself*, on-chain. The circuit breaker and driver carry the verdict but
-cannot alter it, because any change invalidates the signature.
+### Project structure
 
-### Why Sui, honestly — the stub-it-out test
+```
+muba2026/
+├── README.md
+├── docs/                       DECISIONS · RUNBOOK · DEMO · architecture · PRD
+└── shou/
+    ├── move/
+    │   ├── sources/            policy.move · redflag.move · enclave.move
+    │   └── tests/              38 Move tests
+    ├── enclave/src/            TEE server, attestation, BCS layout
+    └── packages/
+        ├── driver/             Sui SDK client, e2e + demo scripts, shared interface
+        ├── circuit-breaker/    correlates conversation risk with transfers
+        ├── gonka-client/       multi-model scorer and consensus rule
+        ├── redact/             PII stripping
+        └── zklogin-demo/       sign-in, recovery multisig, transfer panel
+```
 
-| Remove Sui. Does it still work? | |
-|---|---|
-| Gonka scoring, circuit breaker | Yes — which is why that is a separate track submission |
-| Tiered approval, cooldown, deny list | **No.** This is the Track 01 submission |
-| zkLogin | **No**, not without re-centralising custody in our own backend |
-
-Three reasons the chain is load-bearing rather than decorative:
-
-1. **The asset is already there.** Our user receives stablecoins because her family
-   routes money that way — not because we chose to put a Web2 idea on-chain.
-2. **Tamper-evidence a database cannot give.** A cooldown enforced in our backend is
-   one `UPDATE` away from us quietly changing it. As a Move object, it is not — and
-   "her pre-committed policy" is only credible if *even we* cannot bypass it.
-3. **Non-custodial without the UX cost.** zkLogin is the one piece with no clean Web2
-   equivalent: OAuth-simple sign-in *and* self-custody in one primitive.
+The seam between developers is `packages/driver/src/types.ts` — the interface the
+dashboard and extension code against.
 
 ---
 
 ## Track alignment
 
-**Sui — Track 01, Payments & Stablecoins.** The track's own ideas list names
-*"stablecoin wallets, treasury, escrow"*. `SeniorityPolicy` and `TransferRequest`
-are a literal, undefended description of that: a stablecoin wallet with programmable
-spending controls and on-chain escrow. Not "AI scam detection with a blockchain
-attached" — a payments product whose risk layer happens to be AI.
+**Sui — Track 01.** The track's ideas list names *"stablecoin wallets, treasury,
+escrow"*. `SeniorityPolicy` and `TransferRequest` are a literal description of that —
+a stablecoin wallet with programmable controls, not AI with a blockchain attached.
 
-**Gonka — AI for Society.** Conversation scoring and Red Flag evidence review both run
-through Gonka Router as Layers 0 and 3, not as a bolt-on. Genuine public-value AI,
-globally applicable, and the mechanism — *passive* detection rather than reactive
-self-report — is the part that does not already exist.
+**Gonka — AI for Society.** Conversation scoring and Red Flag evidence review are
+Layers 0 and 3, not a bolt-on. Passive detection instead of reactive self-report is
+the part that does not already exist.
 
 **Deliberately decoupled.** Layers 0 and 3 need zero Sui code to demo; Layers 1 and 2
 need zero Gonka calls, because the tier logic accepts a risk score regardless of who
-produced it. Two submissions, two independently complete demos, from one build —
-and neither has to defend an AI-blockchain entanglement that isn't real.
+produced it. Two submissions, two complete demos, one build.
 
 ---
 
@@ -422,7 +376,12 @@ jurisdictions. This market did not financially exist for banks until last year.
   signature, her coins, and passes the amount ceilings — but it must be closed before
   an attested LOW is ever allowed to skip escalation.
 - **Enclave revocation.** A compromised key is currently valid forever.
-- **Sponsored transactions** via Enoki, so a guardian can approve without holding gas.
+- **Sponsored transactions** via Enoki, so neither the elder nor the guardian holds SUI.
+  Confirmed with Mysten: sponsorship is configured per *app*, not per user, so one setup
+  covers both roles and the guardian's approval stays an ordinary on-chain call. The
+  guardian signs in with Enoki zkLogin rather than connecting a wallet. Open point: the
+  elder's funds sit at a multisig address containing a zkLogin member, and we still need
+  to confirm sponsorship covers a multisig sender.
 
 **Product**
 
@@ -435,20 +394,7 @@ jurisdictions. This market did not financially exist for banks until last year.
 
 ---
 
-## Repository
-
-| | |
-|---|---|
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Technology choices, design decisions, and every blocker with how it was resolved |
-| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Ports, startup order, and what to do when something breaks |
-| [docs/DEMO.md](docs/DEMO.md) | The demo flow, and which gaps to raise before a judge finds them |
-| [docs/shou-architecture.md](docs/shou-architecture.md) | Module design and the developer split |
-| [docs/shou-idea.md](docs/shou-idea.md) | Full PRD |
-| [shou/move/](shou/move/) | The Move contracts — `policy`, `redflag`, `enclave` |
-| [shou/enclave/](shou/enclave/) | The TEE service |
-| [shou/packages/](shou/packages/) | Driver, circuit breaker, redaction, Gonka client |
-
-### Quick start
+## Running it
 
 ```bash
 cd shou/enclave                   && SHOU_TEST_SCORER=1 npm start   # :3100
@@ -456,15 +402,17 @@ cd shou/packages/circuit-breaker  && npm start                      # :4000
 cd shou/packages/zklogin-demo     && npm start                      # :3000
 ```
 
-Then the two demos that need no browser:
+The two demos that need no browser:
 
 ```bash
-node --experimental-strip-types packages/driver/src/e2e.ts               # 7 steps, real USDC
-node --experimental-strip-types packages/driver/src/demo-escalation.ts   # the AI is overruled
+node --experimental-strip-types packages/driver/src/e2e.ts             # 7 steps, real USDC
+node --experimental-strip-types packages/driver/src/demo-escalation.ts # the AI is overruled
 ```
 
-Full setup, including `.env` names, is in [docs/RUNBOOK.md](docs/RUNBOOK.md) and
-[shou/.env.example](shou/.env.example).
+Setup, ports and failure modes: [docs/RUNBOOK.md](docs/RUNBOOK.md) ·
+demo script: [docs/DEMO.md](docs/DEMO.md) ·
+decisions and blockers: [docs/DECISIONS.md](docs/DECISIONS.md) ·
+env names: [shou/.env.example](shou/.env.example)
 
 ---
 
