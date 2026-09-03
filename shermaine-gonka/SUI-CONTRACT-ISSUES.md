@@ -1,90 +1,77 @@
-# Three contract issues to raise with Dev A today
+# Sui contract review — WITHDRAWN
 
-Read against `shou/move/sources/policy.move` and `redflag.move` at commit `9b774fc`.
-These are not style notes — the first two are the kind of thing a Mysten Labs judge finds
-by reading the Move for ninety seconds, and the third is a claim we would be making on
-stage that the code does not support.
+**Do not send the earlier version of this file to Dev A.** Every issue it raised
+was already fixed, in `765fd86` "Harden policy/redflag after security review;
+redeploy". The review was written against a stale read of the contract, and I
+did not re-check it against the branch before circulating it. This file now
+records what is actually true, verified against the source on 2026-09-03 with
+all 38 Move tests passing.
 
----
+## The four claims, and what the code actually does
 
-## 1. The risk tier is supplied by the caller (highest priority)
+**1. "The contract trusts a caller-supplied `risk_tier`."** False, twice over.
 
-```move
-public fun submit_transfer<T>(..., risk_tier: u8, ...) {
-    assert!(ctx.sender() == policy.owner, ENotOwnerOrApprover);
-    ...
-}
-```
-
-Nothing binds `risk_tier` to an actual Gonka assessment. The policy owner — the elder,
-who during a live scam is being coached by the attacker — can submit any transfer as
-`TIER_LOW`. So the sentence "the contract enforces the AI's verdict" is currently false:
-it enforces whichever tier the caller typed.
-
-**Hackathon-sized fix.** Add a `RiskOracleCap` minted at policy creation and held by the
-scoring service; require `&RiskOracleCap` in `submit_transfer` and check it matches the
-policy. About twenty lines, and it demos.
-
-**Say the production path out loud** rather than pretending the cap is the final answer:
-verify an ed25519 signature over the attestation this service already produces
-(`assessmentId, policyId, sender, recipient, amount, tier, expiresAt`), so a LOW result
-cannot be replayed for a different recipient, a larger amount, or a later attempt.
-The payload is already built in `gonka/src/attestation.ts` — it needs a signature and an
-on-chain `ed25519_verify`, not a new design.
-
----
-
-## 2. Anyone can ban any address, for gas
+There are two submission paths. `submit_transfer_attested` calls
+`enclave.verify(attestation, signature, clock)` and then binds the signature to
+this exact transfer:
 
 ```move
-entry fun report(list: &mut DenyList, addr: address, plausibility_score: u8, clock: &Clock)
+assert!(attestation.policy_id() == object::id(policy), EAttestationMismatch);
+assert!(attestation.recipient() == recipient, EAttestationMismatch);
+assert!(attestation.amount() == payment.value(), EAttestationMismatch);
 ```
 
-No capability, no threshold, no verification. And `submit_transfer` asserts
-`!redflag::is_banned(deny_list, recipient)` — so any stranger can permanently block any
-recipient for **every** SHOU user, and only a `StaffCap` can undo it. That is a global
-denial of service on the product, callable by anyone.
+So a score issued for a small payment to a known contact cannot be replayed to
+wave through a large one to a stranger. That is cryptographic verification of the
+AI verdict, and it already exists — landed in `03481ff`.
 
-**Fix, in order of preference:**
+The unattested `submit_transfer` does take a claimed tier, but applies
+`max_tier(amount_tier(policy, amount), risk_tier)`. The claim can only ever make
+the outcome *stricter*, so lying about it buys an attacker nothing. Pinned by
+`large_amount_declared_low_still_needs_approval` and
+`mid_amount_declared_low_still_gets_cooldown`.
 
-1. **Cut Red Flag from the demo entirely.** It is not needed to prove the transfer-protection
-   flow, and it is the weakest surface in the package.
-2. If it stays: split it. `submit_report` emits an event that anyone may call;
-   `apply_ban` requires `StaffCap` and creates the deny-list entry. A score threshold alone
-   is not enough while the caller supplies the score.
+**2. "`threshold` can be 0, so a HIGH transfer executes with no approvals."**
+False. `policy.move:124` asserts `threshold > 0` (`EThresholdTooLow`), and
+`threshold <= approvers.length()` on the next line. Pinned by
+`create_policy_aborts_on_zero_threshold` and `create_policy_aborts_on_threshold_too_high`.
 
----
+**3. "Duplicate approvers can meet the threshold."** False.
+`policy.move:343` asserts `!request.approvals.contains(&caller)`
+(`EAlreadyApproved`). Pinned by `cannot_approve_twice`.
 
-## 3. Our pitch describes an elder override that does not exist
+**4. "Red Flag is an open global denial of service."** False on both halves.
 
-What the code actually does:
+`report` requires `_oracle: &OracleCap`, so a stranger cannot ban anyone. And the
+ban is *soft*: `blocks_amount` returns `amount > ban_ceiling`, so a banned
+recipient still accepts everyday amounts. Pinned by
+`soft_ban_permits_amounts_at_or_below_ceiling` and
+`banned_recipient_still_allows_daily_necessities`.
 
-| Tier | Release condition |
-|---|---|
-| LOW | `unlock_at = now`, executes immediately |
-| MEDIUM | cooldown elapses, then anyone may execute |
-| HIGH | `approvals >= threshold`. **Time never releases it.** |
-| any | `block` sets `blocked = true` permanently and refunds the owner |
+## What this changes for the pitch
 
-So there is no "the elder can push it through after the timer" for HIGH, and a guardian's
-block is final for that transfer.
+The line I previously told you to use —
 
-**Keep the code, fix the sentence.** The current behaviour is the more defensible one:
-letting an actively coerced person override a HIGH hold hands the scammer the override.
-And the design is genuinely good — `block_and_refund` sends funds back to `policy.owner`,
-so a guardian can stop a transfer and return the money but can never redirect or keep it.
+> "the prototype produces a transfer-bound risk assessment that the next contract
+> revision will authorize through a scoped oracle capability"
 
-The honest line for the pitch: **"A guardian can stop a transfer and give the money back.
-A guardian can never move it, take it, or release a cooldown early."**
+— understates what is built. The scoped oracle capability exists
+(`create_oracle_cap`), the enclave signature is verified on chain, and the
+attestation is bound to policy, recipient and amount.
 
-**One gap worth closing:** a HIGH request that no guardian ever approves or blocks holds
-the funds forever. Add an expiry — after N hours the owner can reclaim — so the failure
-mode is a refund, not a permanent lock.
+**You can say the contract cryptographically verifies the AI verdict**, provided
+you are precise that this is the *attested* path and that the enclave is
+Nitro-*compatible* rather than Nitro-*attested* — key registration is AdminCap-gated
+because there is no AWS attestation document outside a real enclave, and the
+contract labels that `PRODUCTION GAP` itself.
 
----
+## The one real gap, and it is not in the contract
 
-## Smaller ones
+The chain side is ahead of the AI side, not behind it. What is missing is that
+nothing yet calls `submit_transfer_attested` with a *live* attestation produced by
+the scorer — the enclave signs one, but the end-to-end wiring from the browser
+through to that entry function has not been exercised on testnet, because that
+needs a funded key and seeded object ids.
 
-- `threshold` may be `0`, which makes a HIGH transfer executable with no approvals at all.
-  Assert `threshold > 0` in `new_policy`.
-- `pause` lets any approver pause indefinitely with no owner recourse. Cap the pause window.
+That is an integration task, not a contract fix, and it is the honest thing to
+name if a judge asks what is incomplete.
