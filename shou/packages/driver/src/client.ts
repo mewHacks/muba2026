@@ -254,6 +254,16 @@ export class SuiShouClient implements ShouClient {
     return { enclaveId: await findCreatedObjectId(this.client, result, '::enclave::Enclave') };
   }
 
+  async createDenyList(adminCapId: string): Promise<{ denyListId: string }> {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${this.packageId}::redflag::create_deny_list`,
+      arguments: [tx.object(adminCapId)],
+    });
+    const result = await this.execute(tx, 'createDenyList');
+    return { denyListId: await findCreatedObjectId(this.client, result, '::redflag::DenyList') };
+  }
+
   async requestTransferAttested(
     policyId: string,
     denyListId: string,

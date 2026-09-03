@@ -28,6 +28,10 @@ interface Config {
   enokiApiKey: string;
   network: 'testnet';
   redirectUrl: string;
+  /** Real on-chain ids from demo-ids.json; empty until seed-demo.ts runs. */
+  policyId: string;
+  denyListId: string;
+  packageId: string;
 }
 
 const els = {
@@ -137,6 +141,8 @@ if (!config.googleClientId || !config.enokiApiKey) {
       }
       els.signIn.hidden = true;
       els.signOut.hidden = false;
+      const transferCard = document.getElementById('transfer-card');
+      if (transferCard) transferCard.hidden = false;
       // Handy for wiring into the multisig: this is the address that
       // becomes the elder's signer.
       console.log('zkLogin address:', state.address);
@@ -145,7 +151,144 @@ if (!config.googleClientId || !config.enokiApiKey) {
       els.address.textContent = '—';
       els.signIn.hidden = false;
       els.signOut.hidden = true;
+      const transferCard = document.getElementById('transfer-card');
+      if (transferCard) transferCard.hidden = true;
     }
+  }
+
+  const messageInput = document.getElementById('scam-message') as HTMLTextAreaElement | null;
+  const recipientInput = document.getElementById('recipient') as HTMLInputElement | null;
+  const amountInput = document.getElementById('amount') as HTMLInputElement | null;
+  const sendBtn = document.getElementById('send-btn') as HTMLButtonElement | null;
+  const checkRiskBtn = document.getElementById('check-risk-btn') as HTMLButtonElement | null;
+  const transferFeedback = document.getElementById('transfer-feedback');
+
+  // Anything interpolated into innerHTML below comes back over HTTP, so it
+  // gets escaped. A `category` containing markup would otherwise execute.
+  const esc = (v: unknown) =>
+    String(v).replace(
+      /[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+    );
+
+  /**
+   * Renders a value the backend returned, or says plainly that it did not
+   * return one.
+   *
+   * NO DEFAULTS HERE, deliberately. Filling a missing truthScore with "90"
+   * or a missing request id with "req-1" would mean a judge watching a
+   * demo with Gonka down still sees confident-looking model output. That
+   * is fabricated evidence on stage, and one question — "what was that
+   * request id?" — exposes it. If the model did not answer, the screen
+   * says so.
+   */
+  const orMissing = (v: unknown) =>
+    v === undefined || v === null || v === '' ? '<em style="color:#6b7280">not returned</em>' : esc(v);
+
+  const sessionId = `zklogin-${Date.now()}`;
+
+  if (checkRiskBtn && transferFeedback) {
+    checkRiskBtn.onclick = async () => {
+      const message = messageInput?.value.trim();
+      if (!message) {
+        transferFeedback.textContent = 'Type the message you received first.';
+        return;
+      }
+      transferFeedback.textContent = 'Scoring inside the enclave…';
+      try {
+        const resp = await fetch('http://localhost:4000/risk', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          // Pass the policy so the enclave files this verdict against it.
+          // Without it the HIGH lands under the zero address and the
+          // transfer step, which looks up by the real policy, misses it.
+          body: JSON.stringify({ sessionId, message, policyId: config.policyId || undefined }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'risk check failed');
+
+        const high = data.tier === 'HIGH';
+        const medium = data.tier === 'MEDIUM';
+        const colours = high
+          ? 'background:#fee2e2;color:#991b1b'
+          : medium
+            ? 'background:#fef3c7;color:#92400e'
+            : 'background:#dcfce7;color:#166534';
+        transferFeedback.innerHTML = `
+          <div style="padding:.5rem;border-radius:.25rem;margin-top:.5rem;${colours}">
+            <strong>${high ? '🔴' : medium ? '🟠' : '🟢'} ${orMissing(data.tier)}</strong>
+            — ${orMissing(data.category)}<br/>
+            <strong>Truth score:</strong> ${orMissing(data.truthScore)} |
+            <strong>Gonka request:</strong> ${orMissing(data.gonkaRequestIds?.[0])}<br/>
+            <em>${orMissing(data.reasoning)}</em>
+          </div>
+        `;
+      } catch (e) {
+        transferFeedback.textContent = `Risk check failed: ${e instanceof Error ? e.message : e} (is the circuit breaker running on :4000?)`;
+      }
+    };
+  }
+
+  if (sendBtn && transferFeedback && recipientInput && amountInput) {
+    sendBtn.onclick = async () => {
+      // The policy id used to be hardcoded to 0x…cc — the fixture address
+      // from the Move unit tests, which is not a real object on testnet.
+      // Attesting against it produces a valid signature for a policy that
+      // does not exist, so the demo looks fine right up until anything is
+      // submitted on chain. It now comes from demo-ids.json, written by
+      // `seed-demo.ts`, and we refuse to proceed without it.
+      if (!config.policyId) {
+        transferFeedback.textContent =
+          'No policy id. Run: node --experimental-strip-types packages/driver/src/seed-demo.ts (writes shou/demo-ids.json), then restart this server.';
+        return;
+      }
+      const amount = Number(amountInput.value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        transferFeedback.textContent = 'Enter an amount greater than zero.';
+        return;
+      }
+
+      transferFeedback.textContent = 'Asking the enclave to sign a verdict bound to this transfer…';
+      try {
+        const resp = await fetch('http://localhost:4000/transfer/prepare', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            policyId: config.policyId,
+            recipient: recipientInput.value.trim(),
+            amount: String(Math.round(amount * 1_000_000)),
+          }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'prepare failed');
+
+        // `hadSessionRisk` distinguishes "the AI scored this LOW" from "the
+        // AI never saw a conversation". Both arrive as LOW, and conflating
+        // them would overstate what was actually checked.
+        const vouched = data.hadSessionRisk
+          ? `Verdict from the scored conversation: ${esc(data.tier)}`
+          : 'No conversation was scored — the amount limits alone applied.';
+
+        transferFeedback.innerHTML = `
+          <div style="padding:.5rem;background:#fef3c7;border-radius:.25rem;color:#92400e;margin-top:.5rem;">
+            <strong>🛡️ Attestation signed (${orMissing(data.tier)})</strong><br/>
+            ${orMissing(data.explanation)}<br/>
+            <div style="margin-top:.5rem;font-size:.8rem;font-family:monospace;">
+              Signature: ${esc(String(data.signature ?? '').slice(0, 32))}…<br/>
+              Category: ${orMissing(data.category)}
+            </div>
+            <div style="margin-top:.5rem;font-size:.85rem;">${vouched}</div>
+            <div style="margin-top:.5rem;color:#6b7280;font-size:.8rem;">
+              Signed only. Nothing is on chain until this is submitted to
+              <code>policy::request_transfer_attested</code>.
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        transferFeedback.textContent = `Transfer preparation failed: ${e instanceof Error ? e.message : e} (is the circuit breaker running on :4000?)`;
+      }
+    };
   }
 
   els.signIn.onclick = async () => {

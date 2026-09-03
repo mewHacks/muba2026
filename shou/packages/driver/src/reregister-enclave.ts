@@ -25,7 +25,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { SuiShouClient } from './client.ts';
 
-const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3000';
+const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3100';
 
 function packageId(): string {
   if (process.env.SHOU_PACKAGE_ID) return process.env.SHOU_PACKAGE_ID;

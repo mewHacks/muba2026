@@ -15,7 +15,7 @@
 import { createServer } from 'node:http';
 
 const PORT = Number(process.env.PORT ?? 4000);
-const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3000';
+const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3100';
 
 interface EnclaveAttestation {
   timestampMs: number;
@@ -49,9 +49,45 @@ async function enclaveFetch<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * CORS, restricted to our own local pages.
+ *
+ * NOT `*`. This service is an unauthenticated front door to the enclave —
+ * it forwards to /process_data and /attest_transfer. With a wildcard, any
+ * site the elder happens to open could reach it from her browser: score
+ * messages into her session and pull signed attestations for a recipient
+ * and amount of the caller's choosing. The scam site itself could drive
+ * the very thing meant to catch it.
+ *
+ * Extension origins are allowed through too, since the real client is a
+ * browser extension rather than a page.
+ */
+const ALLOWED_ORIGINS = new Set(
+  (process.env.SHOU_ALLOWED_ORIGINS ?? 'http://localhost:3000,http://127.0.0.1:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
+);
+
+function corsHeaders(origin: string | undefined): Record<string, string> {
+  const allowed =
+    origin &&
+    (ALLOWED_ORIGINS.has(origin) ||
+      origin.startsWith('chrome-extension://') ||
+      origin.startsWith('moz-extension://'));
+  if (!allowed) return {};
+  return {
+    'access-control-allow-origin': origin,
+    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-headers': 'content-type, authorization',
+    vary: 'Origin',
+  };
+}
+
 const server = createServer(async (req, res) => {
+  const CORS_HEADERS = corsHeaders(req.headers.origin);
   const json = (status: number, body: unknown) => {
-    res.writeHead(status, { 'content-type': 'application/json' });
+    res.writeHead(status, { 'content-type': 'application/json', ...CORS_HEADERS });
     res.end(JSON.stringify(body));
   };
 
@@ -62,6 +98,10 @@ const server = createServer(async (req, res) => {
   };
 
   try {
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, CORS_HEADERS);
+      return res.end();
+    }
     if (req.method === 'GET' && req.url === '/health') {
       const enclave = await fetch(`${ENCLAVE_URL}/health_check`).then(
         (r) => r.ok,
@@ -81,9 +121,16 @@ const server = createServer(async (req, res) => {
       const scored = await enclaveFetch<Record<string, unknown>>('/process_data', {
         sessionId: body.sessionId,
         message: body.message,
-        // Advisory only — the badge doesn't gate money, so these are
-        // placeholders. The binding values come at transfer time.
-        policyId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        // The recipient and amount really are placeholders here — the badge
+        // does not gate money, and the binding values arrive at transfer
+        // time. The POLICY id is not a placeholder: the enclave files each
+        // verdict against a policy so that a swapped session id cannot
+        // launder a HIGH away. Sending zeroes here would file every verdict
+        // under the zero address and quietly defeat that, so pass the real
+        // one whenever the caller knows it.
+        policyId:
+          body.policyId ??
+          '0x0000000000000000000000000000000000000000000000000000000000000000',
         recipient: '0x0000000000000000000000000000000000000000000000000000000000000000',
         amount: '0',
       });

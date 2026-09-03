@@ -12,3 +12,6 @@ node_modules/
 # macOS
 .DS_Store
 
+
+# Seeded demo object ids — regenerated per deployment by seed-demo.ts
+shou/demo-ids.json

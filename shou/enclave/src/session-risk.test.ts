@@ -13,6 +13,7 @@
 import assert from 'node:assert/strict';
 
 process.env.SHOU_TEST_SCORER = '1';
+process.env.SHOU_NO_AUTOSTART = '1';
 process.env.PORT = '0';
 
 const { startServer } = await import('./server.ts');

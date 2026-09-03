@@ -100,6 +100,8 @@ public struct TransferRequested has copy, drop {
     tier: u8,
     claimed_tier: u8,
     unlock_at_ms: u64,
+    message_hash: vector<u8>,
+    truth_score: u8,
 }
 public struct TransferReleaseApproved has copy, drop { request_id: ID, approver: address }
 public struct TransferBlocked has copy, drop { request_id: ID, blocked_by: address }
@@ -301,6 +303,8 @@ entry fun request_transfer_attested<T>(
         tier: request.risk_tier,
         claimed_tier: attestation.tier(),
         unlock_at_ms: request.unlock_at_ms,
+        message_hash: attestation.message_hash(),
+        truth_score: attestation.truth_score(),
     });
     transfer::share_object(request);
 }
@@ -321,6 +325,8 @@ entry fun request_transfer<T>(
         tier: request.risk_tier,
         claimed_tier: risk_tier,
         unlock_at_ms: request.unlock_at_ms,
+        message_hash: vector[],
+        truth_score: 0,
     });
     transfer::share_object(request);
 }
@@ -397,9 +403,24 @@ entry fun cancel_and_refund<T>(
 
 /// Releases the locked funds once the tier's condition is met: HIGH needs
 /// `threshold` approvals; LOW/MEDIUM need the cooldown to have elapsed.
-/// Callable by anyone once unlocked — release doesn't need to be the
-/// owner's own transaction, so a relayer or the recipient can trigger it.
-public fun execute<T>(
+///
+/// `public(package)`, NOT `public`, and that is a security boundary rather
+/// than a style choice. `TransferRequest` is a shared object, so if this
+/// returned `Coin<T>` to any caller, anyone watching for a `TransferRequested`
+/// event could compose a PTB that calls this the moment the transfer
+/// unlocks and routes the coin to themselves:
+///
+///     let coin = shou::policy::execute(request, policy, clock);
+///     transfer::public_transfer(coin, @attacker);
+///
+/// Every guard above would pass — the transfer really is unlocked — and the
+/// emitted `TransferExecuted` would still name the *intended* recipient, so
+/// the theft would read as a successful payment on an explorer.
+///
+/// Releasing is still permissionless, which is what we wanted: a relayer or
+/// the recipient can trigger it. What is no longer negotiable is where the
+/// money lands. Go through `execute_and_send`, which pays `request.recipient`.
+public(package) fun execute<T>(
     request: &mut TransferRequest<T>,
     policy: &SeniorityPolicy,
     clock: &Clock,

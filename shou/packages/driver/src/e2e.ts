@@ -26,7 +26,7 @@ import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { SuiShouClient, TESTNET_USDC } from './client.ts';
 import type { EnclaveAttestation } from './types.ts';
 
-const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3000';
+const ENCLAVE_URL = process.env.ENCLAVE_URL ?? 'http://localhost:3100';
 const PACKAGE_ID = process.env.SHOU_PACKAGE_ID ?? readPublishedPackageId();
 // Defaults to real testnet USDC — this is a payments product, and the
 // asset the elder actually holds is a stablecoin her family sent, not a

@@ -119,13 +119,25 @@ Dev A never imports Gonka Router — `RiskAssessment` arrives already scored.
 
 ## 5. Move module design
 
-**Deployed to testnet and adversarially tested.** A security review found four critical issues in the first deployment; all are fixed, each has a regression test, and each fix was re-verified on-chain rather than only in unit tests.
+**Deployed to testnet and adversarially tested.** Successive security reviews found five critical issues across three deployments; all are fixed, each has a regression test, and each fix was re-verified on-chain rather than only in unit tests.
 
 | | |
 |---|---|
-| Package ID | `0xf7f053a2483dcc7e67dd02c007307d845ee15489ae97f107f2aaaf7e0cb9c003` |
+| Package ID | `0x96b8a4b313fe2fa5f7a06501a3cd4e8b1084746d0dda5565c0460fbda63836b3` |
+| DenyList | `0x54065b3de7e9b8cd3eb9c994e9be6ad406540657ee0b2d38548a9e56d0c3a453` |
 | Modules | `policy`, `redflag`, `enclave` |
-| Tests | 37/37 passing (`sui move test`) |
+| Tests | 38/38 passing (`sui move test`) |
+
+Superseded: `0xf7f053a2…c003` — do not use. It contains the `execute` fund-theft bug described below.
+
+**The fifth issue, found last and worst: `execute` returned the coin to its caller.**
+
+`execute` was `public fun … : Coin<T>` and `TransferRequest` is a *shared* object, so anyone could watch for a `TransferRequested` event, wait for the transfer to unlock, and compose a PTB that called `execute` directly and sent the coin to themselves. Every guard passed — the transfer genuinely was unlocked — and the emitted `TransferExecuted` still named the *intended* recipient, so on an explorer the theft looked like a successful payment.
+
+Fixed by making `execute` `public(package)`. Releasing stays permissionless — a relayer or the recipient can still trigger it, which is what lets the elder stay offline — but the destination is no longer the caller's to choose. Verified two ways:
+
+- `policy_tests::a_stranger_can_trigger_release_but_the_recipient_gets_paid` — an attacker triggers the release and the recipient is paid.
+- On-chain, calling `policy::execute` directly on the deployed package is rejected by the VM: `NonEntryFunctionInvoked`.
 
 `shou/move/Published.toml` tracks this per-environment and is committed — build against the ID there, not this table.
 

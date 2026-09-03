@@ -34,7 +34,11 @@ import {
   toHex,
 } from './attestation.ts';
 
-const PORT = Number(process.env.PORT ?? 3000);
+// 3100, not 3000: the zkLogin demo server owns :3000 because the Google
+// OAuth origin and redirect URL are registered against it in the Enoki
+// portal. Both defaulting to 3000 meant whichever started second died
+// with EADDRINUSE — on demo day, most likely this one.
+const PORT = Number(process.env.PORT ?? 3100);
 const GONKA_URL = process.env.GONKA_ROUTER_URL ?? 'https://gonkarouter.io/api/v1/chat/completions';
 const GONKA_API_KEY = process.env.GONKA_API_KEY;
 const GONKA_MODELS = (process.env.GONKA_MODELS ?? 'minimax,kimi').split(',');
@@ -345,6 +349,13 @@ export function startServer(port = PORT): Promise<{ port: number; close: () => P
   });
 }
 
-if (process.env.SHOU_TEST_SCORER !== '1') {
+// Two separate concerns, deliberately two separate switches.
+//   SHOU_TEST_SCORER=1  -> score with the dev heuristic, not Gonka.
+//   SHOU_NO_AUTOSTART=1 -> do not listen on import; the caller runs
+//                          startServer() itself (that is what the tests do).
+// These used to be the same flag, which meant you could not run the server
+// standalone on the heuristic scorer — the exact thing you want when the
+// Gonka Router is down and you still need to demo.
+if (process.env.SHOU_NO_AUTOSTART !== '1') {
   startServer();
 }

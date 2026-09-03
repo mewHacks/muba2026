@@ -43,6 +43,30 @@
     </div>
   </div>
 
+  <div class="card" id="transfer-card" hidden>
+    <div class="label">Test Transfer (Protected by Circuit Breaker)</div>
+    <div style="margin-top: 0.75rem;">
+      <label class="label" style="display:block;margin-bottom:0.25rem;">Message she received</label>
+      <textarea id="scam-message" rows="3" style="width:100%;padding:.4rem;box-sizing:border-box;font-size:.85rem;border:1px solid #ccc;border-radius:.3rem;">URGENT: Police investigation. Transfer money immediately and do not tell anyone.</textarea>
+      <div style="font-size:.75rem;color:#6b7280;margin-top:.25rem;">
+        Edit this — a benign message should score LOW. That is the point.
+      </div>
+    </div>
+    <div style="margin-top: 0.75rem;">
+      <label class="label" style="display:block;margin-bottom:0.25rem;">Recipient Address</label>
+      <input id="recipient" value="0x00000000000000000000000000000000000000000000000000000000000000c1" style="width:100%;padding:.4rem;box-sizing:border-box;font-family:monospace;font-size:.85rem;border:1px solid #ccc;border-radius:.3rem;" />
+    </div>
+    <div style="margin-top: 0.75rem;">
+      <label class="label" style="display:block;margin-bottom:0.25rem;">Amount (USDC)</label>
+      <input id="amount" value="2.00" style="width:100%;padding:.4rem;box-sizing:border-box;font-size:.9rem;border:1px solid #ccc;border-radius:.3rem;" />
+    </div>
+    <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <button id="send-btn" style="background:#e11d48;border-color:#be123c;">Simulate Scammed Transfer</button>
+      <button id="check-risk-btn" style="background:#2563eb;border-color:#1d4ed8;">Check Circuit Breaker</button>
+    </div>
+    <div id="transfer-feedback" style="margin-top:0.75rem;font-size:.9rem;"></div>
+  </div>
+
   <div class="card">
     <div class="label">Diagnostics</div>
     <pre id="debug" style="white-space:pre-wrap;font-size:.8rem;color:#444;margin:.25rem 0 0"></pre>

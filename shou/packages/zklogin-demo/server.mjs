@@ -37,12 +37,31 @@ function loadEnv() {
   return {};
 }
 
+// Real on-chain object ids, written by packages/driver/src/seed-demo.ts.
+// The page refuses to prepare a transfer without these rather than falling
+// back to a placeholder id — a signed attestation for a policy that does
+// not exist looks perfectly healthy right up until it is submitted.
+function loadDemoIds() {
+  for (const path of ['../../demo-ids.json', '../../../demo-ids.json']) {
+    try {
+      return JSON.parse(readFileSync(join(HERE, path), 'utf8'));
+    } catch {
+      /* keep looking */
+    }
+  }
+  return {};
+}
+
 const env = loadEnv();
+const demo = loadDemoIds();
 const config = {
   googleClientId: env.GOOGLE_CLIENT_ID ?? '',
   enokiApiKey: env.NEXT_PUBLIC_ENOKI_API_KEY ?? '',
   network: 'testnet',
   redirectUrl: `http://localhost:${PORT}/auth/callback`,
+  policyId: demo.policyId ?? '',
+  denyListId: demo.denyListId ?? '',
+  packageId: demo.packageId ?? '',
 };
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
@@ -77,4 +96,10 @@ server.listen(PORT, () => {
   ].filter(Boolean);
   if (missing.length) console.warn(`WARNING: missing from .env: ${missing.join(', ')}`);
   else console.log('config loaded: client id and Enoki public key both present');
+  if (config.policyId) console.log(`demo policy: ${config.policyId}`);
+  else
+    console.warn(
+      'WARNING: no demo-ids.json — the transfer panel will refuse to prepare.\n' +
+        '  Run: node --experimental-strip-types packages/driver/src/seed-demo.ts',
+    );
 });

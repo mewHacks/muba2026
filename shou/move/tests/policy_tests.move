@@ -154,6 +154,46 @@ fun low_tier_transfer_executes_immediately() {
     scenario.end();
 }
 
+/// Releasing is deliberately permissionless — a relayer or the recipient
+/// can trigger it, so the elder doesn't have to be online. The danger in
+/// that is letting the *trigger* choose the destination. A stranger must
+/// be able to push the button and gain nothing by it.
+///
+/// This is the runtime half of the `public(package)` restriction on
+/// `execute`; the compiler enforces the other half.
+#[test]
+fun a_stranger_can_trigger_release_but_the_recipient_gets_paid() {
+    let attacker = @0xBAD;
+    let mut scenario = test_scenario::begin(OWNER);
+    let (policy, deny_list, clock) = setup(&mut scenario);
+
+    let payment = coin::mint_for_testing<SUI>(100, scenario.ctx());
+    policy::request_transfer(
+        &policy, &deny_list, payment, RECIPIENT, TIER_LOW, &clock, scenario.ctx(),
+    );
+    return_fixture(policy, deny_list, clock);
+
+    // The attacker — not the owner, not an approver, not the recipient —
+    // triggers the release.
+    scenario.next_tx(attacker);
+    let policy = scenario.take_shared<SeniorityPolicy>();
+    let mut request = scenario.take_shared<TransferRequest<SUI>>();
+    let clock = clock::create_for_testing(scenario.ctx());
+    policy::execute_and_send(&mut request, &policy, &clock, scenario.ctx());
+    assert!(request.is_executed());
+
+    test_scenario::return_shared(policy);
+    test_scenario::return_shared(request);
+    clock.destroy_for_testing();
+
+    // The money landed with the recipient, not with whoever called.
+    scenario.next_tx(attacker);
+    assert!(!scenario.has_most_recent_for_sender<Coin<SUI>>());
+    scenario.next_tx(RECIPIENT);
+    assert!(scenario.has_most_recent_for_sender<Coin<SUI>>());
+    scenario.end();
+}
+
 #[test, expected_failure(abort_code = policy::EStillLocked, location = policy)]
 fun medium_tier_transfer_locked_before_cooldown() {
     let mut scenario = test_scenario::begin(OWNER);
