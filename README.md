@@ -46,7 +46,6 @@ redaction, the enclave, the Chrome extension and the guardian dashboard are all 
 | `docs/img/03-escrow.png` | A transfer held in escrow, awaiting the guardian |
 | `docs/img/04-dashboard.png` | A held transfer on the guardian dashboard, with the chain's escalation shown |
 | `docs/img/05-extension.png` | Chrome extension badge in a live chat, and the popup's Truth Score and Request IDs |
-| `docs/img/06-terminal.png` | The escalation demo overruling the AI |
 
 ---
 
@@ -84,6 +83,7 @@ consent, manufactured under pressure.
 An extension that only warns is one more notification to dismiss. A wallet with
 spending limits but no awareness of the conversation cannot tell groceries from a
 scam. Together, the conversation decides how the money behaves.
+
 
 **1 · Passive detection.** The extension reads the on-screen chat DOM in WhatsApp Web
 and Messenger automatically — no copy-pasting, no button to press — and shows an
@@ -376,7 +376,6 @@ jurisdictions. This market did not financially exist for banks until last year.
   five-minute freshness window. Not exploitable today — every use still needs her
   signature, her coins, and passes the amount ceilings — but it must be closed before
   an attested LOW is ever allowed to skip escalation.
-- **Enclave revocation.** A compromised key is currently valid forever.
 - **Sponsored transactions** via Enoki, so neither the elder nor the guardian holds SUI.
   Confirmed with Mysten: sponsorship is configured per *app*, not per user, so one setup
   covers both roles and the guardian's approval stays an ordinary on-chain call. The
