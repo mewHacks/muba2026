@@ -17,39 +17,21 @@ MUBA Blockchain Hackathon 2026 · Sui Track 01 (Payments & Stablecoins) · Gonka
 
 ## Executive summary
 
-Elder financial scams are not a detection problem. They are an **authority** problem.
+Elder financial scams are not a detection problem but an **authority** problem: by the
+time money moves the victim has usually already been warned, and sends it anyway
+because someone she trusts is telling her to. That authority cannot rest with her —
+she is being manipulated right now — nor with her family, who are a leading vector for
+elder financial abuse, so it rests with rules she set while calm. SHOU pairs a **Chrome
+extension** that passively scores her conversations inside a TEE with an **on-chain
+policy** that decides how her money behaves, and the AI's verdict is a floor rather
+than a ceiling — it can tighten her limits, never loosen them. Tell the contract a
+large transfer is low-risk and it escalates anyway, which is why you do not have to
+trust our model.
 
-By the time money moves, the victim has usually already been warned — by a bank
-notice, a pop-up, a relative. She sends it anyway, because a person she trusts is
-on the phone telling her to, and in that moment she is the least capable person in
-the world of overruling them. A warning does not stop a coerced person.
-
-So the question is not *"how do we detect the scam?"* It is *"who has the authority
-to stop the transfer?"* It cannot be the elder — she is being manipulated right now.
-It cannot be her family — relatives are a leading vector for elder financial abuse.
-
-**SHOU's answer: her own rules, pre-committed while she was calm, enforced where
-nobody — not her family, not an attacker, not us — can quietly override them.**
-
-It is two halves. **A Chrome extension** sits in the conversation where the scam
-happens — Facebook and WhatsApp Web, the channels Malaysian police name most often —
-and scores messages as they arrive. She installs nothing, checks nothing, and does not
-have to be suspicious, because a person being manipulated will not be. **A wallet
-guardian** turns that verdict into something with teeth: the risk score feeds a
-spending policy she set in advance, so a flagged conversation makes the money wait.
-
-Scoring runs inside a TEE, so the message never leaves it — only a hash, a tier and a
-signature. The contract treats that verdict as a **floor, never a ceiling**: it can
-tighten her limits, never loosen them. Tell it a large transfer is low-risk and it
-escalates anyway.
-
-That is the whole thesis, and it is why you do not have to trust our model.
-
-**Status:** the wallet guardian is deployed to Sui testnet and adversarially reviewed —
-57 tests passing, five critical security bugs found and fixed, and a seven-step
-end-to-end run that moves real testnet USDC. The scoring pipeline, redaction and
-enclave are built and tested; **the Chrome extension front-end is in progress**. See
-[docs/DECISIONS.md](docs/DECISIONS.md).
+**Status:** wallet guardian deployed to Sui testnet — 57 tests passing, five critical
+security bugs found and fixed, a seven-step end-to-end run in real USDC. Scoring,
+redaction and the enclave are built; the extension front-end is in progress.
+([details](docs/DECISIONS.md))
 
 ---
 
@@ -103,57 +85,58 @@ An extension that only warns is one more notification to dismiss. A wallet with
 spending limits but no awareness of the conversation cannot tell groceries from a
 scam. Together, the conversation decides how the money behaves.
 
-| | Feature | Status |
-|---|---|---|
-| **Passive detection** | The extension reads the on-screen chat DOM in WhatsApp Web and Messenger automatically — no copy-pasting, no button — and shows an inline 🟢/🟡/🔴 badge. | Scoring complete; **extension front-end in progress** |
-| **Multi-model consensus** | Every message is scored by all configured Gonka Router models in parallel, and the **strictest tier wins** — one model missing a scam can never clear a transfer another flagged. | Complete; **Router endpoint unresolved** |
-| **Private by construction** | Inference runs inside a TEE, so message content is never exposed to operators. Only a hash, a tier and a signature leave. PII is stripped before scoring, twice. | Complete |
-| **Tamper-evident audit** | The message hash is anchored on-chain inside a signed attestation, so a verdict cannot be altered after the fact without invalidating the signature. | Complete |
-| **Behavioural circuit breaker** | Pauses a transfer when a live flagged conversation correlates with an unusual payment in the same session. | Complete |
-| **Seniority Mode** | High-risk transfers require trusted-family co-approval, enforced as an on-chain Sui policy rather than by our backend. | Complete, deployed |
-| **AI can only tighten** | `max_tier(amount_tier, reported_tier)` — the model's verdict is a floor, never a ceiling. It cannot lower a limit she set herself. | Complete |
-| **Guardians block, never redirect** | A guardian can stop a transfer and refund it **to her**. No path exists for a relative to move her money to themselves. | Complete |
-| **Non-custodial** | `AdminCap` appears nowhere in `policy.move`. There is no code path by which we touch her funds — checkable in source. | Complete |
-| **Recovery without control** | zkLogin has no seed phrase, so funds sit behind a weighted multisig: she acts alone, her son alone cannot, two relatives together can recover. | Complete |
-| **Red Flag reporting** | Anyone can report a scammer. Evidence is scored off-chain, and a **soft ban** blocks suspicious amounts while still allowing daily necessities. Staff review is capability-gated on-chain. | Contract complete; **review UI in progress** |
+**1 · Passive detection.** The extension reads the on-screen chat DOM in WhatsApp Web
+and Messenger automatically — no copy-pasting, no button to press — and shows an
+inline 🟢/🟡/🔴 badge. Every message is scored by all configured Gonka Router models in
+parallel, and the **strictest tier wins**: one model missing a scam can never clear a
+transfer that another flagged.
 
-Layers 1–2 are the Sui submission; layers 0 and 3 are the Gonka submission.
+**2 · Private and tamper-evident.** Inference runs inside a TEE, so message content is
+never exposed to operators — only a hash, a tier and a signature leave, and PII is
+stripped before scoring. That hash is anchored on-chain inside the signed attestation,
+so a verdict cannot be altered afterwards without invalidating the signature.
+
+**3 · Behavioural circuit breaker into Seniority Mode.** When a live flagged
+conversation correlates with an unusual payment, the transfer does not fail — it
+**waits**, and high-risk transfers require trusted-family co-approval, enforced as an
+on-chain Sui policy rather than by our backend. Reported scammers get a **soft ban**
+that blocks suspicious amounts while still allowing daily necessities.
+
+**4 · Safe by construction.** The AI's verdict is a floor, never a ceiling. Guardians
+can block a transfer and refund it **to her**, but never redirect it to themselves.
+`AdminCap` appears nowhere in `policy.move`, so there is no code path by which we touch
+her funds — and because zkLogin has no seed phrase, funds sit behind a weighted
+multisig where she acts alone, her son alone cannot, and two relatives together can
+recover.
+
+Layers 1–2 are the Sui submission; layers 0 and 3 are the Gonka submission. The
+extension front-end and the Red Flag review UI are still in progress.
 
 ---
 
 ## User flow
 
-1. A scam conversation starts in **Facebook Messenger or WhatsApp Web**. She does
-   nothing differently.
-2. The extension scores each message **as it arrives**. Nothing is installed, opened
-   or checked by her. A quiet badge turns amber, then red.
-3. She opens her wallet to send money — because she has been persuaded to, which is
-   the entire point.
-4. The wallet already knows the conversation was flagged. The transfer **does not
-   fail; it waits**, and someone she trusts is asked.
-5. Her son sees plain English: *"Mum is trying to send $600 to an address she has
-   never used, during a chat that looks like a scam."* He blocks it, and the money
-   returns to her.
+Every path starts the same way: she does nothing differently, and the extension scores
+each message as it arrives.
 
-**At no point did she have to suspect anything.**
+| Scenario | What happens |
+|---|---|
+| Clean chat, small amount | 🟢 → she sends → executes immediately |
+| Clean chat, over her review ceiling | 🟢 → she sends → cooldown → executes |
+| **Scam chat** | 🔴 → she sends → escrowed, `NEEDS_APPROVAL` → son notified → he blocks → **refunded to her** |
+| Scam chat, guardian says it's fine | 🔴 → escrowed → son approves → executes |
+| **She insists** | Escrowed → she retries → refused, `EThresholdNotMet` → wait for guardian, or cancel → refunded |
+| Guardian never responds | Escrowed → she cancels → refunded. Funds are never stranded |
+| **AI wrong or compromised** | Says 🟢 on a large amount → chain escalates to HIGH anyway → needs guardian |
+| No chat was scored | No verdict → her amount ceilings apply on their own |
+| Recipient reported as a scammer | Deny list hit → large amounts blocked, daily necessities still allowed |
 
-### If she insists
-
-- **High risk** — she cannot push it through. `execute` refuses without the guardian
-  threshold. She can only cancel and have her own money refunded to herself; the
-  scammer gets nothing.
-- **Medium risk** — a cooldown. She can wait it out and send it. This is deliberate:
-  friction, not prohibition, and it is exactly the cooling-off period the Singapore
-  framework mandates.
-- **Low risk** — it goes straight through, as it should.
-
-SHOU is a guardrail, not a cage. You cannot be non-custodial *and* make it impossible
-for someone to spend their own money — we chose non-custody, because holding her keys
-would recreate the risk the product exists to remove.
+The model can tighten, never loosen. And SHOU is a guardrail, not a cage: you cannot be
+non-custodial *and* make it impossible to spend your own money.
 
 ---
 
-## Tech stack, and why
+## Tech stack
 
 | Layer | Technology | Why this one |
 |---|---|---|
