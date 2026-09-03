@@ -2,12 +2,14 @@
 
 # 守 SHOU
 
+**S**eniority **H**olds **O**ver **U**rgency
+
+`守` — *shǒu*, to guard, to keep watch over.
+
 **A stablecoin wallet whose owner writes her own spending rules while she is calm,
 and the chain enforces them when she is not.**
 
 MUBA Blockchain Hackathon 2026 · Sui Track 01 (Payments & Stablecoins) · Gonka (AI for Society)
-
-`守` — *shǒu*, to guard, to keep watch over.
 
 </div>
 
@@ -26,19 +28,36 @@ So the question is not *"how do we detect the scam?"* It is *"who has the author
 to stop the transfer?"* It cannot be the elder — she is being manipulated right now.
 It cannot be her family — relatives are a leading vector for elder financial abuse.
 
-**SHOU's answer: her own rules, pre-committed while she was calm, enforced on-chain
-where nobody — not her family, not an attacker, not us — can quietly override them.**
+**SHOU's answer: her own rules, pre-committed while she was calm, enforced where
+nobody — not her family, not an attacker, not us — can quietly override them.**
 
-An AI scores incoming messages inside a trusted execution environment and signs a
-verdict. The Move contract takes that verdict as a **floor, never a ceiling**: it can
-tighten her limits, never loosen them. Tell the contract a large transfer is
-low-risk and it escalates it anyway.
+It is two halves that only work together:
+
+**A Chrome extension** sitting in the conversation where the scam actually happens —
+Facebook and WhatsApp Web, the two channels Malaysian police name most often. It reads
+messages as they arrive and scores them for the patterns that precede a transfer:
+manufactured urgency, secrecy, impersonation, a request for money. **She does nothing.**
+She does not install a scanner, run a check, or decide to be suspicious — which matters,
+because a person who is being manipulated will not do any of those things. Detection has
+to be passive or it does not happen at all.
+
+**A wallet guardian** that turns that verdict into something with teeth. A red badge is
+just another warning, and warnings do not stop a coerced person — so the risk score
+flows into a spending policy she set in advance. Small amounts still move instantly.
+Large ones, or ones during a flagged conversation, wait for someone she trusts.
+
+The scoring runs inside a trusted execution environment, so the message never leaves it
+— only a hash, a tier and a signature. The contract then treats that verdict as a
+**floor, never a ceiling**: it can tighten her limits, never loosen them. Tell it a large
+transfer is low-risk and it escalates anyway.
 
 That is the whole thesis, and it is why you do not have to trust our model.
 
-**Status:** the on-chain layer is deployed to Sui testnet and adversarially reviewed —
+**Status:** the wallet guardian is deployed to Sui testnet and adversarially reviewed —
 57 tests passing, five critical security bugs found and fixed, and a seven-step
-end-to-end run that moves real testnet USDC. See [docs/DECISIONS.md](docs/DECISIONS.md).
+end-to-end run that moves real testnet USDC. The scoring pipeline, redaction and
+enclave are built and tested; **the Chrome extension front-end is in progress**. See
+[docs/DECISIONS.md](docs/DECISIONS.md).
 
 ---
 
@@ -52,7 +71,7 @@ end-to-end run that moves real testnet USDC. See [docs/DECISIONS.md](docs/DECISI
 | `docs/img/02-risk.png` | A scam message scored, with truth score and Gonka request ID |
 | `docs/img/03-escrow.png` | A transfer held in escrow, awaiting the guardian |
 | `docs/img/04-dashboard.png` | *Guardian dashboard — pending Dev B* |
-| `docs/img/05-extension.png` | *Browser extension badge — pending Dev B* |
+| `docs/img/05-extension.png` | *Chrome extension badge in a live chat — in progress* |
 | `docs/img/06-terminal.png` | The escalation demo overruling the AI |
 
 ---
@@ -86,15 +105,40 @@ consent, manufactured under pressure.
 
 ## Solution
 
-Four layers. The middle two are the Sui submission and are complete; the outer two
-are the Gonka submission.
+**A Chrome extension that watches, and a wallet that listens to it.**
+
+Neither half is useful alone. An extension that only shows a warning is one more
+notification to dismiss — and the whole problem is that warnings do not stop someone
+who is being talked through the transfer step by step. A wallet with spending limits
+but no awareness of the conversation cannot tell a grocery payment from a scam.
+Together, the conversation decides how the money behaves.
+
+### What she experiences
+
+1. A scam conversation starts in **Facebook Messenger or WhatsApp Web**. She does
+   nothing differently.
+2. The extension scores each message **as it arrives**. Nothing is installed, opened
+   or checked by her. A quiet badge turns amber, then red.
+3. She opens her wallet to send money — because she has been persuaded to, which is
+   the entire point.
+4. The wallet already knows the conversation was flagged. The transfer **does not
+   fail; it waits**, and someone she trusts is asked.
+5. Her son opens a message in plain English: *"Mum is trying to send $600 to an
+   address she has never used, during a chat that looks like a scam."* He blocks it,
+   and the money returns to her.
+
+At no point did she have to suspect anything.
+
+### The four layers
+
+The middle two are the Sui submission; the outer two are the Gonka submission.
 
 | Layer | What it does | Status |
 |---|---|---|
-| **0 · Detection** | Reads the conversation, scores each message for scam patterns | Scoring works; browser extension **pending Dev B** |
+| **0 · Detection** — *Chrome extension* | Reads the conversation in Messenger and WhatsApp Web, scores each message passively | Scoring, redaction and enclave complete; **extension front-end in progress** |
 | **1 · Circuit breaker** | Correlates a flagged conversation with a transfer in the same session | Complete |
-| **2 · Seniority Mode** | On-chain tiered approval, cooldowns, guardian threshold, deny list | Complete, deployed |
-| **3 · Red Flag reporting** | Community scam reporting with staff/oracle review | Contract complete; review UI **pending Dev B** |
+| **2 · Seniority Mode** — *wallet guardian* | On-chain tiered approval, cooldowns, guardian threshold, deny list | Complete, deployed |
+| **3 · Red Flag reporting** | Community scam reporting with staff/oracle review | Contract complete; **review UI in progress** |
 
 ### Key features
 
@@ -141,7 +185,7 @@ her son alone never does, two relatives together can recover.
 ```mermaid
 flowchart TB
     subgraph device["Elder's device"]
-        EXT["Browser extension<br/><i>pending Dev B</i>"]
+        EXT["Chrome extension<br/>Messenger, WhatsApp Web<br/><i>front-end in progress</i>"]
         WALLET["Wallet page<br/>zkLogin + Enoki"]
     end
 
@@ -233,6 +277,104 @@ self-report — is the part that does not already exist.
 need zero Gonka calls, because the tier logic accepts a risk score regardless of who
 produced it. Two submissions, two independently complete demos, from one build —
 and neither has to defend an AI-blockchain entanglement that isn't real.
+
+---
+
+## Judging criteria — how we answer each one
+
+### Sui, Track 01
+
+**Commercial viability** — *weighted heaviest*
+
+The buyer is the bank or e-wallet, not the elder, and the reason is a regulatory
+change that happened last year rather than a market we hope will appear. Singapore's
+Shared Responsibility Framework and the UK's PSR reimbursement rules made scam losses
+a **direct balance-sheet cost** to financial institutions, with no liability cap in
+Singapore. SHOU is the "real-time fraud surveillance plus cooling-off period" duty from
+that framework, productised and sold per guarded account. A bank buys it to reduce
+reimbursement exposure it now carries by law — not out of goodwill. Full detail in
+[Business value](#business-value-and-revenue-model) below.
+
+**Solves a real problem, and is ready for the real world**
+
+Target user is specific: an elderly parent who receives money from family, most often
+a working-abroad adult child, and is contacted through Facebook or WhatsApp — the two
+channels Malaysian police name as the most common. The numbers are cited to primary
+sources in [Problem](#problem). We do not claim readiness we do not have: the WhatsApp
+production path is the Business API, not DOM scraping, and that is stated rather than
+glossed.
+
+**Technical implementation — complete over complex**
+
+One vertical slice is finished end to end rather than four sketched:
+
+- Deployed to testnet, **57 tests passing** (38 Move, 6 multisig, 7 redaction, 6 session)
+- A **seven-step end-to-end run moving real testnet USDC**, not a mock
+- **Five critical security bugs found and fixed** under adversarial review, each with a
+  regression test — including a fund-theft bug in our own deployed contract, provable
+  live: calling `policy::execute` directly now fails with `NonEntryFunctionInvoked`
+- Every blocker and its resolution written down in [docs/DECISIONS.md](docs/DECISIONS.md)
+
+**Product UX**
+
+Sign-in is Google, not a seed phrase, because the user will not manage one. The
+guardian sees plain English — *"someone you trust has to approve before any money
+moves"* — never a tier number. Recovery is weighted so she is never dependent on a
+relative for day-to-day spending. Where the model returns nothing, the screen says so
+rather than inventing a confident-looking score.
+
+**Presentation — let the judge visualise it**
+
+The demo is three acts: sign in and score a live message; run the seven-step flow
+against testnet; then **tell the contract a large transfer is safe and watch it refuse
+anyway**. That last one is 45 seconds and needs no browser. Flow in
+[docs/DEMO.md](docs/DEMO.md).
+
+**Regulatory and compliance**
+
+> **TODO — being researched by the team.** Drop findings here.
+>
+> Already documented: the Singapore and UK liability shifts (above); WhatsApp's ToS
+> prohibiting automated access to the consumer client, with the Business API as the
+> compliant production path; and the custody position — non-custodial by construction,
+> since `AdminCap` appears nowhere in `policy.move`, which keeps us outside
+> money-transmitter treatment.
+
+### Gonka — AI for Society
+
+**Solves a real problem, and is ready for the real world**
+
+Same problem, same cited numbers. The AI does the part software is actually good at —
+reading every message without getting tired — while the irreversible decision stays
+with rules a human set in advance.
+
+**Innovation and niche**
+
+Three things we have not seen combined elsewhere:
+
+1. **Passive detection, not self-report.** Every deployed tool requires the victim to
+   suspect something and go check. A person being actively manipulated does not do
+   that. Scoring runs on the conversation as it arrives.
+2. **The AI's verdict is a floor, never a ceiling.** It can escalate a transfer; it can
+   never de-escalate one. Almost every AI safety product fails open — ours cannot lower
+   a limit the user set herself, so a wrong or compromised model degrades to "her own
+   rules still apply" rather than to "approved".
+3. **The model runs inside a TEE and signs its verdict**, which a blockchain then
+   verifies independently. The privacy claim is a measurable property, not a promise:
+   the message never leaves the enclave.
+
+**Use of different models**
+
+Not a model list — a **consensus rule**. Every configured model is queried in parallel
+and the **strictest tier wins**, on the reasoning that one model missing a scam should
+never be able to clear a transfer that another flagged. Each call's Gonka Request ID
+is retained and rendered in the UI alongside the truth score and reasoning trace, in
+the shape Gonka asks for.
+
+> **Current status:** the Router is returning 404 for both models, so scoring falls back
+> to a keyword heuristic that labels itself *"DEV MODE heuristic — not a real
+> classifier"* on screen. The consensus logic is written and wired; the endpoint is not
+> yet resolved. **Update this line once it is.**
 
 ---
 
@@ -335,7 +477,9 @@ We would rather state these than have them found:
 - **Gonka Router is returning 404** at time of writing, so scoring falls back to a
   keyword heuristic that labels itself *"DEV MODE heuristic — not a real classifier"*
   on screen. The architecture is unaffected; the model call is not.
-- **The browser extension and guardian dashboard are not built yet.**
+- **The Chrome extension front-end and guardian dashboard are still in progress.** The
+  scoring pipeline behind them — redaction, enclave, consensus, attestation — is built
+  and tested.
 - **WhatsApp DOM reading is demo-only** and not ToS-compliant for production.
 
 ---
@@ -343,5 +487,5 @@ We would rather state these than have them found:
 ## Team
 
 **Hana** — Move contracts, TEE enclave, driver SDK, zkLogin and recovery.
-**Shermaine** — Gonka Router integration, browser extension, guardian dashboard.
-**Daniel and Yi Wen** - Research, business value, target users, statistics
+**Shermaine** — Gonka Router integration, Chrome extension, guardian dashboard.
+**Daniel and Yi Wen** - Research, business and financial value, target users, statistics
