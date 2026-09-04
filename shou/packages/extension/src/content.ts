@@ -77,8 +77,18 @@ function attachBadge(element: HTMLElement): HTMLElement {
 function settleBadge(badge: HTMLElement, response: ScoreResponse): void {
   if (!response.ok || !response.verdict) {
     badge.dataset.tier = 'PENDING';
-    badge.textContent = '⚠︎ not checked';
-    badge.title = `SHOU could not check this message: ${response.error ?? 'unknown error'}`;
+    const isInvalidated =
+      response.error?.includes('Extension context invalidated') ||
+      response.error?.includes('reconnect');
+    if (isInvalidated) {
+      badge.textContent = '↻ refresh tab';
+      badge.title = 'SHOU extension was reloaded. Click or press Cmd+R (Ctrl+R) to refresh this tab and reconnect safety checking.';
+      badge.style.cursor = 'pointer';
+      badge.onclick = () => location.reload();
+    } else {
+      badge.textContent = '⚠︎ not checked';
+      badge.title = `SHOU could not check this message: ${response.error ?? 'unknown error'}`;
+    }
     return;
   }
   const { tier, category, truthScore } = response.verdict;
@@ -118,14 +128,20 @@ async function scoreNode(
     redacted: removed,
   };
   try {
+    if (!chrome.runtime?.id) {
+      throw new Error('Extension context invalidated. Please refresh this tab to reconnect.');
+    }
     const response = (await chrome.runtime.sendMessage(request)) as ScoreResponse | undefined;
     settleBadge(badge, response ?? { ok: false, error: 'no response from SHOU' });
   } catch (error) {
     // Happens when the worker has been reloaded mid-session. Say so on
     // the badge rather than leaving a stale "checking" spinner.
+    const msg = error instanceof Error ? error.message : String(error);
     settleBadge(badge, {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: msg.includes('Extension context invalidated')
+        ? 'Extension context invalidated. Please refresh this tab to reconnect.'
+        : msg,
     });
   }
 }
