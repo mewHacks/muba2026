@@ -117,23 +117,71 @@ dashboard are built.
 
 ## User flow
 
-Every path starts the same way: she does nothing differently, and the extension scores
-each message as it arrives.
+### Setup — once, together, while she is calm
 
-| Scenario | What happens |
-|---|---|
-| Clean chat, small amount | 🟢 → she sends → executes immediately |
-| Clean chat, over her review ceiling | 🟢 → she sends → cooldown → executes |
-| **Scam chat** | 🔴 → she sends → escrowed, `NEEDS_APPROVAL` → son notified → he blocks → **refunded to her** |
-| Scam chat, guardian says it's fine | 🔴 → escrowed → son approves → executes |
-| **She insists** | Escrowed → she retries → refused, `EThresholdNotMet` → wait for guardian, or cancel → refunded |
-| Guardian never responds | Escrowed → she cancels → refunded. Funds are never stranded |
-| **AI wrong or compromised** | Says 🟢 on a large amount → chain escalates to HIGH anyway → needs guardian |
-| No chat was scored | No verdict → her amount ceilings apply on their own |
-| Recipient reported as a scammer | Deny list hit → large amounts blocked, daily necessities still allowed |
+**1 · Install the extension.** Her son loads SHOU into Chrome on her laptop.
+Nothing is asked of her yet.
 
-The model can tighten, never loosen. And SHOU is a guardrail, not a cage: you cannot be
-non-custodial *and* make it impossible to spend your own money.
+**2 · She signs in with Google.** One button. zkLogin derives a Sui wallet
+address from her Google account, so there is no twelve-word phrase to write on
+a Post-it, lose, or read out to a stranger on the phone.
+
+**3 · They set her rules together, on the dashboard.** She chooses her own
+limits — a small everyday amount that just goes through, a middle band that
+waits out a cooling-off period, and a ceiling above which someone she trusts
+has to agree. She names her guardians and how many of them must agree. This
+becomes a `SeniorityPolicy` on chain, and it is the last time anyone decides
+anything under pressure.
+
+**4 · They add a recovery circle.** Her wallet is a weighted multisig: she
+spends alone, her son alone cannot, and if her Google account is ever lost two
+relatives together can bring the funds back.
+
+Setup is over. She is never asked to do any of it again.
+
+### Every day — she does nothing differently
+
+**5 · She chats as usual.** WhatsApp Web, Messenger, whatever she already uses.
+No button to press, no message to copy anywhere.
+
+**6 · A coloured dot appears beside each message.** 🟢 normal, 🟡 be careful,
+🔴 this is a scam. The message is stripped of names and numbers on her own
+laptop, then scored inside an enclave, so the text never sits anywhere readable
+— not on our servers, not in a log.
+
+**7 · She sends money the ordinary way.** Recipient, amount, send. A small
+payment to the coffee shop lands immediately, exactly as it would without us.
+
+### When something is wrong — the part that matters
+
+**8 · The money stops instead of failing.** If the conversation she is in was
+scored 🔴, or the amount is above her own ceiling, the transfer does not bounce
+with an error she will retry around. It goes into escrow on chain and waits.
+Her balance is not gone; it is held.
+
+**9 · Her son sees it on his dashboard.** An amount, a recipient, and what
+happens if he does nothing. He never sees her messages — the dashboard has no
+route to them at all.
+
+**10 · He stops it, and she is refunded in full.** The contract only ever pays
+an escrow back to her. There is no code path, for him or for us, that sends it
+anywhere else. If he thinks it is fine, he approves and it goes through
+instead; if he never answers, she can cancel it herself and get her money back.
+
+### What she cannot be talked out of
+
+A scammer's next move is *"the app is lying, auntie, send it anyway"* — so the
+rules above are not advice she can dismiss:
+
+- Retrying a held transfer is refused by the chain, not by a dialog.
+- A large amount escalates on its own even if our model calls it safe, so you
+  do not have to trust the model.
+- An address reported as a scammer stops large payments while still letting her
+  buy groceries.
+
+SHOU is a guardrail, not a cage: you cannot be non-custodial *and* make it
+impossible to spend your own money. Every path ends with her money either
+delivered or back with her.
 
 ---
 
@@ -141,14 +189,18 @@ non-custodial *and* make it impossible to spend your own money.
 
 | Layer | Technology | Why this one |
 |---|---|---|
-| Policy engine | **Sui Move**, 2024 edition | Shared objects let several people act on one wallet without anyone taking custody. Capabilities let us model "may block" separately from "may spend". |
+| Policy engine | **Sui Move**, 2024 edition — `policy` · `enclave` · `redflag` | Shared objects let several people act on one wallet without anyone taking custody. Capabilities let us model "may block" separately from "may spend". |
 | Asset | **Testnet USDC** | Elders think in dollars. A guard denominated in a volatile token protects nothing. |
 | Client | **@mysten/sui 2.28**, `SuiGrpcClient` | JSON-RPC is deprecated on public fullnodes — we were on 1.45 and had to migrate mid-build. |
-| Private compute | **Nautilus pattern**, ed25519 + BCS | The message is scored where nobody can read it; the chain verifies the enclave's signature itself. |
-| Scoring | **Gonka Router** | Called from *inside* the enclave. If the extension called it directly the message would leave the device unprotected, and the privacy claim would be a promise rather than a property. |
-| Sign-in | **zkLogin + Enoki** | An 80-year-old will not write down twelve words. |
+| Private compute | **Nautilus pattern**, ed25519 + BCS over `node:crypto` | The message is scored where nobody can read it; the chain verifies the enclave's signature itself. No SDK in the signing path — the bytes the enclave signs are the bytes Move reconstructs. |
+| Scoring | **Gonka Router** — DeepSeek classifies, MiniMax cross-verifies | Called from *inside* the enclave. If the extension called it directly the message would leave the device unprotected, and the privacy claim would be a promise rather than a property. |
+| Sign-in | **zkLogin + Enoki 1.2** | An 80-year-old will not write down twelve words. Enoki carries the salt, whose loss would destroy the address permanently. |
 | Recovery | **Weighted multisig** (2·1·1, threshold 2) | Weights, not counts — the only shape that lets her act alone while still allowing recovery. |
+| Detection surface | **Chrome extension, Manifest V3** — TypeScript bundled by esbuild | A service worker, one content script per site, a popup and an options page. Its only permission is `storage`, and its only hosts are our two localhost ports: it can read the chat tab it is injected into and talk to us, and reach nothing else. |
+| DOM adapters | **One file per site**, tested against **linkedom** | WhatsApp Web and Messenger ship obfuscated class names, so the fragile part is quarantined in `adapters.ts` and the logic above it is unit-tested on parsed fixtures rather than a live page. |
 | Guardian surfaces | **Plain TypeScript + esbuild**, no framework | Three screens over one JSON API: the held-transfer list, the community deny list (read-only), and policy setup. The page holds no key and imports no Sui SDK — its server makes every call — so there is one place where an on-chain mutation can happen and one place to guard it. |
+| Services | **Node 22 `node:http`**, TypeScript run directly via `--experimental-strip-types` | Four servers, zero web frameworks and no build step to run one. The whole repo's runtime dependency list is `@mysten/sui` and `@mysten/enoki`; nothing else ships. |
+| Tests | **`node:test`**, 91 across TS + 38 in `sui move test` | Built in, so a suite is one file and no runner config. |
 
 ### How it fits together
 
@@ -404,6 +456,27 @@ jurisdictions. This market did not financially exist for banks until last year.
 
 ## Running it
 
+Node 22+ (the scripts use `--experimental-strip-types`) and, for the Move tests,
+the `sui` CLI. Copy `shou/.env.example` to `shou/.env` and fill it in first.
+
+**Install — each package is its own npm project, there is no workspace root:**
+
+```bash
+cd shou
+for d in enclave packages/*/; do (cd "$d" && npm install); done
+```
+
+**Check everything before you start anything:**
+
+```bash
+cd shou && ./verify.sh          # tests, typechecks, builds, plus whatever is running
+cd shou && ./verify.sh --full   # also starts any service that is down
+```
+
+20 checks, exits non-zero on the first failure — use it as the pre-demo gate.
+
+**The four services, one terminal each:**
+
 ```bash
 cd shou/enclave                   && SHOU_TEST_SCORER=1 npm start   # :3100
 cd shou/packages/circuit-breaker  && npm start                      # :4000
@@ -411,6 +484,9 @@ cd shou/packages/zklogin-demo     && npm start                      # :3000
 cd shou/packages/dashboard        && npm start                      # :4200  guardian
 cd shou/packages/extension        && npm run build                  # then load unpacked
 ```
+
+Drop `SHOU_TEST_SCORER=1` to score with the real router — and warm it with one
+throwaway message before demoing, or the first real one misses the deadline.
 
 The extension loads from `chrome://extensions` → Developer mode → **Load unpacked** →
 `shou/packages/extension/dist`. Open its Settings and press *Fetch policy id from

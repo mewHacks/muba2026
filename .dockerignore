@@ -1,0 +1,9 @@
+shou/**/node_modules
+shou/packages/extension/dist
+shou/packages/dashboard/public/app.js
+shou/packages/zklogin-demo/public/app.js
+.git
+docs
+shermaine-gonka
+.workbuddy-ai
+*.md

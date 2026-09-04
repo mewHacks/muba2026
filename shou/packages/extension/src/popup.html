@@ -2,60 +2,562 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>SHOU</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SHOU 守 — Sui Family Shield</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Pixelify+Sans:wght@600;700&family=VT323&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --card:#fff;--ink:#12151a;--muted:#5d6674;--line:#e3e6ea;--accent:#1f6feb;
-    --ok:#0f7b4f;--okbg:#e8f6ef;--warn:#8a5800;--warnbg:#fdf3e0;--bad:#b3261e;--badbg:#fdecea;
+  /* Light theme, matching the marketing site's mock extension frame
+     (packages/zklogin-demo/public/index.html, .ext-frame-mockup /
+     .ext-mock-body) rather than the previous dark palette. */
+  :root {
+    --bg: #FFFFFF;
+    --card-bg: #FFFFFF;
+    --card-light: #F8FAFC;
+    --card-border: #E2E8F0;
+    --card-border-strong: #CBD5E1;
+    --blue: #3898FF;
+    --blue-dark: #1A73E8;
+    --blue-light: #EBF4FF;
+    --blue-glow: rgba(56, 152, 255, 0.25);
+    --text-dark: #0F172A;
+    --text-muted: #64748B;
+    --hold-red: #E11D48;
+    --hold-bg: #FFF1F2;
+    --hold-border: #FECDD3;
+    --warn-amber: #F59E0B;
+    --warn-bg: #FFFBEB;
+    --warn-border: #FDE68A;
+    --safe-green: #10B981;
+    --safe-bg: #F0FDF4;
+    --safe-border: #BBF7D0;
+
+    --font-pixel: 'Pixelify Sans', 'VT323', monospace;
+    --font-body: 'Outfit', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
   }
-  *{box-sizing:border-box}
-  body{margin:0;width:352px;background:#f6f7f9;color:var(--ink);
-    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  header{padding:12px 14px;background:var(--card);border-bottom:1px solid var(--line);
-    display:flex;align-items:baseline;gap:9px}
-  h1{margin:0;font-size:17px;letter-spacing:-.01em}
-  header .tag{font-size:11.5px;color:var(--muted)}
-  main{padding:12px 14px 14px}
-  .tier{border-radius:12px;padding:13px;border:1px solid transparent;margin-bottom:11px}
-  .tier.HIGH{background:var(--badbg);border-color:#f3c9c5}
-  .tier.MEDIUM{background:var(--warnbg);border-color:#f0dcb4}
-  .tier.LOW{background:var(--okbg);border-color:#c4e5d5}
-  .tier .lead{font-size:15.5px;line-height:1.42}
-  .tier .sig{margin-top:7px;font-size:12px;color:var(--muted)}
-  h2{margin:14px 0 7px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px}
-  .reasoning{font-size:13px;color:var(--muted);white-space:pre-wrap}
-  /* break-all on the container, not just the list items: the message
-     fingerprint is a bare 64-character hash in a 352px popup, and
-     without this it runs straight out of the card. */
-  .ids{margin:0;padding:0;list-style:none;word-break:break-all;
-    font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace}
-  .ids li{margin-bottom:4px}
-  .ids a{color:var(--accent)}
-  .pill{display:inline-block;background:#eef1f5;border:1px solid var(--line);border-radius:999px;
-    padding:2px 8px;font-size:11.5px;margin:0 5px 5px 0;color:var(--muted)}
-  .row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}
-  .err{background:var(--badbg);border:1px solid #f3c9c5;color:var(--bad);border-radius:11px;
-    padding:11px;font-size:13px;margin-bottom:11px}
-  .empty{color:var(--muted);font-size:13px}
-  footer{padding:11px 14px;border-top:1px solid var(--line);background:var(--card);
-    display:flex;gap:9px;flex-wrap:wrap}
-  a.btn{flex:1 1 130px;text-align:center;text-decoration:none;font-weight:600;font-size:13px;
-    border:1px solid var(--line);border-radius:9px;padding:9px;color:var(--ink);background:#fff}
-  a.btn:hover{border-color:var(--accent);color:var(--accent)}
-  .hidden{display:none}
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 360px;
+    min-height: 580px;
+    background: var(--bg);
+    color: var(--text-dark);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
+    padding-bottom: 70px;
+  }
+
+  /* Top Navigation Bar (persistent above all 3 tabs) */
+  .ext-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px 10px;
+  }
+  .ext-logo-btn {
+    width: 38px;
+    height: 38px;
+    background: radial-gradient(circle at 35% 30%, #5CB0FF 0%, #1A73E8 60%, #0B336B 100%);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: #FFF;
+    border: 1.5px solid var(--blue);
+    box-shadow: 0 4px 10px rgba(26, 115, 232, 0.25);
+  }
+  .ext-bal-pill {
+    background: var(--card-light);
+    border: 1.5px solid var(--card-border-strong);
+    border-radius: 999px;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+  .ext-bal-pill .eye-icon {
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .ext-google-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--blue-light);
+    border: 1.5px solid #BFDBFE;
+    display: grid;
+    place-items: center;
+    color: var(--blue-dark);
+    font-weight: 800;
+    font-size: 15px;
+  }
+
+  /* Notification Banner */
+  .ext-banner {
+    margin: 6px 16px 12px;
+    background: var(--blue-light);
+    border: 1.5px solid #BFDBFE;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #1D4ED8;
+  }
+  .ext-banner-icon svg { stroke: #2563EB; }
+  .ext-banner-text { flex: 1; line-height: 1.35; }
+  .ext-banner-close {
+    background: none;
+    border: none;
+    color: rgba(37, 99, 235, 0.65);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* Shared card shell for each tab panel */
+  .ext-main-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--card-border);
+    border-radius: 18px;
+    margin: 0 14px 14px;
+    padding: 20px 18px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  }
+  .ext-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #F1F5F9;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+
+  /* Big Glowing Sui Coin */
+  .ext-coin-wrapper {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    margin: 0 auto 14px;
+    display: grid;
+    place-items: center;
+  }
+  .ext-sparkle {
+    position: absolute;
+    color: var(--blue-dark);
+    font-size: 16px;
+    animation: sparkle-pulse 2s ease-in-out infinite;
+  }
+  .sp-top-right { top: 4px; right: 8px; animation-delay: 0.2s; }
+  .sp-bottom-left { bottom: 8px; left: 4px; animation-delay: 0.8s; }
+  @keyframes sparkle-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+
+  .ext-coin-sui {
+    width: 92px;
+    height: 92px;
+    background: radial-gradient(circle at 35% 30%, #5CB0FF 0%, #1A73E8 55%, #0A3270 100%);
+    border-radius: 50%;
+    border: 3px solid var(--blue-dark);
+    box-shadow: 0 8px 20px rgba(26, 115, 232, 0.25);
+    display: grid;
+    place-items: center;
+    color: #FFF;
+    transition: all 0.3s ease;
+  }
+  .ext-coin-sui.danger {
+    background: radial-gradient(circle at 35% 30%, #FF6B8B 0%, #E11D48 55%, #7F0B24 100%);
+    border-color: var(--hold-red);
+    box-shadow: 0 8px 20px rgba(225, 29, 72, 0.25);
+  }
+
+  /* Big Pixel Headings */
+  .ext-pixel-heading {
+    font-family: var(--font-body);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+    color: var(--text-dark);
+  }
+  .ext-pixel-heading.danger { color: var(--hold-red); }
+
+  .ext-plain-desc {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin: 0 auto 18px;
+    max-width: 32ch;
+  }
+
+  /* Action button grid, reused across tabs at 1, 2 or 3 columns */
+  .ext-action-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 2), 1fr);
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .ext-btn {
+    background: var(--card-light);
+    border: 1.5px solid var(--card-border-strong);
+    border-radius: 12px;
+    padding: 11px 8px;
+    color: var(--text-dark);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.12s ease;
+  }
+  .ext-btn:hover {
+    background: var(--blue-light);
+    border-color: var(--blue-dark);
+    color: var(--blue-dark);
+    transform: translateY(-1px);
+  }
+  .ext-btn.primary {
+    background: var(--blue-dark);
+    color: #FFFFFF;
+    border-color: var(--blue-dark);
+    flex-direction: row;
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ext-btn.primary:hover { background: #1557B0; color: #FFFFFF; }
+  .ext-btn svg { stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* Chats tab: passive-observer status + manual paste */
+  .ext-chat-bubble {
+    background: var(--card-light);
+    border: 1.5px solid var(--card-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+  .ext-manual-paste { margin-top: 14px; text-align: left; }
+  .ext-manual-paste label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+  }
+  .ext-chat-input {
+    width: 100%;
+    background: #FFFFFF;
+    border: 1.5px solid var(--card-border-strong);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--text-dark);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.4;
+    resize: none;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ext-chat-input:focus {
+    border-color: var(--blue-dark);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+  }
+  .ext-manual-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .ext-manual-status.error { color: var(--hold-red); }
+
+  /* Status / Verdict Display Card */
+  .verdict-box {
+    margin-top: 14px;
+    background: var(--card-light);
+    border-radius: 14px;
+    padding: 14px;
+    border: 1.5px solid var(--card-border);
+    text-align: left;
+    color: var(--text-dark);
+  }
+  .verdict-box.HIGH { background: var(--hold-bg); border-color: var(--hold-border); }
+  .verdict-box.MEDIUM { background: var(--warn-bg); border-color: var(--warn-border); }
+  .verdict-box.LOW { background: var(--safe-bg); border-color: var(--safe-border); }
+  .verdict-title {
+    font-family: var(--font-body);
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .verdict-box.HIGH .verdict-title { color: #9F1239; }
+  .verdict-box.MEDIUM .verdict-title { color: #92400E; }
+  .verdict-box.LOW .verdict-title { color: #166534; }
+  .verdict-body {
+    font-size: 13px;
+    line-height: 1.4;
+    color: inherit;
+  }
+
+  /* Options tab: settings-summary rows */
+  .ext-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    text-align: left;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .ext-opt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    background: var(--card-light);
+    border: 1.5px solid var(--card-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text-muted);
+  }
+  .ext-opt-row strong {
+    color: var(--text-dark);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+    max-width: 60%;
+  }
+
+  /* Floating Bottom Dock: exactly 3 real tabs */
+  .ext-bottom-dock {
+    position: fixed;
+    bottom: 12px;
+    left: 14px;
+    right: 14px;
+    height: 54px;
+    background: #FFFFFF;
+    border: 1.5px solid var(--card-border);
+    border-radius: 999px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+  }
+  .ext-dock-btn {
+    appearance: none;
+    background: transparent;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 6px 16px;
+    border-radius: 999px;
+    transition: all 0.15s ease;
+  }
+  .ext-dock-btn:hover { color: var(--text-dark); background: #F1F5F9; }
+  .ext-dock-btn.active { color: #FFFFFF; background: var(--blue-dark); }
+  .ext-dock-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* Status indicator dots (strictly green, yellow, red only) */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .status-dot.red { background: #EF4444; }
+  .status-dot.yellow { background: #F59E0B; }
+  .status-dot.green { background: #10B981; }
+
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
-<header><h1>SHOU</h1><span class="tag">watching this conversation</span></header>
-<main>
-  <div id="error" class="err hidden"></div>
-  <div id="body"></div>
-</main>
-<footer>
-  <a class="btn" id="dashboard" href="#" target="_blank">Guardian dashboard</a>
-  <a class="btn" id="options" href="#">Settings</a>
-</footer>
-<script type="module" src="popup.js"></script>
+
+  <!-- Top Bar (persistent across all 3 tabs) -->
+  <div class="ext-top-bar">
+    <div class="ext-logo-btn" title="Protected on Sui">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+      </svg>
+    </div>
+    <div class="ext-bal-pill">
+      <span id="ext-bal-val">$50.00</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" class="eye-icon" id="ext-eye-btn" style="cursor:pointer;" title="Toggle balance"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <div class="ext-google-avatar" title="Signed in with Google (zkLogin)">
+      G
+    </div>
+  </div>
+
+  <!-- Notification Banner (persistent) -->
+  <div class="ext-banner" id="ext-banner">
+    <div class="ext-banner-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div class="ext-banner-text">
+      Family Shield Active · Zero Passwords Needed
+    </div>
+    <button class="ext-banner-close" id="ext-banner-close" type="button" aria-label="Close banner">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Tab 1: Chats — passive observer (real, chrome.runtime 'shou:state') + manual paste-to-check (real, 'shou:score') -->
+  <section class="ext-tab-panel" id="tab-chats">
+    <div class="ext-main-card">
+      <div class="ext-card-header">
+        <span class="status-dot green"></span>
+        <span>Chat Scanner</span>
+      </div>
+
+      <div class="ext-chat-bubble" id="chat-passive-status">
+        Watching WhatsApp &amp; Messenger in the background. Nothing scored yet this session.
+      </div>
+
+      <!-- Live Conversation Risk Verdict Container (real, driven by updateViewForVerdict()) -->
+      <div id="verdict-container" class="hidden"></div>
+
+      <div class="ext-manual-paste">
+        <label for="chat-manual-input">Or paste a message to check right now:</label>
+        <textarea id="chat-manual-input" class="ext-chat-input" rows="3" placeholder="Paste a suspicious WhatsApp or Messenger message…"></textarea>
+        <button class="ext-btn primary" id="btn-deep-analyze" type="button" style="margin-top:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>Check This Message</span>
+        </button>
+        <div id="manual-analyze-status" class="ext-manual-status hidden"></div>
+      </div>
+
+      <div class="ext-action-grid" style="--cols:1; margin-top:14px;">
+        <button class="ext-btn" id="btn-check-chat" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <span>How Chat Scanning Works</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tab 2: Wallet — real Main Protection Card, moved as-is -->
+  <section class="ext-tab-panel" id="tab-wallet" style="display:none;">
+    <div class="ext-main-card">
+      <div class="ext-coin-wrapper">
+        <div class="ext-coin-sui" id="coin-emblem">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
+        </div>
+      </div>
+
+      <h2 class="ext-pixel-heading" id="status-title">PROTECTED BY SHOU</h2>
+      <p class="ext-plain-desc" id="status-desc">
+        Your money is safe on Sui. If anyone tries to trick you, the transfer is locked until your family checks it.
+      </p>
+
+      <div class="ext-action-grid" style="--cols:3;">
+        <button class="ext-btn" id="btn-send-money" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          <span>Send Money</span>
+        </button>
+        <button class="ext-btn" id="btn-emergency-hold" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <span>Safety Pause</span>
+        </button>
+        <a class="ext-btn" id="btn-dashboard-link" href="http://127.0.0.1:4200" target="_blank">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <span>Son's View ↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tab 3: Options — settings summary. Rows are real values from
+       chrome.storage (via 'shou:state'/loadSettings), not placeholders:
+       this extension has no on-chain policy fields (transfer limit,
+       guardian, key recovery) to read, only the Settings it actually
+       stores, so those are what's shown. -->
+  <section class="ext-tab-panel" id="tab-options" style="display:none;">
+    <div class="ext-main-card">
+      <div class="ext-card-header">
+        <span class="status-dot green"></span>
+        <span>Wallet &amp; Guard Settings</span>
+      </div>
+      <div class="ext-options-list">
+        <div class="ext-opt-row">
+          <span>Scoring</span>
+          <strong id="opt-enabled">…</strong>
+        </div>
+        <div class="ext-opt-row">
+          <span>Policy ID</span>
+          <strong id="opt-policy">…</strong>
+        </div>
+        <div class="ext-opt-row">
+          <span>Circuit Breaker</span>
+          <strong id="opt-breaker">…</strong>
+        </div>
+        <div class="ext-opt-row">
+          <span>Guardian Dashboard</span>
+          <strong id="opt-dashboard">…</strong>
+        </div>
+      </div>
+      <a class="ext-btn" id="opt-dashboard-link" href="http://127.0.0.1:4200" target="_blank" style="margin-bottom:8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>Open Guardian Dashboard ↗</span>
+      </a>
+      <button class="ext-btn" id="nav-settings" type="button">
+        <span>Full Settings →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Bottom Dock: exactly 3 real tabs -->
+  <nav class="ext-bottom-dock">
+    <button class="ext-dock-btn active" id="dock-tab-chats" type="button">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Chats</span>
+    </button>
+    <button class="ext-dock-btn" id="dock-tab-wallet" type="button">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Wallet</span>
+    </button>
+    <button class="ext-dock-btn" id="dock-tab-options" type="button">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Options</span>
+    </button>
+  </nav>
+
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

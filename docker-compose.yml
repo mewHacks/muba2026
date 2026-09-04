@@ -1,0 +1,19 @@
+# How to run with real AI scoring:
+#   1. Put your key in shou/.env:  GONKA_API_KEY=your_key_here
+#   2. Or pass it inline:  GONKA_API_KEY=your_key docker compose up
+#
+# Without a key, scoring falls back to a keyword heuristic (labeled "DEV MODE" on screen).
+
+services:
+  shou:
+    build: .
+    ports:
+      - "3000:3000"   # zkLogin demo (sign-in + transfer panel)
+      - "3100:3100"   # Enclave (TEE scoring)
+      - "4000:4000"   # Circuit breaker
+      - "4200:4200"   # Guardian dashboard
+      - "3080:3080"   # Landing page + extension download
+    environment:
+      - GONKA_API_KEY=${GONKA_API_KEY:-}
+    volumes:
+      - ./shou:/app

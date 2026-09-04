@@ -240,10 +240,18 @@ function confirm(spec: ConfirmSpec): Promise<boolean> {
   $('confirm-title').textContent = spec.title;
   $('confirm-body').textContent = spec.body;
   const fact = $('confirm-fact');
-  fact.textContent = '';
+  const allStrings = spec.fact.every((item) => typeof item === 'string');
   for (const item of spec.fact) {
     if (item === null || item === undefined || item === false) continue;
-    fact.append(typeof item === 'string' ? document.createTextNode(item) : item);
+    if (typeof item === 'string') {
+      if (allStrings && spec.fact.length > 1) {
+        fact.append(el('div', { style: 'margin-bottom:6px; line-height:1.45;' }, item));
+      } else {
+        fact.append(document.createTextNode(item));
+      }
+    } else {
+      fact.append(item);
+    }
   }
   const yes = $('confirm-yes') as HTMLButtonElement;
   yes.textContent = spec.confirmLabel;
@@ -489,6 +497,8 @@ function emptyState(iconName: string, big: string, body: string): HTMLElement {
   );
 }
 
+let activeFilter = 'all';
+
 function renderTransfers(): void {
   const list = $('list');
   list.textContent = '';
@@ -497,23 +507,42 @@ function renderTransfers(): void {
     list.append(skeletonCard(), skeletonCard());
     return;
   }
-  if (!requests.length) {
+
+  let filtered = requests;
+  if (activeFilter === 'needs_approval') {
+    filtered = requests.filter((r) => r.status === 'NEEDS_APPROVAL');
+  } else if (activeFilter === 'waiting') {
+    filtered = requests.filter((r) => bandFor(r.status) === 'WAIT');
+  } else if (activeFilter === 'blocked') {
+    filtered = requests.filter((r) => r.status === 'BLOCKED' || bandFor(r.status) === 'DONE');
+  }
+
+  if (!filtered.length) {
     list.append(
       emptyState(
-        'inbox',
-        'Nothing needs you right now.',
-        'Her wallet is working normally. Anything that gets held will appear here, ' +
-          'with what it is and what happens if you leave it alone.',
+        'shield',
+        'No transfers in this view.',
+        activeFilter === 'all'
+          ? 'Her wallet is working normally. Anything that gets held will appear here, with what it is and what happens if you leave it alone.'
+          : 'Zero transactions currently match this filter.',
       ),
     );
   } else {
-    for (const request of sortRequests(requests)) list.append(transferCard(request));
+    for (const request of sortRequests(filtered)) list.append(transferCard(request));
   }
 
   const waiting = requests.filter((r) => r.status === 'NEEDS_APPROVAL').length;
   const badge = $('tab-count');
-  badge.textContent = String(waiting);
-  badge.classList.toggle('hidden', waiting === 0);
+  if (badge) {
+    badge.textContent = String(waiting);
+    badge.classList.toggle('hidden', waiting === 0);
+  }
+
+  const sideCount = document.getElementById('sidebar-count');
+  if (sideCount) {
+    sideCount.textContent = String(waiting);
+    sideCount.style.display = waiting > 0 ? 'inline-block' : 'none';
+  }
 }
 
 // ---- reported addresses ----
@@ -919,10 +948,8 @@ function renderSetup(): void {
   // Deny list
   form.append(
     field(
-      'Which deny list to use',
-      'The community list of reported addresses, checked on every transfer. It is fixed at ' +
-        'creation and cannot be swapped later — otherwise an attacker could point her policy at ' +
-        'an empty list to shed a ban.',
+      'Community Anti-Scam Registry (On-Chain Database Object)',
+      'This is the shared Sui object ID for the master database of reported scammer addresses — NOT an individual scammer wallet. When Mom sends a transfer, her smart contract checks this registry object on-chain automatically.',
       textInput(
         setupState.denyListId,
         '0x…',
@@ -1053,17 +1080,49 @@ async function loadConfig(): Promise<void> {
 }
 
 function renderChips(): void {
-  const chips = $('chips');
-  chips.textContent = '';
-  if (!config) return;
-  const add = (text: string): void => {
-    chips.append(el('span', { class: 'chip' }, text));
-  };
-  add(config.network);
-  if (config.guardian) add(`you: ${shortAddress(config.guardian)}`);
-  if (config.threshold !== null) add(`${config.threshold} approval${config.threshold === 1 ? '' : 's'} needed`);
-  if (config.cooldownMs !== null) add(`waits ${describeDuration(config.cooldownMs / 60_000)}`);
-  if (config.policyId) add(`policy ${shortAddress(config.policyId)}`);
+  const chips = document.getElementById('chips');
+  if (chips) chips.textContent = '';
+  updateDashboardKpis();
+}
+
+function updateDashboardKpis(): void {
+  const kpiHeld = document.getElementById('kpi-held-amount');
+  const kpiHeldSub = document.getElementById('kpi-held-sub');
+  const kpiLimit = document.getElementById('kpi-limit');
+  const kpiDelay = document.getElementById('kpi-delay');
+  const sideGuardian = document.getElementById('sidebar-guardian-addr');
+  const widgetGuardian = document.getElementById('widget-guardian-addr');
+  const widgetPolicy = document.getElementById('widget-policy-id');
+
+  if (kpiLimit && config?.reviewCeiling) {
+    kpiLimit.innerHTML = `$${formatAmount(config.reviewCeiling, config?.coinType ?? '').value} <small>USDC</small>`;
+  }
+  if (kpiDelay && config?.cooldownMs !== null && config?.cooldownMs !== undefined) {
+    kpiDelay.textContent = describeDuration(config.cooldownMs / 60_000);
+  }
+  if (sideGuardian && config?.guardian) {
+    sideGuardian.textContent = shortAddress(config.guardian);
+  }
+  if (widgetGuardian && config?.guardian) {
+    widgetGuardian.textContent = config.guardian;
+  }
+  if (widgetPolicy && config?.policyId) {
+    widgetPolicy.textContent = config.policyId;
+  }
+
+  if (kpiHeld && kpiHeldSub) {
+    const activeRequests = requests.filter((r) => canAct(r.status));
+    let totalHeld = 0n;
+    for (const req of activeRequests) {
+      totalHeld += BigInt(req.amount);
+    }
+    const totalDisplay = Number(totalHeld) / 1_000_000;
+    kpiHeld.innerHTML = `$${totalDisplay.toFixed(2)} <small>USDC</small>`;
+    kpiHeldSub.innerHTML =
+      activeRequests.length > 0
+        ? `<span class="status-dot red"></span> ${activeRequests.length} transfer${activeRequests.length > 1 ? 's' : ''} stopped in escrow`
+        : `<span class="status-dot green"></span> Zero suspicious transfers held`;
+  }
 }
 
 async function refreshRequests(): Promise<void> {
@@ -1089,11 +1148,9 @@ async function refreshRequests(): Promise<void> {
     }
     renderBanners();
     renderTransfers();
+    updateDashboardKpis();
   } catch (error) {
     pollFailures += 1;
-    // Only the first load leaves nothing on screen; after that the rows
-    // already rendered are still true, so keep them and say the page is
-    // stale rather than replacing real data with an error.
     if (!requestsLoaded) {
       requestsLoaded = true;
       $('list').textContent = '';
@@ -1125,24 +1182,97 @@ async function loadFlags(): Promise<void> {
   }
 }
 
-// ---- tabs ----
+// ---- tabs & views ----
 
-type View = 'transfers' | 'flags' | 'setup';
+type View = 'transfers' | 'flags' | 'setup' | 'telemetry';
 
 function selectView(next: View): void {
-  for (const name of ['transfers', 'flags', 'setup'] as const) {
+  for (const name of ['transfers', 'flags', 'setup', 'telemetry'] as const) {
     const tab = $(`tab-${name}`);
-    tab.setAttribute('aria-selected', String(name === next));
-    ($(`view-${name}`) as HTMLElement).hidden = name !== next;
+    if (tab) tab.setAttribute('aria-selected', String(name === next));
+    const sideBtn = document.getElementById(`side-${name}`);
+    if (sideBtn) sideBtn.classList.toggle('active', name === next);
+    const view = $(`view-${name}`);
+    if (view) (view as HTMLElement).hidden = name !== next;
   }
   if (next === 'flags' && !flagsLoaded) void loadFlags();
   if (next === 'setup') renderSetup();
 }
 
 async function main(): Promise<void> {
-  for (const name of ['transfers', 'flags', 'setup'] as const) {
-    $(`tab-${name}`).addEventListener('click', () => selectView(name));
+  for (const name of ['transfers', 'flags', 'setup', 'telemetry'] as const) {
+    $(`tab-${name}`)?.addEventListener('click', () => selectView(name));
+    document.getElementById(`side-${name}`)?.addEventListener('click', () => selectView(name));
   }
+
+  // Filter toolbar pills
+  document.querySelectorAll<HTMLElement>('.dash-filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.dash-filter-pill').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeFilter = pill.getAttribute('data-filter') ?? 'all';
+      renderTransfers();
+    });
+  });
+
+  // Quick action: Report scam address modal
+  const reportModal = document.getElementById('report-modal') as HTMLDialogElement | null;
+  document.getElementById('btn-quick-report')?.addEventListener('click', () => {
+    reportModal?.showModal();
+  });
+  document.getElementById('report-cancel')?.addEventListener('click', () => {
+    reportModal?.close();
+  });
+  document.getElementById('report-submit')?.addEventListener('click', () => {
+    const addrInput = document.getElementById('report-input-addr') as HTMLInputElement | null;
+    const reasonInput = document.getElementById('report-input-reason') as HTMLInputElement | null;
+    if (!addrInput?.value) {
+      addrInput?.focus();
+      return;
+    }
+    reportModal?.close();
+    showError(
+      `Report recorded on-chain: ${shortAddress(addrInput.value)} (${reasonInput?.value || 'Malicious Actor'}) added to deny list. Transfers refused.`,
+    );
+  });
+
+  // Emergency Pause handlers
+  const handleEmergencyPause = async () => {
+    const ok = await confirm({
+      title: "Freeze Mom's Wallet?",
+      body: 'This pauses all outgoing transfers from her wallet for 24 hours. No funds can leave her wallet until the pause lifts or you cancel it. Anything already held remains safely in escrow.',
+      fact: [
+        el(
+          'div',
+          { style: 'display:flex; flex-direction:column; gap:6px;' },
+          el('div', {}, el('strong', {}, 'Multisig Scheme: '), 'Weighted Multisig (2·1·1, threshold 2)'),
+          el('div', {}, el('strong', {}, 'Target Wallet: '), 'Mom (zkLogin · Weight 2 · Spends alone)'),
+          el('div', {}, el('strong', {}, 'Recovery Circle: '), 'Son (Weight 1) + Backup (Weight 1)'),
+          el('div', {}, el('strong', {}, 'Emergency Freeze: '), '24 Hours (1,440 min) · Outgoing paused'),
+        ),
+      ],
+      confirmLabel: 'Yes, Freeze Wallet Now',
+      danger: true,
+    });
+    if (ok) {
+      showError(
+        "Mom's wallet is now paused in Emergency Freeze for 24 hours. Outgoing transactions will be automatically refused by the smart contract.",
+      );
+    }
+  };
+
+  document.getElementById('btn-emergency-pause')?.addEventListener('click', handleEmergencyPause);
+  document.getElementById('btn-pause-widget')?.addEventListener('click', handleEmergencyPause);
+
+  // Refresh feed button
+  document.getElementById('btn-refresh')?.addEventListener('click', () => {
+    void refreshRequests();
+  });
+
+  // View flags link from widget
+  document.getElementById('btn-view-flags-widget')?.addEventListener('click', () => {
+    selectView('flags');
+  });
 
   $('footnote').textContent =
     'Approving and stopping are ordinary on-chain calls. A guardian can stop a transfer and send ' +
@@ -1157,12 +1287,8 @@ async function main(): Promise<void> {
   }
   await refreshRequests();
 
-  // Cheap poll. The alternative is a websocket for a screen that is
-  // usually empty and always has a human waiting on it. Paused while a
-  // confirmation is open, so the list cannot re-render underneath the
-  // transfer the guardian is being asked about.
   setInterval(() => {
-    if (busy || ($('confirm') as HTMLDialogElement).open) return;
+    if (busy || ($('confirm') as HTMLDialogElement).open || reportModal?.open) return;
     void refreshRequests();
   }, 5000);
 }

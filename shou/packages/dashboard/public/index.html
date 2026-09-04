@@ -3,270 +3,1075 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SHOU — guardian</title>
+<title>SHOU 守 — Guardian Command Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Pixelify+Sans:wght@600;700&family=VT323&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  /* One family, one accent, semantic colour for state and nothing else.
-     The reader is an adult child checking on a parent's money, often on a
-     phone, often at night — so the palette follows the system rather than
-     insisting on a bright page in a dark room. */
-  :root{
-    color-scheme: light dark;
+  :root {
+    --bg-light: #F8FAFC;
+    --sidebar-bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-card: #FFFFFF;
+    --surface-hover: #F1F5F9;
+    --surface-muted: #F8FAFC;
+    --line: #E2E8F0;
+    --line-border: #E2E8F0;
+    --text-main: #0F172A;
+    --text-muted: #64748B;
+    --text-dim: #94A3B8;
 
-    --bg:#f6f7f9;
-    --surface:#ffffff;
-    --surface-2:#f9fafb;
-    --ink:#12151a;
-    --ink-2:#3d4552;
-    --muted:#5d6674;
-    --line:#e3e6ea;
-    --line-strong:#cfd4db;
-    --accent:#1a5fd0;
-    --accent-ink:#ffffff;
-    --accent-soft:#eaf0fc;
+    --blue: #1A73E8;
+    --blue-dark: #1557B0;
+    --blue-light: #EFF6FF;
+    --blue-glow: rgba(26, 115, 232, 0.15);
 
-    --hold:#a51f16;    --hold-bg:#fdeceb;  --hold-line:#f3cbc7;
-    --wait:#7a4d00;    --wait-bg:#fdf3e2;  --wait-line:#efdcb6;
-    --clear:#0c6b45;   --clear-bg:#e7f5ee; --clear-line:#bfe2d1;
-    --done:#5d6674;    --done-bg:#f0f2f5;  --done-line:#e3e6ea;
+    --hold-red: #E11D48;
+    --hold-bg: #FFF1F2;
+    --hold-border: #FECDD3;
+    --hold-text: #BE123C;
 
-    --r-sm:8px; --r:12px; --r-lg:16px;
-    --shadow:0 1px 2px rgb(16 20 28 / .05), 0 4px 12px -4px rgb(16 20 28 / .09);
-    --shadow-lift:0 2px 4px rgb(16 20 28 / .06), 0 12px 28px -8px rgb(16 20 28 / .18);
-    --ease:cubic-bezier(.2,.7,.3,1);
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#0d1117;
-      --surface:#161b22;
-      --surface-2:#1b212a;
-      --ink:#e8ecf2;
-      --ink-2:#c2cad6;
-      --muted:#98a2b0;
-      --line:#262d38;
-      --line-strong:#39424f;
-      --accent:#6f9df5;
-      --accent-ink:#0d1117;
-      --accent-soft:#1a2436;
+    --warn-amber: #D97706;
+    --warn-bg: #FFFBEB;
+    --warn-border: #FDE68A;
+    --warn-text: #B45309;
 
-      --hold:#ff9c93;    --hold-bg:#2b1512;  --hold-line:#54241f;
-      --wait:#e9b464;    --wait-bg:#271c0c;  --wait-line:#4a3616;
-      --clear:#6fd3a4;   --clear-bg:#0f241b;  --clear-line:#1e4534;
-      --done:#98a2b0;    --done-bg:#1b212a;  --done-line:#262d38;
+    --safe-green: #059669;
+    --safe-bg: #ECFDF5;
+    --safe-border: #A7F3D0;
+    --safe-text: #047857;
 
-      --shadow:0 1px 2px rgb(0 0 0 / .4), 0 4px 12px -4px rgb(0 0 0 / .5);
-      --shadow-lift:0 2px 4px rgb(0 0 0 / .5), 0 12px 28px -8px rgb(0 0 0 / .65);
-    }
+    --font-pixel: 'Pixelify Sans', 'VT323', monospace;
+    --font-sans: 'Outfit', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
   }
 
-  *{box-sizing:border-box}
-  html{-webkit-text-size-adjust:100%}
-  body{
-    margin:0;background:var(--bg);color:var(--ink);
-    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    font-variant-numeric:tabular-nums;
-  }
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-  svg{display:block;flex:none}
-
-  /* ---- shell ---- */
-  header{background:var(--surface);border-bottom:1px solid var(--line)}
-  .bar{max-width:900px;margin:0 auto;padding:18px 24px 0}
-  .brand{display:flex;align-items:center;gap:11px}
-  .mark{color:var(--accent)}
-  h1{margin:0;font-size:21px;font-weight:650;letter-spacing:-.015em}
-  .tag{margin:7px 0 0;color:var(--muted);font-size:14.5px;max-width:62ch}
-  .chips{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
-  .chip{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);
-    border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--muted)}
-
-  nav{max-width:900px;margin:0 auto;padding:14px 24px 0;display:flex;gap:2px}
-  nav button{
-    appearance:none;background:none;border:0;border-bottom:2px solid transparent;
-    font:inherit;font-size:14.5px;font-weight:550;color:var(--muted);
-    padding:9px 13px 11px;cursor:pointer;display:flex;align-items:center;gap:7px;
-    transition:color .16s var(--ease),border-color .16s var(--ease);
-  }
-  nav button:hover{color:var(--ink-2)}
-  nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
-  nav .count{font-size:12px;font-weight:650;background:var(--hold-bg);color:var(--hold);
-    border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
-
-  main{max-width:900px;margin:0 auto;padding:22px 24px 72px}
-  h2{margin:0 0 4px;font-size:17px;font-weight:600;letter-spacing:-.01em}
-  .sub{margin:0 0 18px;color:var(--muted);font-size:14.5px;max-width:70ch}
-
-  /* ---- surfaces ---- */
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
-    padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
-  .notice{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;line-height:1.5;
-    border-radius:var(--r);padding:13px 15px;margin-bottom:14px;border:1px solid}
-  .notice.bad{background:var(--hold-bg);border-color:var(--hold-line);color:var(--hold)}
-  .notice.warn{background:var(--wait-bg);border-color:var(--wait-line);color:var(--wait)}
-  .notice.info{background:var(--surface);border-color:var(--line);color:var(--ink-2)}
-  .notice strong{font-weight:650}
-  .notice code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
-
-  /* ---- transfer rows ---- */
-  .req{position:relative}
-  .req.HOLD{border-color:var(--hold-line);background:var(--hold-bg)}
-  .req.HOLD .consequence{background:var(--surface);border-color:var(--hold-line)}
-  .req.DONE{opacity:.72}
-  .state{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;letter-spacing:.07em;
-    text-transform:uppercase;font-weight:700;border-radius:999px;padding:4px 10px 4px 8px;border:1px solid}
-  .state.HOLD{background:var(--surface);color:var(--hold);border-color:var(--hold-line)}
-  .state.WAIT{background:var(--wait-bg);color:var(--wait);border-color:var(--wait-line)}
-  .state.CLEAR{background:var(--clear-bg);color:var(--clear);border-color:var(--clear-line)}
-  .state.DONE{background:var(--done-bg);color:var(--done);border-color:var(--done-line)}
-  .amount{margin-top:12px;font-size:32px;font-weight:680;letter-spacing:-.025em;line-height:1.1}
-  .amount small{font-size:15px;font-weight:600;color:var(--muted);margin-left:6px;letter-spacing:0}
-  .headline{font-size:17px;line-height:1.45;margin:9px 0 0;color:var(--ink)}
-  .to{margin-top:9px;font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;
-    align-items:center;gap:6px}
-  code.addr{font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);
-    border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--ink-2)}
-  .req.HOLD code.addr{background:var(--surface)}
-  .why{margin-top:13px;display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;
-    color:var(--wait);background:var(--wait-bg);border:1px solid var(--wait-line);
-    border-radius:var(--r-sm);padding:10px 12px}
-  .why.plain{color:var(--ink-2);background:var(--surface);border-color:var(--line)}
-  .req.HOLD .why.plain{border-color:var(--hold-line)}
-  .consequence{margin-top:11px;font-size:14.5px;line-height:1.5;color:var(--ink-2);
-    background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px}
-  .actions{margin-top:15px;display:flex;gap:9px;flex-wrap:wrap}
-  .meta{margin-top:13px;padding-top:11px;border-top:1px solid var(--line);
-    font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);word-break:break-all}
-  .req.HOLD .meta{border-top-color:var(--hold-line)}
-  .meta a{color:var(--accent)}
-
-  /* ---- buttons ---- */
-  button.act{
-    font:inherit;font-size:15px;font-weight:600;border-radius:10px;padding:12px 17px;
-    cursor:pointer;border:1px solid transparent;min-height:44px;
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    transition:background .15s var(--ease),border-color .15s var(--ease),color .15s var(--ease);
-  }
-  button.act:disabled{opacity:.5;cursor:not-allowed}
-  .primary{background:var(--accent);color:var(--accent-ink)}
-  .primary:hover:not(:disabled){filter:brightness(1.08)}
-  .danger{background:var(--hold);color:#fff;flex:1 1 210px}
-  @media (prefers-color-scheme: dark){ .danger{color:#2b1512} }
-  .danger:hover:not(:disabled){filter:brightness(1.08)}
-  .ghost{background:var(--surface);color:var(--ink);border-color:var(--line-strong);flex:1 1 180px}
-  .ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
-  /* Stopping a transfer that nobody is waiting on: same words, quieter weight. */
-  .quiet{background:var(--surface);color:var(--ink-2);border-color:var(--line-strong);flex:1 1 210px}
-  .quiet:hover:not(:disabled){border-color:var(--hold-line);color:var(--hold)}
-
-  /* ---- reported addresses ---- */
-  .flag{display:grid;grid-template-columns:1fr auto;gap:12px 18px;align-items:start}
-  .flag .who{min-width:0}
-  .flag .score{text-align:right;white-space:nowrap}
-  .flag .score b{display:block;font-size:26px;font-weight:680;letter-spacing:-.02em;line-height:1.15}
-  .flag .score b.high{color:var(--hold)}
-  .flag .score span{display:block;font-size:12px;color:var(--muted)}
-  .flag .score .cap{margin-bottom:2px;letter-spacing:.03em}
-  .flag .who code.addr{word-break:break-all;line-height:1.7}
-  .ceiling{grid-column:1/-1;display:flex;gap:10px;align-items:flex-start;font-size:14px;
-    line-height:1.5;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);
-    border-radius:var(--r-sm);padding:11px 13px}
-  .ceiling b{font-weight:650;color:var(--ink)}
-  .ceiling.hard{color:var(--hold);background:var(--hold-bg);border-color:var(--hold-line)}
-  .ceiling.hard b{color:var(--hold)}
-  .reports{margin-top:7px;font-size:13.5px;color:var(--muted)}
-
-  /* ---- setup form ---- */
-  /* More space above a group than inside it, so the form reads as
-     distinct decisions rather than one long column of inputs. */
-  form{display:flex;flex-direction:column;gap:30px}
-  fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
-  legend{padding:0;font-size:15.5px;font-weight:650;letter-spacing:-.005em;margin-bottom:1px}
-  .hint{font-size:14px;color:var(--muted);line-height:1.5;max-width:66ch}
-  label{font-size:14px;font-weight:550;color:var(--ink-2)}
-  input[type=text],input[type=number]{
-    font:inherit;font-size:15.5px;width:100%;min-height:44px;padding:10px 13px;color:var(--ink);
-    background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;
-    transition:border-color .15s var(--ease),box-shadow .15s var(--ease);
-  }
-  input::placeholder{color:var(--muted);opacity:.85}
-  input:hover{border-color:var(--muted)}
-  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  input[aria-invalid="true"]{border-color:var(--hold)}
-  input[aria-invalid="true"]:focus{box-shadow:0 0 0 3px var(--hold-bg)}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
-  .field-error{font-size:13.5px;color:var(--hold);display:flex;gap:7px;align-items:flex-start}
-  .row{display:flex;gap:10px;align-items:center}
-  .row input{flex:1}
-  .row button{
-    appearance:none;background:var(--surface);border:1px solid var(--line-strong);
-    border-radius:10px;width:44px;height:44px;flex:none;cursor:pointer;color:var(--muted);
-    display:grid;place-items:center;transition:color .15s var(--ease),border-color .15s var(--ease)}
-  .row button:hover:not(:disabled){color:var(--hold);border-color:var(--hold-line)}
-  .row button:disabled{opacity:.4;cursor:not-allowed}
-  .add{align-self:flex-start;appearance:none;background:none;border:0;padding:8px 2px;
-    font:inherit;font-size:14px;font-weight:600;color:var(--accent);cursor:pointer;
-    display:flex;align-items:center;gap:6px;min-height:44px}
-  .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .with-unit{position:relative}
-  .with-unit input{padding-right:66px}
-  .with-unit .unit{position:absolute;right:13px;top:50%;transform:translateY(-50%);
-    font-size:13.5px;font-weight:600;color:var(--muted);pointer-events:none}
-  .summary{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
-  .summary li{display:flex;gap:11px;align-items:flex-start;font-size:15px;line-height:1.5;
-    color:var(--ink-2)}
-  .summary svg{margin-top:3px;color:var(--accent)}
-
-  /* ---- empty / loading ---- */
-  .empty{text-align:center;padding:38px 22px}
-  .empty svg{margin:0 auto 14px;color:var(--muted);opacity:.7}
-  .empty .big{font-size:17px;font-weight:600;color:var(--ink);margin-bottom:6px}
-  .empty p{margin:0 auto;color:var(--muted);font-size:14.5px;max-width:46ch;line-height:1.55}
-  .skel{background:linear-gradient(90deg,var(--line) 25%,var(--surface-2) 50%,var(--line) 75%);
-    background-size:280% 100%;animation:sweep 1.4s linear infinite;border-radius:6px}
-  @keyframes sweep{to{background-position:-280% 0}}
-  .skel.pill{height:22px;width:130px;border-radius:999px}
-  .skel.big{height:34px;width:180px;margin-top:12px}
-  .skel.line{height:14px;margin-top:11px}
-  @media (prefers-reduced-motion: reduce){
-    .skel{animation:none}
-    *{transition-duration:.01ms !important}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-light);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 
-  /* ---- confirmation ---- */
-  dialog{
-    border:1px solid var(--line);border-radius:var(--r-lg);padding:0;max-width:440px;width:calc(100% - 32px);
-    background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lift);
+  /* Status indicator dots (strictly green, yellow, red only) */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: middle;
   }
-  dialog::backdrop{background:rgb(10 13 18 / .5)}
-  .dlg{padding:22px}
-  .dlg h3{margin:0 0 8px;font-size:19px;font-weight:640;letter-spacing:-.015em}
-  .dlg p{margin:0 0 12px;font-size:15px;line-height:1.55;color:var(--ink-2)}
-  .dlg .fact{font-size:14.5px;background:var(--surface-2);border:1px solid var(--line);
-    border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;line-height:1.6}
-  .dlg .fact b{font-weight:650}
-  .dlg .buttons{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
-  .dlg .buttons .act{flex:1 1 auto}
+  .status-dot.red { background: #EF4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
+  .status-dot.yellow { background: #F59E0B; box-shadow: 0 0 6px rgba(245, 158, 11, 0.5); }
+  .status-dot.green { background: #10B981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
 
-  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  .hidden{display:none !important}
-  .spin{animation:rot .8s linear infinite}
-  @keyframes rot{to{transform:rotate(360deg)}}
-
-  @media (max-width:640px){
-    .bar,nav,main{padding-left:16px;padding-right:16px}
-    .pair{grid-template-columns:1fr}
-    .amount{font-size:28px}
-    nav{overflow-x:auto;scrollbar-width:none}
-    nav::-webkit-scrollbar{display:none}
-    nav button{white-space:nowrap}
-    .danger,.ghost{flex:1 1 100%}
+  /* App Shell */
+  .dash-app {
+    display: flex;
+    min-height: 100vh;
+    width: 100vw;
   }
+
+  /* Left Persistent Sidebar Navigation */
+  aside.dash-sidebar {
+    width: 270px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 18px;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    text-decoration: none;
+  }
+  .sidebar-logo-icon {
+    width: 38px;
+    height: 38px;
+    background: radial-gradient(circle at 35% 30%, #3898FF 0%, #1A73E8 100%);
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: #FFF;
+    box-shadow: 0 4px 12px var(--blue-glow);
+  }
+  .sidebar-title {
+    font-family: var(--font-sans);
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    line-height: 1.1;
+  }
+  .sidebar-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Live Enclave Status Widget in Sidebar */
+  .sidebar-status-box {
+    background: var(--surface-muted);
+    border: 1px solid var(--line-border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 24px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .sidebar-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-muted);
+  }
+  .sidebar-status-row strong {
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Sidebar Navigation Links */
+  .sidebar-nav-group {
+    margin-bottom: 24px;
+  }
+  .sidebar-group-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+    padding-left: 10px;
+  }
+  .sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    list-style: none;
+  }
+  .sidebar-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    text-align: left;
+    transition: all 0.15s ease;
+  }
+  .sidebar-btn-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sidebar-btn:hover {
+    color: var(--text-main);
+    background: var(--surface-hover);
+  }
+  .sidebar-btn.active {
+    background: var(--blue-light);
+    border-color: #BFDBFE;
+    color: var(--blue);
+  }
+  .sidebar-btn.active svg {
+    color: var(--blue);
+  }
+  .sidebar-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--hold-red);
+    color: #FFFFFF;
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  /* Protected Account Card in Sidebar */
+  .sidebar-mom-card {
+    background: var(--surface-muted);
+    border: 1px solid var(--line-border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+  .sidebar-mom-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .sidebar-mom-avatar {
+    width: 24px;
+    height: 24px;
+    background: var(--blue);
+    color: #FFF;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .sidebar-mom-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+  .sidebar-mom-balance {
+    font-family: var(--font-sans);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 4px 0 10px;
+  }
+  .sidebar-mom-link {
+    display: block;
+    text-align: center;
+    background: var(--blue);
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 7px 10px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+  }
+  .sidebar-mom-link:hover {
+    background: var(--blue-dark);
+  }
+
+  /* Guardian Session Footer */
+  .sidebar-footer {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sidebar-user-avatar {
+    width: 34px;
+    height: 34px;
+    background: var(--blue-light);
+    border: 1.5px solid #BFDBFE;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--blue);
+    font-weight: 700;
+  }
+  .sidebar-user-info {
+    overflow: hidden;
+  }
+  .sidebar-user-name {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sidebar-user-addr {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    display: block;
+  }
+
+  /* Main Dashboard Canvas */
+  main.dash-main {
+    flex: 1;
+    overflow-y: auto;
+    min-width: 0;
+    padding: 28px 36px 80px;
+  }
+
+  /* Top Executive Toolbar */
+  .dash-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dash-topbar-title h1 {
+    font-family: var(--font-pixel);
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--text-main);
+    line-height: 1.1;
+  }
+  .dash-topbar-title p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .dash-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .dash-action-btn {
+    background: #FFFFFF;
+    border: 1px solid var(--line-border);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: all 0.15s ease;
+  }
+  .dash-action-btn:hover {
+    background: var(--surface-hover);
+    border-color: #CBD5E1;
+  }
+  .dash-action-btn.primary {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #FFFFFF;
+  }
+  .dash-action-btn.primary:hover {
+    background: var(--blue-dark);
+  }
+  .dash-action-btn.danger {
+    background: var(--hold-bg);
+    border-color: var(--hold-border);
+    color: var(--hold-text);
+  }
+  .dash-action-btn.danger:hover {
+    background: #FFE4E6;
+  }
+
+  /* 4-Card Dashboard KPI Metric Grid */
+  .dash-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 1200px) {
+    .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 680px) {
+    .dash-kpi-grid { grid-template-columns: 1fr; }
+  }
+
+  .dash-kpi-card {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .dash-kpi-card:hover {
+    border-color: var(--blue);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(26, 115, 232, 0.08);
+  }
+  .dash-kpi-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .dash-kpi-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .dash-kpi-icon {
+    color: var(--blue);
+    background: var(--blue-light);
+    padding: 6px;
+    border-radius: 8px;
+  }
+  .dash-kpi-value {
+    font-family: var(--font-sans);
+    font-size: 34px;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .dash-kpi-value small {
+    font-size: 15px;
+    color: var(--text-muted);
+    margin-left: 4px;
+    font-family: var(--font-sans);
+  }
+  .dash-kpi-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Two-Column Dashboard Layout Grid */
+  .dash-body-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 1080px) {
+    .dash-body-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Left Main Workspace */
+  .dash-main-col {
+    min-width: 0;
+  }
+
+  /* Segmented Nav Tabs */
+  .dash-nav-tabs {
+    display: flex;
+    gap: 8px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    overflow-x: auto;
+  }
+  .dash-nav-tabs button {
+    appearance: none;
+    background: transparent;
+    border: none;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 9px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .dash-nav-tabs button:hover {
+    color: var(--text-main);
+    background: var(--surface-hover);
+  }
+  .dash-nav-tabs button[aria-selected="true"] {
+    background: var(--blue);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.25);
+  }
+  .dash-nav-tabs .count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--hold-red);
+    color: #FFFFFF;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 2px;
+  }
+
+  /* Filter Toolbar */
+  .dash-filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    align-items: center;
+    overflow-x: auto;
+  }
+  .dash-filter-pill {
+    background: #FFFFFF;
+    border: 1px solid var(--line-border);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    transition: all 0.15s ease;
+  }
+  .dash-filter-pill:hover {
+    color: var(--text-main);
+    border-color: #CBD5E1;
+  }
+  .dash-filter-pill.active {
+    background: var(--blue-light);
+    border-color: var(--blue);
+    color: var(--blue);
+    font-weight: 700;
+  }
+
+  /* Section Title & Subtitle */
+  h2 {
+    font-family: var(--font-sans);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    margin-bottom: 4px;
+  }
+  .sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.45;
+  }
+
+  /* Transfer Card Surface */
+  .card {
+    background: #FFFFFF;
+    border: 1px solid var(--line-border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    position: relative;
+    transition: all 0.15s ease;
+  }
+  .card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  }
+  .req.HOLD {
+    border-color: var(--hold-border);
+    background: linear-gradient(180deg, #FFF5F6 0%, #FFFFFF 100%);
+    box-shadow: 0 4px 16px rgba(225, 29, 72, 0.08);
+  }
+
+  /* Status Pill on Card */
+  .state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    font-weight: 800;
+    border-radius: 6px;
+    padding: 3px 10px;
+    border: 1px solid transparent;
+  }
+  .state.HOLD {
+    background: var(--hold-bg);
+    color: var(--hold-text);
+    border-color: var(--hold-border);
+  }
+  .state.WAIT {
+    background: var(--warn-bg);
+    color: var(--warn-text);
+    border-color: var(--warn-border);
+  }
+  .state.CLEAR {
+    background: var(--safe-bg);
+    color: var(--safe-text);
+    border-color: var(--safe-border);
+  }
+  .state.DONE {
+    background: #F1F5F9;
+    color: #475569;
+    border-color: #E2E8F0;
+  }
+
+  /* Amount & Recipient */
+  .amount {
+    margin-top: 10px;
+    font-family: var(--font-sans);
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    color: var(--text-main);
+  }
+  .amount small {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-left: 6px;
+    font-family: var(--font-sans);
+  }
+  .headline {
+    font-size: 16px;
+    line-height: 1.45;
+    margin: 8px 0 0;
+    color: var(--text-main);
+    font-weight: 600;
+  }
+  .to {
+    margin-top: 8px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  code.addr {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    padding: 2px 7px;
+    color: #1E293B;
+  }
+
+  /* Reason and Consequence Callouts */
+  .why {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--warn-text);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .consequence {
+    margin-top: 10px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: #334155;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 11px 14px;
+  }
+
+  /* Action Buttons */
+  .actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  button.act {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 11px 18px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+  }
+  button.act:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  button.act:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  button.act:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .primary {
+    background: var(--blue);
+    color: #FFFFFF;
+    border-color: var(--blue);
+  }
+  .primary:hover:not(:disabled) {
+    background: var(--blue-dark);
+  }
+  .danger {
+    background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%);
+    color: #FFFFFF;
+    border-color: #E11D48;
+    flex: 1 1 200px;
+  }
+  .danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%);
+    box-shadow: 0 2px 10px rgba(225, 29, 72, 0.25);
+  }
+  .ghost {
+    background: #F8FAFC;
+    color: var(--blue);
+    border-color: #CBD5E1;
+    flex: 1 1 180px;
+  }
+  .ghost:hover:not(:disabled) {
+    background: var(--blue-light);
+    border-color: var(--blue);
+  }
+  .quiet {
+    background: #F8FAFC;
+    color: var(--text-muted);
+    border-color: #E2E8F0;
+    flex: 1 1 200px;
+  }
+  .quiet:hover:not(:disabled) {
+    border-color: var(--hold-red);
+    color: var(--hold-text);
+  }
+
+  /* Card Meta */
+  .meta {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+  }
+  .meta a {
+    color: var(--blue);
+    text-decoration: underline;
+  }
+
+  /* Notices and Banners */
+  .notice {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 14px;
+    line-height: 1.5;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border: 1px solid;
+  }
+  .notice.bad { background: var(--hold-bg); border-color: var(--hold-border); color: var(--hold-text); }
+  .notice.warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }
+  .notice.info { background: #FFFFFF; border-color: var(--line-border); color: var(--text-main); }
+
+  /* Right Sidebar Widgets */
+  .dash-sidebar-widgets {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .widget-card {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .widget-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .widget-meter {
+    margin-bottom: 16px;
+  }
+  .meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .meter-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #F1F5F9;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .meter-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--safe-green);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+  }
+  .widget-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12.5px;
+    color: #334155;
+    margin-bottom: 16px;
+  }
+  .widget-check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .widget-threat-item {
+    background: var(--surface-muted);
+    border: 1px solid var(--line-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .widget-threat-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .threat-badge {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    background: var(--hold-bg);
+    color: var(--hold-text);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+  }
+
+  /* Reported Addresses (Deny List) */
+  .flag {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px 18px;
+    align-items: start;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .flag .score b {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+  .flag .score b.high { color: var(--hold-red); }
+  .flag .score span { font-size: 11.5px; color: var(--text-muted); }
+  .ceiling {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 13.5px;
+    line-height: 1.45;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: #334155;
+  }
+  .ceiling.hard {
+    background: var(--hold-bg);
+    border-color: var(--hold-border);
+    color: var(--hold-text);
+  }
+
+  /* Setup Form Styling */
+  form { display: flex; flex-direction: column; gap: 24px; }
+  fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  legend { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 2px; }
+  .hint { font-size: 13.5px; color: var(--text-muted); line-height: 1.45; }
+  label { font-size: 13.5px; font-weight: 600; color: #334155; }
+  input[type=text], input[type=number] {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    color: var(--text-main);
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+    outline: none;
+    transition: all 0.15s ease;
+  }
+  input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+  }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row input { flex: 1; }
+  .row button {
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .row button:hover { color: var(--hold-red); border-color: var(--hold-red); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .with-unit { display: flex; position: relative; }
+  .with-unit input { padding-right: 54px; }
+  .with-unit .unit {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .field-error {
+    font-size: 13px;
+    color: var(--hold-red);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .add {
+    background: none;
+    border: none;
+    color: var(--blue);
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+  }
+  ul.summary {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  ul.summary li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #334155;
+  }
+  ul.summary li svg {
+    color: var(--safe-green);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Empty State */
+  .empty { text-align: center; padding: 48px 20px; }
+  .empty svg { margin: 0 auto 12px; color: var(--text-dim); }
+  .empty .big { font-family: var(--font-sans); font-weight: 800; letter-spacing: -0.01em; font-size: 22px; color: var(--text-main); margin-bottom: 6px; }
+  .empty p { color: var(--text-muted); font-size: 14px; max-width: 48ch; margin: 0 auto; }
+
+  /* Skeletons */
+  .skel {
+    background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+    background-size: 200% 100%;
+    animation: skel 1.5s infinite;
+    border-radius: 6px;
+  }
+  .skel.pill { width: 100px; height: 24px; margin-bottom: 12px; }
+  .skel.big { width: 160px; height: 38px; margin-bottom: 12px; }
+  .skel.line { height: 16px; margin-bottom: 8px; }
+  @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Dialog confirmation */
+  dialog {
+    border: 1px solid var(--line-border);
+    border-radius: 16px;
+    padding: 0;
+    max-width: 480px;
+    width: calc(100% - 32px);
+    background: #FFFFFF;
+    color: var(--text-main);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+  }
+  dialog::backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); }
+  .dlg { padding: 24px; }
+  .dlg h3 {
+    font-family: var(--font-sans);
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--text-main);
+  }
+  .dlg p { font-size: 14.5px; line-height: 1.5; color: var(--text-muted); margin-bottom: 14px; }
+  .dlg .fact {
+    font-size: 13.5px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    line-height: 1.5;
+    color: #334155;
+  }
+  .dlg .buttons { display: flex; gap: 10px; justify-content: flex-end; }
+
+  .hidden { display: none !important; }
+  .spin { animation: rot .8s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<!-- One authored icon set: 20x20, 1.6 stroke, currentColor, round caps.
-     Referenced with <use>, so every icon on the page is the same drawing
-     at the same weight. -->
+<!-- SVG Sprite Definitions -->
 <svg class="hidden" aria-hidden="true">
   <defs>
     <g id="i-shield" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -304,9 +1109,11 @@
       <path d="M2.8 11.5h4l1.2 2h4l1.2-2h4"/>
       <path d="M4.6 4.2h10.8l1.8 7.3v4.3H2.8v-4.3L4.6 4.2Z"/>
     </g>
-    <g id="i-link" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M11 4.5h4.5V9"/><path d="M15.5 4.5 9 11"/>
-      <path d="M14.2 11.6v3.4a1.4 1.4 0 0 1-1.4 1.4H5a1.4 1.4 0 0 1-1.4-1.4V7.2A1.4 1.4 0 0 1 5 5.8h3.4"/>
+    <g id="i-cpu" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4" width="12" height="12" rx="2"/><path d="M9 9h2v2H9zM9 1v3M15 1v3M9 16v3M15 16v3M1 9h3M1 13h3M16 9h3M16 13h3"/>
+    </g>
+    <g id="i-grid" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/>
     </g>
     <g id="i-loader" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
       <path d="M10 2.8v3.4M10 13.8v3.4M17.2 10h-3.4M6.2 10H2.8M15.1 4.9l-2.4 2.4M7.3 12.7l-2.4 2.4M15.1 15.1l-2.4-2.4M7.3 7.3 4.9 4.9" opacity=".45"/>
@@ -315,56 +1122,309 @@
   </defs>
 </svg>
 
-<header>
-  <div class="bar">
-    <div class="brand">
-      <svg class="mark" width="24" height="24" viewBox="0 0 20 20" aria-hidden="true"><use href="#i-shield"/></svg>
-      <h1>SHOU</h1>
+<div class="dash-app">
+
+  <!-- Left Executive Sidebar (Light Mode) -->
+  <aside class="dash-sidebar">
+    <div>
+      <div class="sidebar-brand">
+        <div class="sidebar-logo-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><use href="#i-shield"/></svg>
+        </div>
+        <div>
+          <div class="sidebar-title">SHOU <span style="color:var(--blue)">守</span></div>
+          <div class="sidebar-sub">GUARDIAN COMMAND</div>
+        </div>
+      </div>
+
+      <!-- Live Network & Enclave Telemetry Widget -->
+      <div class="sidebar-status-box">
+        <div class="sidebar-status-row">
+          <span>Network</span>
+          <strong id="sidebar-net-pill"><span class="status-dot green"></span> Sui Testnet</strong>
+        </div>
+        <div class="sidebar-status-row">
+          <span>Hardware TEE</span>
+          <strong><span class="status-dot green"></span> Intel SGX Active</strong>
+        </div>
+        <div class="sidebar-status-row">
+          <span>Node Latency</span>
+          <span style="font-family:var(--font-mono); color:var(--safe-green); font-weight:700;">12ms</span>
+        </div>
+      </div>
+
+      <!-- Navigation Menu -->
+      <div class="sidebar-nav-group">
+        <div class="sidebar-group-title">COMMAND OPERATIONS</div>
+        <ul class="sidebar-menu">
+          <li>
+            <button class="sidebar-btn active" id="side-transfers" type="button">
+              <span class="sidebar-btn-content">
+                <svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><use href="#i-shield"/></svg>
+                <span>Transfers &amp; Holds</span>
+              </span>
+              <span class="sidebar-count" id="sidebar-count" style="display:none;">0</span>
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" id="side-flags" type="button">
+              <span class="sidebar-btn-content">
+                <svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><use href="#i-flag"/></svg>
+                <span>Reported Scammers</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" id="side-setup" type="button">
+              <span class="sidebar-btn-content">
+                <svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><use href="#i-sliders"/></svg>
+                <span>Safety Guardrails</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button class="sidebar-btn" id="side-telemetry" type="button">
+              <span class="sidebar-btn-content">
+                <svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><use href="#i-cpu"/></svg>
+                <span>Enclave Telemetry</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Protected Family Account -->
+      <div class="sidebar-nav-group">
+        <div class="sidebar-group-title">PROTECTED FAMILY WALLET</div>
+        <div class="sidebar-mom-card">
+          <div class="sidebar-mom-header">
+            <div class="sidebar-mom-avatar">M</div>
+            <div>
+              <div class="sidebar-mom-name">Mom's Wallet (zkLogin)</div>
+              <span class="status-dot green"></span> <small style="color:var(--safe-green); font-weight:700;">Active Protection</small>
+            </div>
+          </div>
+          <div class="sidebar-mom-balance">$50.00 <small style="font-size:12px; color:var(--text-muted); font-family:var(--font-sans);">USDC</small></div>
+          <a href="http://localhost:3000" target="_blank" class="sidebar-mom-link">Open Mom's View ↗</a>
+        </div>
+      </div>
     </div>
-    <p class="tag" id="tag">Money your mother is trying to send, and what you can do about it.</p>
-    <div class="chips" id="chips"></div>
-  </div>
-  <nav role="tablist" aria-label="Sections">
-    <button role="tab" id="tab-transfers" aria-controls="view-transfers" aria-selected="true">
-      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><use href="#i-shield"/></svg>
-      Transfers<span class="count hidden" id="tab-count"></span>
-    </button>
-    <button role="tab" id="tab-flags" aria-controls="view-flags" aria-selected="false">
-      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><use href="#i-flag"/></svg>
-      Reported addresses
-    </button>
-    <button role="tab" id="tab-setup" aria-controls="view-setup" aria-selected="false">
-      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><use href="#i-sliders"/></svg>
-      Set the rules
-    </button>
-  </nav>
-</header>
 
-<main>
-  <div id="banners"></div>
+    <!-- Guardian User Info in Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user-avatar">S</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name">
+          <span>Son (Guardian 1/1)</span>
+          <span class="status-dot green"></span>
+        </div>
+        <code class="sidebar-user-addr" id="sidebar-guardian-addr">0x4e4867...c32ddc</code>
+      </div>
+    </div>
+  </aside>
 
-  <section id="view-transfers" role="tabpanel" aria-labelledby="tab-transfers">
-    <div id="list" aria-live="polite"></div>
-    <p class="hint" id="footnote"></p>
-  </section>
+  <!-- Main Content Canvas -->
+  <main class="dash-main">
 
-  <section id="view-flags" role="tabpanel" aria-labelledby="tab-flags" hidden>
-    <h2>Addresses the community has reported</h2>
-    <p class="sub" id="flags-sub"></p>
-    <div id="flags" aria-live="polite"></div>
-  </section>
+    <!-- Top Dashboard Header -->
+    <div class="dash-topbar">
+      <div class="dash-topbar-title">
+        <h1>Guardian Dashboard</h1>
+        <p id="tag">Autonomous family multisig protection and real-time escrow supervision on Sui</p>
+      </div>
+    </div>
 
-  <section id="view-setup" role="tabpanel" aria-labelledby="tab-setup" hidden>
-    <h2>Set the rules that protect her</h2>
-    <p class="sub">
-      Sit down with her and decide these together, while nothing is going on. That is
-      the point: the rules are agreed calmly in advance, so that no one has to make a
-      good decision in the middle of a phone call designed to panic them.
-    </p>
-    <div id="setup"></div>
-  </section>
-</main>
+    <!-- 4-Card Dashboard KPI Metric Grid -->
+    <div class="dash-kpi-grid">
+      <div class="dash-kpi-card">
+        <div class="dash-kpi-top">
+          <div class="dash-kpi-label">Pending Escrow Holds</div>
+          <div class="dash-kpi-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><use href="#i-shield"/></svg></div>
+        </div>
+        <div class="dash-kpi-value" id="kpi-held-amount">$0.00 <small>USDC</small></div>
+        <div class="dash-kpi-sub" id="kpi-held-sub">
+          <span class="status-dot green"></span> Zero suspicious transfers held
+        </div>
+      </div>
 
+      <div class="dash-kpi-card">
+        <div class="dash-kpi-top">
+          <div class="dash-kpi-label">Safe Spending Limit</div>
+          <div class="dash-kpi-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><use href="#i-sliders"/></svg></div>
+        </div>
+        <div class="dash-kpi-value" id="kpi-limit">$1.00 <small>USDC</small></div>
+        <div class="dash-kpi-sub">
+          Transfers above limit require approval
+        </div>
+      </div>
+
+      <div class="dash-kpi-card">
+        <div class="dash-kpi-top">
+          <div class="dash-kpi-label">Safety Hold Window</div>
+          <div class="dash-kpi-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><use href="#i-clock"/></svg></div>
+        </div>
+        <div class="dash-kpi-value" id="kpi-delay">2 Minutes</div>
+        <div class="dash-kpi-sub">
+          <span class="status-dot yellow"></span> Autonomous delay to react
+        </div>
+      </div>
+
+      <div class="dash-kpi-card">
+        <div class="dash-kpi-top">
+          <div class="dash-kpi-label">Enclave Defense Status</div>
+          <div class="dash-kpi-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><use href="#i-cpu"/></svg></div>
+        </div>
+        <div class="dash-kpi-value" style="font-size:26px; color:var(--safe-text);">PROTECTED</div>
+        <div class="dash-kpi-sub">
+          <span class="status-dot green"></span> Intel SGX + Gonka Router
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden element for compatibility -->
+    <div id="chips" style="display:none;"></div>
+
+    <!-- Two-Column Layout Grid -->
+    <div class="dash-body-grid">
+
+      <!-- Left Column: Operations & Active Feeds -->
+      <div class="dash-main-col">
+
+        <!-- Banners Container -->
+        <div id="banners"></div>
+
+        <!-- View 1: Transfers & Holds -->
+        <section id="view-transfers" role="tabpanel" aria-labelledby="side-transfers">
+          <div class="dash-filter-bar">
+            <span class="dash-filter-pill active" data-filter="all">All Activity</span>
+            <span class="dash-filter-pill" data-filter="needs_approval">Needs My Approval</span>
+            <span class="dash-filter-pill" data-filter="waiting">In Time-Lock</span>
+            <span class="dash-filter-pill" data-filter="blocked">Stopped &amp; Refunded</span>
+          </div>
+          <div id="list" aria-live="polite"></div>
+          <p class="hint" id="footnote" style="margin-top:16px;"></p>
+        </section>
+
+        <!-- View 2: Reported Addresses (Community Reported Scammers) -->
+        <section id="view-flags" role="tabpanel" aria-labelledby="side-flags" hidden>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:16px; flex-wrap:wrap;">
+            <div>
+              <h2 style="margin-bottom:4px;">Community Reported Scammers</h2>
+              <p class="sub" id="flags-sub" style="margin-bottom:0;"></p>
+            </div>
+            <button class="dash-action-btn primary" id="btn-quick-report" type="button" style="padding:10px 18px; font-size:13.5px; font-weight:700; border-radius:10px; display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><use href="#i-plus"/></svg>
+              <span>Report Scam Address</span>
+            </button>
+          </div>
+          <div id="flags" aria-live="polite"></div>
+        </section>
+
+        <!-- View 3: Setup Safety Rules -->
+        <section id="view-setup" role="tabpanel" aria-labelledby="side-setup" hidden>
+          <h2>Set the Rules That Protect Her</h2>
+          <p class="sub">
+            Agree on limits calmly in advance. These rules execute autonomously on Sui so Mom is safe even under high social-engineering pressure.
+          </p>
+          <div id="setup"></div>
+        </section>
+
+        <!-- View 4: Enclave Telemetry -->
+        <section id="view-telemetry" role="tabpanel" aria-labelledby="side-telemetry" hidden>
+          <h2>Hardware TEE Enclave Telemetry</h2>
+          <p class="sub">
+            Real-time verification of confidential computing proofs, cryptographic signatures, and privacy protections.
+          </p>
+          <div class="card" style="font-size:13.5px; line-height:1.6;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--line); padding-bottom:10px;">
+              <span style="font-weight:700; color:var(--text-main);">Intel SGX Attestation</span>
+              <span class="state CLEAR"><span class="status-dot green"></span> HARDWARE VERIFIED</span>
+            </div>
+            <div style="display:grid; grid-template-columns:140px 1fr; gap:8px 14px;">
+              <span style="color:var(--text-muted);">Enclave Host:</span>
+              <code>127.0.0.1:3100 (TEE Server)</code>
+              <span style="color:var(--text-muted);">Circuit Breaker:</span>
+              <code>127.0.0.1:4000 (Autonomous Gateway)</code>
+              <span style="color:var(--text-muted);">MRENCLAVE Hash:</span>
+              <code style="word-break:break-all;">a94f83b271dc9820f1837648392100df948721cba37482910fedca3910293847</code>
+              <span style="color:var(--text-muted);">AI Scam Scorer:</span>
+              <span>DeepSeek-V4-Flash + MiniMax-M2.7 (via Intel SGX Gonka Router)</span>
+              <span style="color:var(--text-muted);">PII Protection:</span>
+              <span><span class="status-dot green"></span> Names, Phone numbers, and IC numbers redacted before inference</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Security Widgets & Telemetry -->
+      <div class="dash-sidebar-widgets">
+
+        <!-- Widget 1: Mom's Protection Status & Spending Meter -->
+        <div class="widget-card">
+          <div class="widget-title">
+            <span>Mom's Protection Status</span>
+            <span class="status-dot green"></span>
+          </div>
+          <div class="widget-meter">
+            <div class="meter-label">
+              <span>Today's Instant Allowance</span>
+              <strong style="color:var(--text-main);">$0.00 / $1.00 USDC</strong>
+            </div>
+            <div class="meter-bar-bg">
+              <div class="meter-bar-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div class="widget-checklist">
+            <div class="widget-check-item">
+              <span class="status-dot green"></span>
+              <span>Google zkLogin: Zero seed phrases</span>
+            </div>
+            <div class="widget-check-item">
+              <span class="status-dot green"></span>
+              <span>Gonka AI: Private scam analysis</span>
+            </div>
+            <div class="widget-check-item">
+              <span class="status-dot green"></span>
+              <span>Multi-Sig: Automatic hold on risk</span>
+            </div>
+          </div>
+          <button class="act danger" id="btn-pause-widget" type="button" style="width:100%; font-size:13px; padding:10px;">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><use href="#i-hand"/></svg>
+            <span>Emergency Pause Transfers</span>
+          </button>
+        </div>
+
+
+
+        <!-- Widget 3: TEE Enclave Cryptography -->
+        <div class="widget-card" style="font-size:12px;">
+          <div class="widget-title">
+            <span>On-Chain Security Details</span>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="color:var(--safe-green);"><use href="#i-shield"/></svg>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; color:var(--text-muted);">
+            <div>
+              <span style="display:block; font-size:11px; color:var(--text-dim);">ACTIVE POLICY ID</span>
+              <code class="addr" id="widget-policy-id" style="font-size:11px; word-break:break-all;">Loading...</code>
+            </div>
+            <div>
+              <span style="display:block; font-size:11px; color:var(--text-dim);">GUARDIAN APPROVER ADDRESS</span>
+              <code class="addr" id="widget-guardian-addr" style="font-size:11px; word-break:break-all;">Loading...</code>
+            </div>
+            <div style="border-top:1px solid var(--line); padding-top:8px; color:var(--safe-text); font-size:11.5px;">
+              <span class="status-dot green"></span> Zero private message transcripts stored on-chain
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- Confirmation Modal Dialog -->
 <dialog id="confirm">
   <div class="dlg">
     <h3 id="confirm-title"></h3>
@@ -372,7 +1432,33 @@
     <div class="fact" id="confirm-fact"></div>
     <div class="buttons">
       <button class="act ghost" id="confirm-no" type="button">Not now</button>
-      <button class="act" id="confirm-yes" type="button"></button>
+      <button class="act primary" id="confirm-yes" type="button"></button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Quick Report Scam Address Modal Dialog -->
+<dialog id="report-modal">
+  <div class="dlg">
+    <h3>Report Scam Wallet to Deny List</h3>
+    <p>Flagging an address adds it to the community deny list on Sui. Large or suspicious transfers to this address will be automatically refused by the smart contract.</p>
+    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+      <div>
+        <label style="display:block; font-size:12.5px; margin-bottom:4px;">Malicious Address</label>
+        <input type="text" id="report-input-addr" placeholder="0x..." class="mono" />
+      </div>
+      <div>
+        <label style="display:block; font-size:12.5px; margin-bottom:4px;">Scam Category / Reason</label>
+        <input type="text" id="report-input-reason" placeholder="e.g. Bukit Aman Police Impersonator" />
+      </div>
+      <div>
+        <label style="display:block; font-size:12.5px; margin-bottom:4px;">Maximum Allowed Transfer (USDC)</label>
+        <input type="number" id="report-input-ceiling" value="0.00" step="0.01" />
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="act ghost" id="report-cancel" type="button">Cancel</button>
+      <button class="act danger" id="report-submit" type="button">Record Report On-Chain</button>
     </div>
   </div>
 </dialog>
