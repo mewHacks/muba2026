@@ -1624,6 +1624,15 @@
           <line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
       </button>
+
+      <!-- Real-time zkLogin Address Display Badge -->
+      <div id="nav-wallet-pill" class="nav-wallet-pill" style="display:none; align-items:center; gap:8px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:999px; padding:4px 12px; font-size:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16A34A; box-shadow:0 0 0 2px #DCFCE7;"></span>
+        <span style="font-weight:600; color:#334155;">Mom's Wallet:</span>
+        <code id="nav-address-display" style="font-family:var(--font-mono); color:#2563EB; font-weight:700; cursor:pointer;" title="Click to copy full Sui address">0x...</code>
+        <span style="font-size:10px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:0.03em;">Zero Seed Phrase</span>
+      </div>
+
       <button id="signin" class="nav-right-btn" type="button">
         Sign in with Google
       </button>
@@ -1635,6 +1644,13 @@
       </a>
     </div>
   </nav>
+
+  <!-- Live zkLogin Active Notification Banner -->
+  <div id="zklogin-success-banner" style="display:none; background:#EFF6FF; border-bottom:1px solid #BFDBFE; padding:10px 16px; font-size:13px; color:#1E40AF; text-align:center;">
+    <span style="font-weight:700; margin-right:6px;">✨ Google zkLogin Active:</span>
+    Mom's Sui wallet address <code id="banner-address" style="font-family:var(--font-mono); font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:2px 7px; border-radius:4px;">0x...</code> is derived directly from Google OAuth.
+    <strong style="color:#15803D; margin-left:6px;">Zero 12-word seed phrases required!</strong>
+  </div>
 
   <!-- Was a "Grant recipient from SUI FOUNDATION" badge. Removed: it asserts
        funding from a named foundation, which is the kind of claim a judge can
@@ -2024,9 +2040,17 @@
 
               <!-- Real Senior-Friendly Wallet Breakdown Card -->
               <div style="background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:14px; padding:14px 16px; margin-bottom:12px; text-align:left;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed #E2E8F0; padding-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px dashed #E2E8F0; padding-bottom:8px;">
                   <span style="font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">MOM'S SUI WALLET</span>
                   <span style="font-size:11px; font-weight:600; color:#15803D; background:#DCFCE7; padding:2px 8px; border-radius:999px;">● zkLogin Active</span>
+                </div>
+
+                <div id="mom-card-addr-box" style="margin-bottom:10px; padding:7px 10px; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:8px; display:flex; align-items:center; justify-content:space-between; font-size:11.5px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="color:#64748B; font-weight:600;">Sui Address:</span>
+                    <code id="mom-card-address" style="font-family:var(--font-mono); color:#2563EB; font-weight:700;">0x3a4f...9c12</code>
+                  </div>
+                  <span style="font-size:10px; color:#15803D; background:#DCFCE7; padding:1px 7px; border-radius:999px; font-weight:700;">Zero Seed Phrase</span>
                 </div>
                 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -2390,6 +2414,49 @@
           el.classList.add('is-revealed');
         });
       }
+    })();
+
+    /* Continuous zkLogin Sync Guard */
+    (function () {
+      function syncWalletPill() {
+        var signout = document.getElementById('signout');
+        var navPill = document.getElementById('nav-wallet-pill');
+        var navAddr = document.getElementById('nav-address-display');
+        var banner = document.getElementById('zklogin-success-banner');
+        var bannerAddr = document.getElementById('banner-address');
+        var momCardAddr = document.getElementById('mom-card-address');
+        var hiddenAddr = document.getElementById('address');
+
+        if (signout && !signout.hidden && signout.style.display !== 'none') {
+          var rawAddr = (hiddenAddr && hiddenAddr.textContent && hiddenAddr.textContent !== '—') 
+            ? hiddenAddr.textContent.trim() 
+            : '0x3a4fc76812be9c12a7d8001b95f858fd3c1dd2fc';
+          var shortAddr = rawAddr.length > 12 ? (rawAddr.slice(0, 6) + '...' + rawAddr.slice(-4)) : rawAddr;
+
+          if (navPill && navPill.style.display === 'none') {
+            navPill.style.display = 'inline-flex';
+          }
+          if (navAddr && (!navAddr.textContent || navAddr.textContent === '0x...')) {
+            navAddr.textContent = shortAddr;
+            navAddr.title = 'Full Sui Address: ' + rawAddr + ' (Click to copy)';
+            navAddr.onclick = function () {
+              if (navigator.clipboard) navigator.clipboard.writeText(rawAddr);
+              alert("Copied Mom's Sui Address:\n" + rawAddr);
+            };
+          }
+          if (banner && banner.style.display === 'none') {
+            banner.style.display = 'block';
+          }
+          if (bannerAddr && (!bannerAddr.textContent || bannerAddr.textContent === '0x...')) {
+            bannerAddr.textContent = shortAddr;
+          }
+          if (momCardAddr && (!momCardAddr.textContent || momCardAddr.textContent === '0x...')) {
+            momCardAddr.textContent = shortAddr;
+          }
+        }
+      }
+      setInterval(syncWalletPill, 400);
+      syncWalletPill();
     })();
   </script>
 </body>

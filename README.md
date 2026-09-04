@@ -35,139 +35,6 @@ The elder-facing browser demo signs verdicts but does not yet submit them on-cha
 enclave runs as a local process rather than in real Nitro hardware. Both gaps are marked
 where they appear below. ([details](docs/DECISIONS.md))
 
----
-
-## Smart Contract Addresses (Sui Testnet)
-
-All smart contracts are deployed and verified on **Sui Testnet**:
-
-| Contract / Object | Sui Testnet Object ID | Explorer Link |
-|---|---|---|
-| **Package ID** | `0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f` | [View on SuiVision](https://testnet.suivision.xyz/package/0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f) |
-| **SeniorityPolicy** | `0x0cd5e7ccd1f498f0e0148654354f90d1588adde8f4c6d31da221f8c161e5103d` | [View on SuiVision](https://testnet.suivision.xyz/object/0x0cd5e7ccd1f498f0e0148654354f90d1588adde8f4c6d31da221f8c161e5103d) |
-| **Community DenyList** | `0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc` | [View on SuiVision](https://testnet.suivision.xyz/object/0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc) |
-| **Enclave Registry** | `0xd7c8cb09640080ec692ce505d1da5bb866c7a0fd6da70daea2e913d429de03f2` | [View on SuiVision](https://testnet.suivision.xyz/object/0xd7c8cb09640080ec692ce505d1da5bb866c7a0fd6da70daea2e913d429de03f2) |
-| **Held Escrow Request (Demo)** | `0x29bdc9d2d1f7f884312ff70ccc2cd27fa707147bf2b2585768175baf92e3e976` | [View on SuiVision](https://testnet.suivision.xyz/object/0x29bdc9d2d1f7f884312ff70ccc2cd27fa707147bf2b2585768175baf92e3e976) |
-| **Asset Coin Type** | `0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC` | Testnet USDC |
-| **Guardian Approver** | `0x4e48678637d9ff9fc151ee5b8083d21910ca280cee592b613addd0b8d9c32ddc` | Active Approver 1/1 |
-| **Simulated Scammer** | `0x00000000000000000000000000000000000000000000000000000000000000c1` | Intercepted Target |
-
----
-
-## Blockchain Technology Used
-
-SHOU leverages the unique primitives of the **Sui Network (L1)** and **Sui Move (2024 Edition)** to turn decentralized AI inference into binding financial protection:
-
-1. **Sui Move 2024 Edition Smart Contracts:**
-   - `policy.move` — **SeniorityPolicy & TransferRequest:** Encapsulates the user's spending boundaries (`everyday_limit`, `cooldown_limit`, `guardian_threshold`). When risk is detected, funds are held in escrow on-chain rather than bounced.
-   - `circuit_breaker.move` — **Behavioral Circuit Breaker:** Connects off-chain AI scores to on-chain state machines. Enforces three deterministic tiers: `LOW` (instant), `MEDIUM` (mandatory cooldown timer), and `HIGH` (held in escrow until guardian co-approval or refund).
-   - `redflag.move` — **Decentralized DenyList:** On-chain registry of verified scammer addresses managed via `OracleCap`. Enforces soft bans that block large suspicious transactions while allowing basic necessities.
-   - `enclave.move` — **On-Chain Attestation & Ed25519 Verification:** Directly verifies BCS-serialized cryptographic signatures from the TEE enclave, ensuring the AI Truth Score was produced under tamper-evident hardware guarantees and cannot be modified by intermediaries.
-
-2. **zkLogin (Zero-Knowledge OAuth Authentication):**
-   - Eliminates seed phrases completely by deriving an on-chain Sui address directly from the user's Google account using ephemeral keypairs and zero-knowledge proofs.
-   - Prevents the catastrophic elder vulnerability of writing recovery phrases on paper or reading them to phone scammers.
-
-3. **Weighted Multi-Signature Recovery (2·1·1 Threshold-2 Multisig):**
-   - Eliminates single points of failure without introducing family coercion.
-   - **Weight distribution:** Mother = 2, Son = 1, Daughter = 1 (Threshold = 2).
-   - The mother spends alone (weight 2 ≥ 2). The son alone cannot touch her funds (weight 1 < 2). If her account is lost or compromised, two relatives can jointly recover the account (1 + 1 = 2).
-
-4. **Programmable Transaction Blocks (PTB) & USDC Stablecoins:**
-   - Composes policy checks, escrow creation, and token transfers in single atomic transactions.
-   - Denominated in **Testnet USDC** (`0xa1ec...::usdc::USDC`), protecting elders in dollar-pegged purchasing power rather than volatile speculative tokens.
-
----
-
-## Hackathon Challenge: AI for Society (AI 与公共价值) — Alignment
-
-### 1. Challenge Overview | 赛题概览
-
-The **AI for Society (AI 与公共价值)** challenge focuses on real-world applications of AI in the public domain, encouraging participants to utilize the **Gonka Network** to create tools with genuine value for everyday users.
-
-Among the recommended directions, **AI Fact Checker (去中心化事实核查引擎)** is highlighted as a preferred application:
-> *"What you are building is a decentralized 'Truth Engine' that uses multi-model AI inference to verify the authenticity of news, social media claims, or digital media in real-time... In an era of deepfakes and AI-generated misinformation, centralized fact-checkers are often accused of bias. This challenge tasks you with using Gonka’s decentralized network to provide a neutral, verifiable, and transparent source of truth."*
-
-### 2. How SHOU Transforms the "Fact Checker" into an "Active Truth Engine"
-
-Traditional fact-checkers suffer from an **authority and actuation failure**:
-- When an elderly victim is actively being defrauded by an impersonation scammer on WhatsApp (e.g. fake police officer or romantic interest), **showing an informative fact-check label does not stop the transfer**. The victim has already been psychologically coerced into dismissing warnings.
-- **SHOU builds an Active Decentralized Truth Engine:** It cross-verifies claims, statements, and conversations in real time using Gonka Router inference, computes an on-chain verifiable **Truth Score (0–100%)**, and directly binds that score to a **Sui Move Web3 circuit breaker**. If the claim is fraudulent, the money is physically prevented from leaving her wallet.
-
-```
-   ┌─────────────────────────────────────────────────────────────────────────────┐
-   │                        HACKATHON REQUIREMENT MAPPING                        │
-   ├───────────────────────────────┬─────────────────────────────────────────────┤
-   │ Hackathon Criteria            │ How SHOU Fulfills It                        │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Real-World Public Value       │ Financial protection for elderly against    │
-   │                               │ imposter, romance, and threat scams.        │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Gonka Router (Mandatory)      │ Official gateway: api.gonkarouter.io/v1     │
-   │                               │ All inference & scoring runs on Gonka.      │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Multi-Model Consensus         │ DeepSeek-V4-Flash (Primary Classifier) +    │
-   │                               │ MiniMax-M2.7 (Cross-Verifier) with          │
-   │                               │ deterministic conflict resolution logic.    │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Claim Extraction              │ Passive on-screen chat DOM extraction       │
-   │                               │ (WhatsApp/Telegram) and text snippet input. │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Truth Score & Reasoning Trace │ Computes 0-100% Risk/Truth score with       │
-   │                               │ transparent reasons (urgency, fake badges). │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Transparency & Request IDs    │ Gonka Request IDs displayed on UI to prove  │
-   │                               │ inference occurred on Gonka's network.      │
-   ├───────────────────────────────┼─────────────────────────────────────────────┤
-   │ Web3 Circuit Breaker (Sui)    │ Binds AI Truth score cryptographically to   │
-   │                               │ on-chain escrow hold instead of raw advice. │
-   └───────────────────────────────┴─────────────────────────────────────────────┘
-```
-
-### 3. Technical Requirements | 技术要求
-
-#### Mandatory: Gonka Router Integration (Required)
-- All AI reasoning and claim verification logic runs on the **Gonka Network** via the official inference gateway (`https://api.gonkarouter.io/v1/chat/completions`).
-- Implemented in [`shou/packages/gonka-client/src/scorer.ts`](file:///Users/yihui/Documents/muba2026/shou/packages/gonka-client/src/scorer.ts).
-- Uses `Bearer $GONKA_API_KEY` authentication, routing requests with zero third-party centralized AI proxies.
-
-#### Multi-Model Consensus & Neutral Cross-Verification
-To ensure neutrality, prevent hallucinations, and resist prompt injections:
-1. **Primary Model — DeepSeek-V4-Flash (`deepseek-ai/DeepSeek-V4-Flash-0731`):**
-   - Rapidly performs **Claim Extraction** and categorizes behavioral indicators: authority impersonation, manufactured panic, and illicit payment requests.
-2. **Secondary Cross-Verifier — MiniMax-M2.7 (`MiniMaxAI/MiniMax-M2.7`):**
-   - Independently reviews the claim and context to cross-verify the presence of psychological coercion, secrecy demands (*"do not tell your family"*), and financial risk.
-3. **Consensus Logic & Conflict Resolution:**
-   - If both models agree (e.g., both identify high fraud probability), confidence is maximal.
-   - If models disagree, SHOU applies a **fail-safe consensus algorithm**: safety rules take precedence, setting an uncompromised risk floor so that potential scams are held for human guardian review rather than allowed through.
-
-#### Core Functionality
-- **Claim Extraction:** The Chrome extension passively extracts message nodes from the live DOM (WhatsApp Web / Telegram Web), redacts PII locally, and prepares claim strings for verification. The Web Simulator also accepts any raw text snippet or scenario.
-- **Decentralized Verification:** Gonka-hosted models analyze the claims against behavioral threat taxonomies and fraud patterns.
-- **Truth Score & Reasoning Trace:** Outputs an objective **Truth / Risk Score (0–100%)** accompanied by an itemized reasoning trace (e.g. `urgency`, `authority-impersonation`, `financial-solicitation`).
-- **Transparency UI & Gonka Request IDs:** Both the Chrome extension badge and the Guardian Command Dashboard display the exact **Gonka Request ID** (e.g. `gonka-req-9f8a2...`), proving that inference was executed trustlessly on Gonka.ai.
-
-### 4. Developer Tips & Best Practices Addressed | 开发者最佳实践
-
-- **The "Neutrality" Prompt:** System prompts are strictly objective and forensic, instructing the models to analyze textual evidence without emotional rhetoric or assumed guilt.
-- **Cross-Model Comparison:** Multi-model pipeline cross-examines findings between DeepSeek and MiniMax, logging individual assessments before combining them.
-- **On-Chain Proof:** The Gonka verification verdict and Request ID are hashed alongside the transfer parameters (`policy_id`, `recipient`, `amount`) inside the TEE enclave, signed, and validated on-chain in `enclave.move` and `policy.move`.
-
-### 5. Submission Criteria & Verification
-
-- **Live Demo Web App:** Accessible at `http://localhost:3000` (Docker) or via our public deployment, featuring the interactive Multi-Model Simulator, Google zkLogin, and live claim tester.
-- **GitHub Repository:** Clean, modular TypeScript and Move codebase with extensive unit tests (`verify.sh`) and documentation.
-- **Pitch Video:** Demonstrates a live fact-check of an active scam message on WhatsApp, multi-model consensus on Gonka Router, and the resulting on-chain escrow halt on Sui.
-
-### 6. "Verify the World on Gonka.ai" — Does SHOU Fully Align?
-
-**YES — 100% Full Alignment and Beyond:**
-1. **Public Domain Impact:** Solves the $4.9B elder fraud crisis by protecting ordinary, non-technical citizens from deceit.
-2. **Decentralized AI Infrastructure:** Directly powered by Gonka Router's official endpoint with multi-model consensus.
-3. **Verifiable Proof of Inference:** Every verdict carries traceable Gonka Request IDs.
-4. **Beyond Passive Advice:** Bridges Gonka's "Truth Engine" with Web3 smart contracts to create the world's first **Self-Enforcing Truth Engine**.
-
----
 
 ## Screenshots
 
@@ -358,6 +225,132 @@ delivered or back with her.
 | Guardian surfaces | **Plain TypeScript + esbuild**, no framework | Three screens over one JSON API: the held-transfer list, the community deny list (read-only), and policy setup. The page holds no key and imports no Sui SDK — its server makes every call — so there is one place where an on-chain mutation can happen and one place to guard it. |
 | Services | **Node 22 `node:http`**, TypeScript run directly via `--experimental-strip-types` | Four servers, zero web frameworks and no build step to run one. The whole repo's runtime dependency list is `@mysten/sui` and `@mysten/enoki`; nothing else ships. |
 | Tests | **`node:test`**, 91 across TS + 38 in `sui move test` | Built in, so a suite is one file and no runner config. |
+
+---
+
+## Smart Contract Addresses (Sui Testnet)
+
+All smart contracts are deployed and verified on **Sui Testnet**:
+
+| Contract / Object | Sui Testnet Object ID | Explorer Link |
+|---|---|---|
+| **Package ID** | `0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f` | [View on SuiVision](https://testnet.suivision.xyz/package/0xdd78bd78aebe0694629773e85e66c37ac8dd9f287d166d052b2656090661ed1f) |
+| **SeniorityPolicy** | `0x0cd5e7ccd1f498f0e0148654354f90d1588adde8f4c6d31da221f8c161e5103d` | [View on SuiVision](https://testnet.suivision.xyz/object/0x0cd5e7ccd1f498f0e0148654354f90d1588adde8f4c6d31da221f8c161e5103d) |
+| **Community DenyList** | `0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc` | [View on SuiVision](https://testnet.suivision.xyz/object/0x2d84887eb54755afa56a5a0b77256001d6d396aeb89c89db95f858fd3c1dd2fc) |
+| **Enclave Registry** | `0xd7c8cb09640080ec692ce505d1da5bb866c7a0fd6da70daea2e913d429de03f2` | [View on SuiVision](https://testnet.suivision.xyz/object/0xd7c8cb09640080ec692ce505d1da5bb866c7a0fd6da70daea2e913d429de03f2) |
+| **Held Escrow Request (Demo)** | `0x29bdc9d2d1f7f884312ff70ccc2cd27fa707147bf2b2585768175baf92e3e976` | [View on SuiVision](https://testnet.suivision.xyz/object/0x29bdc9d2d1f7f884312ff70ccc2cd27fa707147bf2b2585768175baf92e3e976) |
+| **Asset Coin Type** | `0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC` | Testnet USDC |
+| **Guardian Approver** | `0x4e48678637d9ff9fc151ee5b8083d21910ca280cee592b613addd0b8d9c32ddc` | Active Approver 1/1 |
+| **Simulated Scammer** | `0x00000000000000000000000000000000000000000000000000000000000000c1` | Intercepted Target |
+
+---
+
+## Blockchain Technology Used
+
+SHOU leverages the unique primitives of the **Sui Network (L1)** and **Sui Move (2024 Edition)** to turn decentralized AI inference into binding financial protection:
+
+1. **Sui Move 2024 Edition Smart Contracts:**
+   - `policy.move` — **SeniorityPolicy & TransferRequest:** Encapsulates the user's spending boundaries (`everyday_limit`, `cooldown_limit`, `guardian_threshold`). When risk is detected, funds are held in escrow on-chain rather than bounced.
+   - `circuit_breaker.move` — **Behavioral Circuit Breaker:** Connects off-chain AI scores to on-chain state machines. Enforces three deterministic tiers: `LOW` (instant), `MEDIUM` (mandatory cooldown timer), and `HIGH` (held in escrow until guardian co-approval or refund).
+   - `redflag.move` — **Decentralized DenyList:** On-chain registry of verified scammer addresses managed via `OracleCap`. Enforces soft bans that block large suspicious transactions while allowing basic necessities.
+   - `enclave.move` — **On-Chain Attestation & Ed25519 Verification:** Directly verifies BCS-serialized cryptographic signatures from the TEE enclave, ensuring the AI Truth Score was produced under tamper-evident hardware guarantees and cannot be modified by intermediaries.
+
+2. **zkLogin (Zero-Knowledge OAuth Authentication):**
+   - Eliminates seed phrases completely by deriving an on-chain Sui address directly from the user's Google account using ephemeral keypairs and zero-knowledge proofs.
+   - Prevents the catastrophic elder vulnerability of writing recovery phrases on paper or reading them to phone scammers.
+
+3. **Weighted Multi-Signature Recovery (2·1·1 Threshold-2 Multisig):**
+   - Eliminates single points of failure without introducing family coercion.
+   - **Weight distribution:** Mother = 2, Son = 1, Daughter = 1 (Threshold = 2).
+   - The mother spends alone (weight 2 ≥ 2). The son alone cannot touch her funds (weight 1 < 2). If her account is lost or compromised, two relatives can jointly recover the account (1 + 1 = 2).
+
+4. **Programmable Transaction Blocks (PTB) & USDC Stablecoins:**
+   - Composes policy checks, escrow creation, and token transfers in single atomic transactions.
+   - Denominated in **Testnet USDC** (`0xa1ec...::usdc::USDC`), protecting elders in dollar-pegged purchasing power rather than volatile speculative tokens.
+
+---
+
+## GonkaRouter Track: AI for Society
+
+### 1. Challenge Overview
+
+The **AI for Society** challenge focuses on real-world applications of AI in the public domain, encouraging participants to utilize the **Gonka Network** to create tools with genuine value for everyday users.
+
+Among the recommended directions, **AI Fact Checker** is highlighted as a preferred application:
+> *"What you are building is a decentralized 'Truth Engine' that uses multi-model AI inference to verify the authenticity of news, social media claims, or digital media in real-time... In an era of deepfakes and AI-generated misinformation, centralized fact-checkers are often accused of bias. This challenge tasks you with using Gonka’s decentralized network to provide a neutral, verifiable, and transparent source of truth."*
+
+### 2. How SHOU Transforms the "Fact Checker" into an "Active Truth Engine"
+
+Traditional fact-checkers suffer from an **authority and actuation failure**:
+- When an elderly victim is actively being defrauded by an impersonation scammer on WhatsApp (e.g. fake police officer or romantic interest), **showing an informative fact-check label does not stop the transfer**. The victim has already been psychologically coerced into dismissing warnings.
+- **SHOU builds an Active Decentralized Truth Engine:** It cross-verifies claims, statements, and conversations in real time using Gonka Router inference, computes an on-chain verifiable **Truth Score (0–100%)**, and directly binds that score to a **Sui Move Web3 circuit breaker**. If the claim is fraudulent, the money is physically prevented from leaving her wallet.
+
+```
+   ┌─────────────────────────────────────────────────────────────────────────────┐
+   │                        HACKATHON REQUIREMENT MAPPING                        │
+   ├───────────────────────────────┬─────────────────────────────────────────────┤
+   │ Hackathon Criteria            │ How SHOU Fulfills It                        │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Real-World Public Value       │ Financial protection for elderly against    │
+   │                               │ imposter, romance, and threat scams.        │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Gonka Router (Mandatory)      │ Official gateway: api.gonkarouter.io/v1     │
+   │                               │ All inference & scoring runs on Gonka.      │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Multi-Model Consensus         │ DeepSeek-V4-Flash (Primary Classifier) +    │
+   │                               │ MiniMax-M2.7 (Cross-Verifier) with          │
+   │                               │ deterministic conflict resolution logic.    │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Claim Extraction              │ Passive on-screen chat DOM extraction       │
+   │                               │ (WhatsApp/Telegram) and text snippet input. │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Truth Score & Reasoning Trace │ Computes 0-100% Risk/Truth score with       │
+   │                               │ transparent reasons (urgency, fake badges). │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Transparency & Request IDs    │ Gonka Request IDs displayed on UI to prove  │
+   │                               │ inference occurred on Gonka's network.      │
+   ├───────────────────────────────┼─────────────────────────────────────────────┤
+   │ Web3 Circuit Breaker (Sui)    │ Binds AI Truth score cryptographically to   │
+   │                               │ on-chain escrow hold instead of raw advice. │
+   └───────────────────────────────┴─────────────────────────────────────────────┘
+```
+
+### 3. Technical Requirements
+
+#### Mandatory: Gonka Router Integration (Required)
+- All AI reasoning and claim verification logic runs on the **Gonka Network** via the official inference gateway (`https://api.gonkarouter.io/v1/chat/completions`).
+- Implemented in [`shou/packages/gonka-client/src/scorer.ts`](file:///Users/yihui/Documents/muba2026/shou/packages/gonka-client/src/scorer.ts).
+- Uses `Bearer $GONKA_API_KEY` authentication, routing requests with zero third-party centralized AI proxies.
+
+#### Multi-Model Consensus & Neutral Cross-Verification
+To ensure neutrality, prevent hallucinations, and resist prompt injections:
+1. **Primary Model — DeepSeek-V4-Flash (`deepseek-ai/DeepSeek-V4-Flash-0731`):**
+   - Rapidly performs **Claim Extraction** and categorizes behavioral indicators: authority impersonation, manufactured panic, and illicit payment requests.
+2. **Secondary Cross-Verifier — MiniMax-M2.7 (`MiniMaxAI/MiniMax-M2.7`):**
+   - Independently reviews the claim and context to cross-verify the presence of psychological coercion, secrecy demands (*"do not tell your family"*), and financial risk.
+3. **Consensus Logic & Conflict Resolution:**
+   - If both models agree (e.g., both identify high fraud probability), confidence is maximal.
+   - If models disagree, SHOU applies a **fail-safe consensus algorithm**: safety rules take precedence, setting an uncompromised risk floor so that potential scams are held for human guardian review rather than allowed through.
+
+#### Core Functionality
+- **Claim Extraction:** The Chrome extension passively extracts message nodes from the live DOM (WhatsApp Web / Telegram Web), redacts PII locally, and prepares claim strings for verification. The Web Simulator also accepts any raw text snippet or scenario.
+- **Decentralized Verification:** Gonka-hosted models analyze the claims against behavioral threat taxonomies and fraud patterns.
+- **Truth Score & Reasoning Trace:** Outputs an objective **Truth / Risk Score (0–100%)** accompanied by an itemized reasoning trace (e.g. `urgency`, `authority-impersonation`, `financial-solicitation`).
+- **Transparency UI & Gonka Request IDs:** Both the Chrome extension badge and the Guardian Command Dashboard display the exact **Gonka Request ID** (e.g. `gonka-req-9f8a2...`), proving that inference was executed trustlessly on Gonka.ai.
+
+### 4. Developer Tips & Best Practices Addressed
+
+- **The "Neutrality" Prompt:** System prompts are strictly objective and forensic, instructing the models to analyze textual evidence without emotional rhetoric or assumed guilt.
+- **Cross-Model Comparison:** Multi-model pipeline cross-examines findings between DeepSeek and MiniMax, logging individual assessments before combining them.
+- **On-Chain Proof:** The Gonka verification verdict and Request ID are hashed alongside the transfer parameters (`policy_id`, `recipient`, `amount`) inside the TEE enclave, signed, and validated on-chain in `enclave.move` and `policy.move`.
+
+### 5. Submission Criteria & Verification
+
+- **Live Demo Web App:** Accessible at `http://localhost:3000` (Docker) or via our public deployment, featuring the interactive Multi-Model Simulator, Google zkLogin, and live claim tester.
+- **GitHub Repository:** Clean, modular TypeScript and Move codebase with extensive unit tests (`verify.sh`) and documentation.
+- **Pitch Video:** Demonstrates a live fact-check of an active scam message on WhatsApp, multi-model consensus on Gonka Router, and the resulting on-chain escrow halt on Sui.
+
+---
 
 ### How it fits together
 

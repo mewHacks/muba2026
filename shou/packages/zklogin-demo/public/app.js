@@ -15991,10 +15991,30 @@ if (!config.googleClientId || !config.enokiApiKey) {
     const session = await flow.getSession();
     const state = flow.$zkLoginState.get();
     trace(`session keys: ${session ? JSON.stringify(Object.keys(session)) : "null"}`);
-    trace(`zkLoginState address: ${state.address ?? "(none)"}`);
+    const navPill = document.getElementById("nav-wallet-pill");
+    const navAddr = document.getElementById("nav-address-display");
+    const banner = document.getElementById("zklogin-success-banner");
+    const bannerAddr = document.getElementById("banner-address");
+    const momCardAddr = document.getElementById("mom-card-address");
+
     if (state.address) {
       show("Signed in", "No seed phrase was created at any point in this flow.");
       els.address.textContent = state.address;
+
+      const shortAddr = `${state.address.slice(0, 6)}...${state.address.slice(-4)}`;
+      if (navPill) navPill.style.display = "inline-flex";
+      if (navAddr) {
+        navAddr.textContent = shortAddr;
+        navAddr.title = `Full Sui Address: ${state.address} (Click to copy)`;
+        navAddr.onclick = () => {
+          navigator.clipboard.writeText(state.address);
+          alert(`Copied Mom's Sui Address:\n${state.address}`);
+        };
+      }
+      if (banner) banner.style.display = "block";
+      if (bannerAddr) bannerAddr.textContent = shortAddr;
+      if (momCardAddr) momCardAddr.textContent = shortAddr;
+
       const wallet = document.getElementById("wallet");
       try {
         if (session?.jwt && state.salt) {
@@ -16024,6 +16044,9 @@ if (!config.googleClientId || !config.enokiApiKey) {
     } else {
       show("Signed out");
       els.address.textContent = "\u2014";
+      if (navPill) navPill.style.display = "none";
+      if (banner) banner.style.display = "none";
+      if (momCardAddr) momCardAddr.textContent = "0x3a4f...9c12";
       els.signIn.hidden = false;
       els.signIn.style.display = "inline-flex";
       els.signOut.hidden = true;
