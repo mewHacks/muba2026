@@ -257,3 +257,112 @@ test('messenger: root() is null when no conversation is open', () => {
   const { document } = parseHTML(`<html><body><div id="something-else"></div></body></html>`);
   assert.equal(messenger.root(document as unknown as Document), null);
 });
+
+// ─── Telegram Web ─────────────────────────────────────────────────────
+//
+// Two clients at one origin with no shared markup, so each behaviour is
+// pinned twice. /k/ marks its own messages with `is-out` on `.bubble`;
+// /a/ marks them with `own` on `.Message`. Both are explicit, which makes
+// this adapter less guessy than Messenger's accessible-label heuristic.
+//
+// As with Messenger, these fixtures are built from the published client
+// structure, NOT captured from a live session — they prove the adapter's
+// logic, not that the selectors currently match Telegram's production DOM.
+
+const telegram = ADAPTERS.find((a) => a.site === 'web.telegram.org')!;
+
+/** Telegram Web /k/ — the Webogram-lineage client. */
+function tgK(inner: string): { doc: Document; root: Element } {
+  const { document } = parseHTML(
+    `<html><body><div class="chat-info"><span class="peer-title">Danial</span></div>` +
+      `<div class="bubbles">${inner}</div></body></html>`,
+  );
+  const doc = document as unknown as Document;
+  return { doc, root: telegram.root(doc)! };
+}
+
+/** Telegram Web /a/ — the newer client. */
+function tgA(inner: string): { doc: Document; root: Element } {
+  const { document } = parseHTML(
+    `<html><body><div class="ChatInfo"><h3 class="title">Danial</h3></div>` +
+      `<div class="MessageList">${inner}</div></body></html>`,
+  );
+  const doc = document as unknown as Document;
+  return { doc, root: telegram.root(doc)! };
+}
+
+test('telegram /k/: an incoming bubble is returned', () => {
+  const { root } = tgK(
+    `<div class="bubble is-in"><div class="message">Auntie, transfer RM8500 before 6pm.</div></div>`,
+  );
+  const nodes = telegram.incoming(root);
+  assert.equal(nodes.length, 1);
+  assert.match(nodes[0]!.text, /RM8500/);
+});
+
+test('telegram /k/: an outgoing bubble (is-out) is skipped', () => {
+  const { root } = tgK(
+    `<div class="bubble is-out"><div class="message">I will ask my son first</div></div>`,
+  );
+  assert.equal(telegram.incoming(root).length, 0);
+});
+
+test('telegram /a/: an incoming Message is returned', () => {
+  const { root } = tgA(
+    `<div class="Message"><div class="text-content">Do not tell your children about this.</div></div>`,
+  );
+  const nodes = telegram.incoming(root);
+  assert.equal(nodes.length, 1);
+  assert.match(nodes[0]!.text, /tell your children/);
+});
+
+test('telegram /a/: an own Message is skipped', () => {
+  const { root } = tgA(`<div class="Message own"><div class="text-content">ok</div></div>`);
+  assert.equal(telegram.incoming(root).length, 0);
+});
+
+test('telegram: a mixed thread returns only the incoming half', () => {
+  const { root } = tgK(
+    `<div class="bubble is-in"><div class="message">Send the customs fee now.</div></div>
+     <div class="bubble is-out"><div class="message">how much is it</div></div>
+     <div class="bubble is-in"><div class="message">RM3000, and keep it between us.</div></div>`,
+  );
+  const nodes = telegram.incoming(root);
+  assert.equal(nodes.length, 2);
+  assert.ok(nodes.every((n) => !/how much is it/.test(n.text)));
+});
+
+test('telegram: service messages and date dividers are not scored', () => {
+  const { root } = tgK(
+    `<div class="bubble service"><div class="message">Danial joined the group</div></div>
+     <div class="bubble is-date"><div class="message">September 3</div></div>`,
+  );
+  assert.equal(telegram.incoming(root).length, 0);
+});
+
+test('telegram: only the message body is read, not the sender or timestamp', () => {
+  const { root } = tgK(
+    `<div class="bubble is-in">
+       <span class="peer-title">Inspector Danial</span>
+       <div class="message">Your account is under investigation.</div>
+       <span class="time">18:04</span>
+     </div>`,
+  );
+  const [node] = telegram.incoming(root);
+  assert.equal(node!.text, 'Your account is under investigation.');
+});
+
+test('telegram: threadKey reads the peer title in both clients', () => {
+  assert.equal(telegram.threadKey(tgK('<div class="bubble is-in"></div>').doc), 'Danial');
+  assert.equal(telegram.threadKey(tgA('<div class="Message"></div>').doc), 'Danial');
+});
+
+test('telegram: root() is null when no conversation is open', () => {
+  const { document } = parseHTML(`<html><body><div class="sidebar"></div></body></html>`);
+  assert.equal(telegram.root(document as unknown as Document), null);
+});
+
+test('telegram: a bubble with no text is skipped (sticker, photo, voice note)', () => {
+  const { root } = tgK(`<div class="bubble is-in"><div class="media-photo"></div></div>`);
+  assert.equal(telegram.incoming(root).length, 0);
+});

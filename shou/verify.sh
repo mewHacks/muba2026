@@ -44,7 +44,7 @@ check_suite "recovery multisig"  6 "node --experimental-strip-types packages/dri
 check_suite "deny list decoding" 9 "node --experimental-strip-types packages/driver/src/redflag.test.ts"
 check_suite "dashboard logic"    21 "(cd packages/dashboard && npm test)"
 check_suite "scoring arithmetic" 12 "(cd packages/gonka-client && npm test)"
-check_suite "extension adapters" 30 "(cd packages/extension && npm test)"
+check_suite "extension adapters" 43 "(cd packages/extension && npm test)"
 
 n=$(node --experimental-strip-types enclave/src/session-risk.test.ts 2>/dev/null | grep -c '^ok')
 [ "$n" = "6" ] && ok "enclave session binding — 6/6" || bad "enclave session binding — got $n, expected 6"

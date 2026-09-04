@@ -88,3 +88,19 @@ test('parseWhatsAppDataId rejects anything that is not one', () => {
   assert.equal(parseWhatsAppDataId('false_onlytwo'), null);
   assert.equal(parseWhatsAppDataId('maybe_60123@c.us_ABC'), null);
 });
+
+test('telegram web is routed to the telegram adapter', () => {
+  assert.equal(pickAdapter('web.telegram.org')?.site, 'web.telegram.org');
+});
+
+test('a lookalike telegram domain is not routed', () => {
+  // The manifest is the real gate, but an adapter that will read any page
+  // whose name merely ends the right way is the wrong thing behind it.
+  assert.equal(pickAdapter('notweb.telegram.org.attacker.test'), null);
+  assert.equal(pickAdapter('web.telegram.org.evil.com'), null);
+});
+
+test('telegram.org without the web subdomain is not routed', () => {
+  // The marketing site is not a chat client; nothing there should be read.
+  assert.equal(pickAdapter('telegram.org'), null);
+});

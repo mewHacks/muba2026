@@ -251,7 +251,100 @@ const messenger: SiteAdapter = {
   },
 };
 
-export const ADAPTERS: SiteAdapter[] = [whatsapp, messenger];
+/**
+ * Telegram Web.
+ *
+ * Telegram ships TWO web clients at the same origin and they share no
+ * markup, so every lookup below is a pair, not a fallback:
+ *
+ *   /k/  (Webogram lineage) — `.bubbles` scroller, `.bubble.is-in` /
+ *        `.bubble.is-out`, text in `.message`.
+ *   /a/  (Telegram Web A)   — `.MessageList`, `.Message` with `.own` on
+ *        the user's own messages, text in `.text-content`.
+ *
+ * Both are checked every time rather than sniffing `location.pathname`,
+ * because a user who switches clients mid-session keeps the same tab and
+ * a path check made at load would then be wrong for the rest of it.
+ *
+ * DIRECTION IS EXPLICIT IN BOTH CLIENTS — `is-out` and `.own` — which
+ * makes this less fragile than Messenger, where outgoing is inferred from
+ * an accessible label. Where the class is genuinely absent we keep the
+ * message: a missed incoming message is a protection gap, while a
+ * wrongly-scored outgoing one can only ever hold money still.
+ *
+ * NOT VERIFIED AGAINST THE LIVE SITE. Same standing as the Messenger
+ * adapter: the selectors are taken from the published client structure and
+ * pinned by fixture tests, not confirmed in a real session. Treat WhatsApp
+ * Web as the demonstrated surface.
+ */
+const telegram: SiteAdapter = {
+  site: 'web.telegram.org',
+  root: (doc) =>
+    firstMatch(doc, [
+      '.bubbles',                    // /k/
+      '.MessageList',                // /a/
+      '.messages-container',         // /k/, older
+      '[class*="MessageList"]',
+    ]),
+  threadKey: (doc) => {
+    const title = firstMatch(doc, [
+      '.chat-info .peer-title',      // /k/
+      '.ChatInfo .title',            // /a/
+      '.chat-info .title',
+      '.sidebar-header .peer-title',
+    ]);
+    const text = normaliseText(title?.textContent ?? '');
+    return text || null;
+  },
+  incoming: (root) => {
+    const candidates = new Set<HTMLElement>([
+      ...root.querySelectorAll<HTMLElement>('.bubble'),   // /k/
+      ...root.querySelectorAll<HTMLElement>('.Message'),  // /a/
+    ]);
+
+    // The two clients never coexist, but `.bubble` and `.Message` could in
+    // principle nest inside one another in a future build. Same guard the
+    // WhatsApp adapter uses: keep only the outermost match.
+    const outermost = [...candidates].filter(
+      (el) => ![...candidates].some((other) => other !== el && other.contains(el)),
+    );
+
+    const nodes: MessageNode[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const bubble of outermost) {
+      if (isScored(bubble)) continue;
+      // Explicit outgoing markers in each client.
+      if (bubble.classList.contains('is-out') || bubble.classList.contains('own')) continue;
+
+      // Service messages — "X joined the group", date dividers, pinned
+      // notices — are not conversation and must not be scored.
+      if (
+        bubble.classList.contains('service') ||
+        bubble.classList.contains('is-date') ||
+        bubble.classList.contains('ServiceMessage')
+      ) {
+        continue;
+      }
+
+      // Prefer the text node each client uses, so a reply quote, the
+      // sender name and the timestamp are not folded in — a quoted scam
+      // line would otherwise be re-scored every time it is replied to.
+      const textEl = bubble.querySelector<HTMLElement>('.message, .text-content');
+      const raw = textEl ?? bubble;
+      const text = normaliseText(raw.innerText ?? raw.textContent ?? '');
+      if (!text) continue;
+
+      const key = messageKey(bubble, text);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      nodes.push({ element: bubble, text, key });
+    }
+    return nodes;
+  },
+};
+
+export const ADAPTERS: SiteAdapter[] = [whatsapp, messenger, telegram];
 
 /**
  * Exact host, or a subdomain of it — `www.messenger.com` matches

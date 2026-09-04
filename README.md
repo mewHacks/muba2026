@@ -89,9 +89,9 @@ scam. Together, the conversation decides how the money behaves.
 
 **1 · Passive detection.** The extension reads the on-screen chat DOM automatically —
 no copy-pasting, no button to press — and shows an inline 🟢/🟡/🔴 badge. **WhatsApp Web
-is the supported and demonstrated surface.** A Messenger adapter ships and is unit-tested
-against fixtures, but it has never been run against the live site, so treat it as
-best-effort rather than a second working integration. Every message goes to a Gonka Router classifier, then to a
+is the supported and demonstrated surface.** Messenger and Telegram Web adapters also
+ship and are unit-tested against fixtures, but neither has been run against the live
+site, so treat them as best-effort rather than proven integrations. Every message goes to a Gonka Router classifier, then to a
 second model for cross-verification if the shared deadline allows, and
 **deterministic rules set floors that no model is permitted to talk down**.
 
@@ -156,8 +156,8 @@ Setup is over. She is never asked to do any of it again.
 
 ### Every day — she does nothing differently
 
-**5 · She chats as usual.** WhatsApp Web (the demonstrated surface; a Messenger
-adapter ships but is unverified against the live site).
+**5 · She chats as usual.** WhatsApp Web (the demonstrated surface; Messenger and
+Telegram Web adapters ship but are unverified against the live site).
 No button to press, no message to copy anywhere.
 
 **6 · A coloured dot appears beside each message.** 🟢 normal, 🟡 be careful,
@@ -221,7 +221,7 @@ delivered or back with her.
 | Sign-in | **zkLogin + Enoki 1.2** | An 80-year-old will not write down twelve words. Enoki carries the salt, whose loss would destroy the address permanently. |
 | Recovery | **Weighted multisig** (2·1·1, threshold 2) — *address derivation only* | Weights, not counts — the only shape that lets her act alone while still allowing recovery. The address is derived and shown on the sign-in page and covered by 6 tests; **no funds are held at it and no recovery transaction is implemented**, so this is a demonstrated construction, not a working recovery path. |
 | Detection surface | **Chrome extension, Manifest V3** — TypeScript bundled by esbuild | A service worker, one content script per site, a popup and an options page. Its only permission is `storage`, and its only hosts are our two localhost ports: it can read the chat tab it is injected into and talk to us, and reach nothing else. |
-| DOM adapters | **One file per site**, tested against **linkedom** | WhatsApp Web and Messenger ship obfuscated class names, so the fragile part is quarantined in `adapters.ts` and the logic above it is unit-tested on parsed fixtures rather than a live page. WhatsApp has 14 fixture tests and live confirmation; Messenger has 8 fixture tests and no live confirmation. |
+| DOM adapters | **One file per site**, tested against **linkedom** | These clients ship obfuscated, frequently-rebuilt class names, so the fragile part is quarantined in `adapters.ts` and the logic above it is unit-tested on parsed fixtures rather than a live page. WhatsApp: 14 fixture tests **and live confirmation**. Messenger: 8 fixture tests, no live confirmation. Telegram Web: 10 fixture tests covering both the `/k/` and `/a/` clients, no live confirmation. |
 | Guardian surfaces | **Plain TypeScript + esbuild**, no framework | Three screens over one JSON API: the held-transfer list, the community deny list (read-only), and policy setup. The page holds no key and imports no Sui SDK — its server makes every call — so there is one place where an on-chain mutation can happen and one place to guard it. |
 | Services | **Node 22 `node:http`**, TypeScript run directly via `--experimental-strip-types` | Four servers, zero web frameworks and no build step to run one. The whole repo's runtime dependency list is `@mysten/sui` and `@mysten/enoki`; nothing else ships. |
 | Tests | **`node:test`**, 91 across TS + 38 in `sui move test` | Built in, so a suite is one file and no runner config. |

@@ -16,7 +16,8 @@
       "matches": [
         "https://web.whatsapp.com/*",
         "https://www.messenger.com/*",
-        "https://messenger.com/*"
+        "https://messenger.com/*",
+        "https://web.telegram.org/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

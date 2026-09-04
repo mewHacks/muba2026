@@ -608,6 +608,51 @@ function flagCard(flag: RedFlagView): HTMLElement {
   return card;
 }
 
+/**
+ * Illustrative rows for the community tab, shown ONLY when the presenter
+ * turns them on, and always under a banner saying they are not real.
+ *
+ * WHY THIS IS OPT-IN AND LABELLED. The live deny list is genuinely empty:
+ * `redflag::report` needs an OracleCap this signer does not hold, so no
+ * address has ever been reported. Filling the tab with unlabelled rows
+ * would put invented "reported scammer" addresses on a security product's
+ * own dashboard — the same class of thing as the invented MRENCLAVE hash
+ * that used to sit on the telemetry tab, and the one kind of screenshot
+ * that is actively harmful if it escapes the demo: these are real-looking
+ * accusations against addresses.
+ *
+ * So: default off, a visible toggle, an unmissable banner, and addresses
+ * in the 0x…dead0001 range that are obviously synthetic rather than
+ * plausible-looking hex. It shows the SHAPE of the feature, which is what
+ * the tab is for, without asserting that anyone reported anything.
+ */
+const SAMPLE_FLAGS: RedFlagView[] = [
+  {
+    address: '0x000000000000000000000000000000000000000000000000000000000dead001',
+    plausibilityScore: 96,
+    banCeiling: '0',
+    reportedAtMs: Date.now() - 1000 * 60 * 60 * 6,
+    reportCount: 14,
+  },
+  {
+    address: '0x000000000000000000000000000000000000000000000000000000000dead002',
+    plausibilityScore: 81,
+    banCeiling: '5000000',
+    reportedAtMs: Date.now() - 1000 * 60 * 60 * 34,
+    reportCount: 6,
+  },
+  {
+    address: '0x000000000000000000000000000000000000000000000000000000000dead003',
+    plausibilityScore: 64,
+    banCeiling: '25000000',
+    reportedAtMs: Date.now() - 1000 * 60 * 60 * 24 * 5,
+    reportCount: 2,
+  },
+];
+
+/** Presenter-controlled, never persisted, never on by default. */
+let showSampleFlags = false;
+
 function renderFlags(): void {
   const host = $('flags');
   const sub = $('flags-sub');
@@ -632,7 +677,25 @@ function renderFlags(): void {
     );
     return;
   }
-  if (!flags?.length) {
+  if (!flags?.length && showSampleFlags) {
+    // Banner first, so it is read before the rows underneath it.
+    host.append(
+      el(
+        'div',
+        { class: 'notice warn' },
+        icon('alert', 19),
+        el(
+          'div',
+          {},
+          el('strong', {}, 'These are example rows, not real reports. '),
+          'The deny list on chain is empty. Nobody has reported these addresses, they are not ' +
+            'real wallets, and nothing below was read from Sui. This view exists to show what ' +
+            'the tab looks like once reporting is wired up.',
+        ),
+      ),
+    );
+    for (const flag of SAMPLE_FLAGS) host.append(flagCard(flag));
+  } else if (!flags?.length) {
     host.append(
       emptyState(
         'flag',
@@ -644,6 +707,23 @@ function renderFlags(): void {
     );
   } else {
     for (const flag of flags) host.append(flagCard(flag));
+  }
+
+  // The toggle. Only offered when the real list is empty — once genuine
+  // reports exist there is nothing to illustrate and every row should be
+  // read from the chain.
+  if (!flags?.length) {
+    const toggle = el(
+      'button',
+      { class: 'act ghost', type: 'button', style: 'margin-top:12px' },
+      icon(showSampleFlags ? 'check' : 'flag', 15),
+      el('span', {}, showSampleFlags ? 'Hide the example rows' : 'Show example rows (clearly marked)'),
+    );
+    toggle.addEventListener('click', () => {
+      showSampleFlags = !showSampleFlags;
+      renderFlags();
+    });
+    host.append(toggle);
   }
 
   // How reports actually become bans, stated where someone would
