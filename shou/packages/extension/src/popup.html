@@ -409,10 +409,8 @@
 
   <!-- Top Bar (persistent across all 3 tabs) -->
   <div class="ext-top-bar">
-    <div class="ext-logo-btn" title="Protected on Sui">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-      </svg>
+    <div class="ext-logo-btn" title="SHOU — Protected on Sui" style="display:flex; align-items:center; justify-content:center; padding:0; background:transparent;">
+      <img src="icons/48.png" alt="SHOU" style="width:24px; height:24px; border-radius:6px; object-fit:contain;" />
     </div>
     <div class="ext-bal-pill">
       <span id="ext-bal-val">$50.00</span>
@@ -474,13 +472,12 @@
   <section class="ext-tab-panel" id="tab-wallet" style="display:none;">
     <div class="ext-main-card">
       <div class="ext-coin-wrapper">
-        <div class="ext-coin-sui" id="coin-emblem">
-          <svg width="42" height="42" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-          </svg>
+        <div class="ext-coin-sui" id="coin-emblem" style="background:#1677FF; border:3px solid #60A5FA; box-shadow:0 8px 24px rgba(22,119,255,0.35); border-radius:18px; width:68px; height:68px; display:grid; place-items:center;">
+          <img src="icons/128.png" alt="SHOU Shield" style="width:52px; height:52px; border-radius:12px; object-fit:contain;" />
         </div>
       </div>
 
+      <div style="font-size:10px; font-weight:700; letter-spacing:0.12em; color:#2563EB; text-transform:uppercase; margin-bottom:3px; font-family:var(--font-mono); text-align:center;">GUARDIAN COMMAND</div>
       <h2 class="ext-pixel-heading" id="status-title">PROTECTED BY SHOU</h2>
       <p class="ext-plain-desc" id="status-desc">
         Your money is safe on Sui. If anyone tries to trick you, the transfer is locked until your family checks it.
