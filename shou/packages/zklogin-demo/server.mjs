@@ -73,17 +73,12 @@ const TYPES = {
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
+  '.zip': 'application/zip',
 };
 
 // Her real limits, read from the guardian dashboard, which reads them from
 // the chain. Fetched HERE rather than in the browser because :4200 binds to
 // 127.0.0.1 and answers no CORS preflight, so the page cannot reach it.
-//
-// This exists because the transfer panel used to hard-code "$1.00" in four
-// places. The whole premise is that she sets her own limits, so a screen
-// that states a number she did not choose is describing a different product.
-// When the dashboard is down these stay null and the page says "her limit"
-// rather than inventing a figure.
 const DASHBOARD_URL = process.env.SHOU_DASHBOARD_URL ?? 'http://127.0.0.1:4200';
 async function fetchCeilings() {
   try {
@@ -99,9 +94,6 @@ async function fetchCeilings() {
       policyOwner: body.owner ?? null,
     };
   } catch {
-    // The dashboard is not running. Not an error here — this server's job
-    // is sign-in, and the page degrades to describing the rule without a
-    // number rather than failing.
     return {};
   }
 }
@@ -109,9 +101,68 @@ async function fetchCeilings() {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
 
+  // Dynamic public base URL: preserves the custom domain or Railway host in production
+  const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
+  const host = req.headers['x-forwarded-host'] || req.headers['host'] || `localhost:${PORT}`;
+  const baseUrl = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${proto}://${host}`;
+
   if (url.pathname === '/config.json') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-    return res.end(JSON.stringify({ ...config, ...(await fetchCeilings()) }));
+    const dynamicConfig = {
+      ...config,
+      redirectUrl: `${baseUrl}/auth/callback`,
+      ...(await fetchCeilings()),
+    };
+    return res.end(JSON.stringify(dynamicConfig));
+  }
+
+  // Direct Chrome extension download
+  if (url.pathname === '/shou-extension.zip' || url.pathname === '/extension.zip') {
+    const zipPath = resolve(HERE, 'public', 'shou-extension.zip');
+    try {
+      const zipBody = readFileSync(zipPath);
+      res.writeHead(200, {
+        'content-type': 'application/zip',
+        'content-disposition': 'attachment; filename="shou-extension.zip"',
+        'cache-control': 'public, max-age=300',
+      });
+      return res.end(zipBody);
+    } catch {
+      res.writeHead(404, { 'content-type': 'text/plain' }).end('Extension package not found. Run: npm run build in extension.');
+      return;
+    }
+  }
+
+  // Proxy Guardian Dashboard or API requests when deployed under a single domain
+  if (url.pathname.startsWith('/api/') || url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/')) {
+    if (url.pathname === '/dashboard') {
+      res.writeHead(302, { Location: '/dashboard/' });
+      return res.end();
+    }
+    const targetPath = url.pathname.startsWith('/dashboard/')
+      ? url.pathname.replace(/^\/dashboard/, '')
+      : url.pathname;
+    try {
+      const targetUrl = new URL(targetPath + url.search, DASHBOARD_URL);
+      const proxyReq = (await import('node:http')).request(targetUrl, {
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: targetUrl.host,
+        },
+      }, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
+        proxyRes.pipe(res);
+      });
+      proxyReq.on('error', () => {
+        res.writeHead(502, { 'content-type': 'text/plain' }).end('Guardian Dashboard is offline or unreachable.');
+      });
+      req.pipe(proxyReq);
+      return;
+    } catch {
+      res.writeHead(502, { 'content-type': 'text/plain' }).end('Proxy configuration error');
+      return;
+    }
   }
 
   // The OAuth callback lands here with the JWT in the URL *fragment*,
@@ -122,10 +173,7 @@ const server = createServer(async (req, res) => {
     file = file.replace(/^\/auth/, '');
   }
 
-  // Traversal guard. `new URL()` already normalises `..` out of the path,
-  // so `/../server.mjs` never reaches here — but that is this code being
-  // correct by accident. Resolve the path and confirm it really is inside
-  // public/, so it stays correct if the parsing above ever changes.
+  // Traversal guard
   const root = resolve(HERE, 'public');
   const target = resolve(root, '.' + file);
   if (target !== root && !target.startsWith(root + sep)) {

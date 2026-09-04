@@ -1635,13 +1635,17 @@
         <span style="font-size:10px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:0.03em;">Zero Seed Phrase</span>
       </div>
 
+      <a href="/shou-extension.zip" download="shou-extension.zip" class="nav-right-btn" style="background:#0F172A; color:#FFF; display:inline-flex; align-items:center; gap:6px; font-weight:700;" title="Download Chrome Extension package to test live">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Extension (.zip)</span>
+      </a>
       <button id="signin" class="nav-right-btn" type="button">
         Sign in with Google
       </button>
       <button id="signout" class="nav-right-btn" type="button" hidden style="background:#4B5563; display:none;">
         Sign out
       </button>
-      <a href="http://127.0.0.1:4200" target="_blank" class="nav-right-btn">
+      <a href="http://127.0.0.1:4200" target="_blank" class="nav-right-btn live-dash-link">
         Guardian Dashboard ↗
       </a>
     </div>
@@ -1876,6 +1880,15 @@
           <p class="showcase-column-desc">
             Passively watches incoming chats. If someone demands urgent money, SHOU pauses transfers before anything can leave.
           </p>
+          <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:14px; background:#F8FAFC; border:1.5px solid #E2E8F0; padding:12px 16px; border-radius:14px; text-align:left;">
+            <a href="/shou-extension.zip" download="shou-extension.zip" style="display:inline-flex; align-items:center; gap:8px; background:#1677FF; color:#FFF; padding:9px 18px; border-radius:999px; text-decoration:none; font-weight:700; font-size:13.5px; box-shadow:0 3px 10px rgba(22,119,255,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download Chrome Extension (.zip)</span>
+            </a>
+            <div style="font-size:12px; color:#475569; line-height:1.4;">
+              <strong>Test live on Chrome:</strong> 1. Unzip &nbsp;➔&nbsp; 2. Open <code>chrome://extensions</code> &amp; turn on Dev Mode &nbsp;➔&nbsp; 3. Click <em>"Load unpacked"</em>
+            </div>
+          </div>
         </div>
 
         <!-- Mom's 2-Panel Split: Grandma Story Card on Left, Live Mockup on Right -->
@@ -2211,16 +2224,16 @@
               </div>
               <div class="dashboard-url-bar">
                 <img src="/img/shou-icon.png" alt="" style="width:13px; height:13px; border-radius:3px; object-fit:contain;" />
-                <span>guardian.shou.app · 127.0.0.1:4200</span>
+                <span>guardian.shou.app</span>
               </div>
             </div>
             <span style="font-size:11.5px; font-weight:700; color:#15803D; background:#DCFCE7; padding:3px 10px; border-radius:999px; border:1px solid #BBF7D0;">
-              ● Live on Port 4200
+              ● Live on Sui Testnet
             </span>
           </div>
 
           <!-- Dashboard Preview Image (Click to open) -->
-          <a href="http://127.0.0.1:4200" target="_blank" class="dashboard-img-wrap" title="Click to open Live Guardian Dashboard">
+          <a href="http://127.0.0.1:4200" target="_blank" class="dashboard-img-wrap live-dash-link" title="Click to open Live Guardian Dashboard">
             <img src="/img/dashboard-preview.png" alt="SHOU Guardian Command Dashboard" class="dashboard-preview-img" />
           </a>
 
@@ -2240,7 +2253,7 @@
                 Scam Registry
               </span>
             </div>
-            <a href="http://127.0.0.1:4200" target="_blank" class="dash-launch-btn">
+            <a href="http://127.0.0.1:4200" target="_blank" class="dash-launch-btn live-dash-link">
               <span>Open Live Dashboard ↗</span>
             </a>
           </div>
@@ -2705,6 +2718,17 @@
       }
       setInterval(syncWalletPill, 400);
       syncWalletPill();
+    })();
+
+    /* Dynamic Dashboard Link Adapter (seamless on custom domains & Railway) */
+    (function () {
+      var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocal) {
+        var dashUrl = window.location.origin + '/dashboard';
+        document.querySelectorAll('.live-dash-link').forEach(function (a) {
+          a.setAttribute('href', dashUrl);
+        });
+      }
     })();
   </script>
 </body>
