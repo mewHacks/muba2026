@@ -41,6 +41,8 @@ check_suite() {
 
 check_suite "redaction"          7 "node --experimental-strip-types packages/redact/src/redact.test.ts"
 check_suite "recovery multisig"  6 "node --experimental-strip-types packages/driver/src/recovery.test.ts"
+check_suite "deny list decoding" 9 "node --experimental-strip-types packages/driver/src/redflag.test.ts"
+check_suite "dashboard logic"    21 "(cd packages/dashboard && npm test)"
 check_suite "scoring arithmetic" 12 "(cd packages/gonka-client && npm test)"
 check_suite "extension adapters" 22 "(cd packages/extension && npm test)"
 
@@ -81,6 +83,9 @@ print(sum(p.read_bytes().count(b'\x00') for p in pathlib.Path('packages/extensio
   [ "$nuls" = "0" ] && ok "bundle is text (no raw NUL bytes)" || bad "bundle contains $nuls raw NUL bytes"
 else bad "extension build failed"; fi
 
+if (cd packages/dashboard && npm run build >/dev/null 2>&1) && [ -s packages/dashboard/public/app.js ]
+  then ok "dashboard bundles"; else bad "dashboard build failed"; fi
+
 # ── 3. services ─────────────────────────────────────────────────────
 head_ "3 · Services"
 
@@ -111,6 +116,16 @@ if echo "$cfg" | grep -q '"policyId"'; then
     && ok "  signing key IS an approver on this policy" \
     || bad "  signing key is NOT an approver — reseed with SHOU_GUARDIAN_ADDRESS=<you>"
 else bad "dashboard :4200 not responding"; fi
+
+flags=$(curl -s -m 30 127.0.0.1:4200/api/redflags 2>/dev/null)
+if echo "$flags" | grep -q '"flags"'; then
+  n=$(echo "$flags" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['flags']))" 2>/dev/null)
+  # An empty list is not a failure: it is what the chain says. But it is
+  # reported rather than passed over, because a demo of the community
+  # tab needs something in it and finding that out on stage is too late.
+  [ "${n:-0}" -gt 0 ] && ok "deny list readable — $n reported address(es)" \
+    || skip "deny list is readable but EMPTY — nothing to show on the community tab"
+else bad "dashboard cannot read the deny list"; fi
 
 # ── 4. scoring, end to end ──────────────────────────────────────────
 head_ "4 · Scoring (exactly what the extension does)"

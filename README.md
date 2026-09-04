@@ -148,6 +148,7 @@ non-custodial *and* make it impossible to spend your own money.
 | Scoring | **Gonka Router** | Called from *inside* the enclave. If the extension called it directly the message would leave the device unprotected, and the privacy claim would be a promise rather than a property. |
 | Sign-in | **zkLogin + Enoki** | An 80-year-old will not write down twelve words. |
 | Recovery | **Weighted multisig** (2·1·1, threshold 2) | Weights, not counts — the only shape that lets her act alone while still allowing recovery. |
+| Guardian surfaces | **Plain TypeScript + esbuild**, no framework | Three screens over one JSON API: the held-transfer list, the community deny list (read-only), and policy setup. The page holds no key and imports no Sui SDK — its server makes every call — so there is one place where an on-chain mutation can happen and one place to guard it. |
 
 ### How it fits together
 
@@ -158,8 +159,15 @@ a signature come out — which is why Gonka is called from *inside* it rather th
 extension. `policy.move` then verifies that signature on-chain itself, so the circuit
 breaker and driver carry the verdict but cannot alter it.
 
-Everything in this diagram is built and running; the Red Flag evidence-review UI is
-the one piece still in progress.
+Everything in this diagram is built and running. Three surfaces added after the
+diagram was drawn are not yet in the image, so they are named here rather than
+implied: the **guardian dashboard** reads `SeniorityPolicy` and every
+`TransferRequest` through the driver and calls `policy::approve` /
+`policy::block_and_refund`; the **community deny list** view reads the `DenyList`
+table through the driver and writes nothing; and **policy setup** calls
+`policy::create_policy`. All three sit on the driver, to the right of the trust
+boundary — none of them can see a message, and the dashboard server has no code path
+to the enclave or the circuit breaker at all.
 
 ### Project structure
 
@@ -178,7 +186,7 @@ muba2026/
         ├── gonka-client/       classifier + verifier scorer, deterministic floors
         ├── redact/             PII stripping
         ├── extension/          Chrome extension — passive DOM scoring, inline badge
-        ├── dashboard/          guardian dashboard — approve or block a held transfer
+        ├── dashboard/          guardian dashboard — held transfers, deny list, policy setup
         └── zklogin-demo/       sign-in, recovery multisig, transfer panel
 ```
 
@@ -409,6 +417,25 @@ The extension loads from `chrome://extensions` → Developer mode → **Load unp
 dashboard*; it refuses to score without one rather than filing verdicts under a
 placeholder policy.
 
+The dashboard at `:4200` has three tabs:
+
+- **Transfers** — every request raised against the policy, newest and most urgent
+  first, with what happens if you do nothing. Approve and stop are shown only when
+  the configured signing key is genuinely on the policy's approver list, and both ask
+  for confirmation naming the amount and recipient before they spend gas.
+- **Reported addresses** — the community deny list, read from the `DenyList` table
+  on-chain. Read-only unless the signer holds the `OracleCap`, which it says on the
+  page either way.
+- **Set the rules** — creates a `SeniorityPolicy`. Signed by the dashboard's local
+  key, not by the elder; the page says so before the form (see *Honest limitations*).
+
+To act as the guardian you must be on the approver list. Either use the setup tab
+with your own address, or reseed:
+
+```bash
+SHOU_GUARDIAN_ADDRESS=<you> node --experimental-strip-types packages/driver/src/seed-demo.ts
+```
+
 The two demos that need no browser:
 
 ```bash
@@ -459,8 +486,23 @@ We would rather state these than have them found:
 - **The guardian dashboard signs with a local keypair, not zkLogin.** Every approval is
   a real on-chain call, but in production the guardian would sign in with Enoki and the
   server would be static hosting. It binds to `127.0.0.1` for that reason.
-- **The Red Flag evidence-review UI is not built.** `redflag.move` and
-  `reportRedFlag()` are, and are tested.
+- **The community deny list is read-only in this build, and honestly so.**
+  `redflag::report` is gated on an `OracleCap` held by the scoring service. The
+  dashboard checks whether its signer actually owns one and only offers a reporting
+  control if it does; ours does not, so the tab says read-only rather than showing a
+  button that would abort. Reports do not ban an address by themselves at any point —
+  evidence is scored off-chain first and only the capability holder writes an entry —
+  and the page states that where someone would otherwise assume crowdsourcing.
+- **Policy setup creates a real policy, but not as the elder.** The form validates
+  every abort in `new_policy` before spending gas, converts decimals against the
+  selected coin type, and shows a plain-language summary and a confirmation naming the
+  amounts. It is signed by the dashboard's local key, so that key ends up the policy
+  owner. zkLogin in this build signs an enclave attestation and does not submit
+  transactions; wiring Enoki sponsored execution is not done, and the form says so on
+  screen rather than implying she signed it.
+- **The two-minute cooldown is a demo setting.** `seed-demo.ts` defaults to 120s so
+  the MEDIUM path can be shown on stage. A real deployment wants hours; the setup form
+  suggests a day.
 - **WhatsApp DOM reading is demo-only** and not ToS-compliant for production.
 
 ---

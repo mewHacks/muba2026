@@ -17,398 +17,1154 @@
 // It codes against packages/driver/src/types.ts and its own server's
 // JSON. It never imports @mysten/sui and never signs anything: the
 // buttons POST to this app's server, which makes the on-chain call.
+//
+// Everything that can be wrong about money — decimals, the contract's
+// escalation rule, the setup form's guards — lives in logic.ts and is
+// tested. This file is rendering and wiring.
 
-import type { RiskTier, TransferRequestView, TransferStatus } from '../../driver/src/types.ts';
+import type { RedFlagView, TransferRequestView } from '../../driver/src/types.ts';
+import {
+  amountTier,
+  banBlocksAmount,
+  bandFor,
+  canAct,
+  coinLabel,
+  consequence,
+  describeDuration,
+  describePolicy,
+  formatAmount,
+  headline,
+  holdReason,
+  shortAddress,
+  sortRequests,
+  stateLabel,
+  timeAgo,
+  validatePolicyForm,
+  type Band,
+  type PolicyFormResult,
+} from './logic.ts';
 
 interface Config {
   guardian: string | null;
   approver: boolean | null;
-  threshold: number | null;
   owner: string | null;
+  threshold: number | null;
+  approvers: string[];
+  cooldownMs: number | null;
+  reviewCeiling: string | null;
+  highRiskCeiling: string | null;
+  pausedUntilMs: number | null;
   policyId: string;
   packageId: string;
+  denyListId: string;
   coinType: string;
   network: string;
+  canReport: boolean;
   error: string | null;
 }
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 
-/** Colour band. Deliberately four words, not three tiers — a resolved request is neither. */
-type Band = 'HOLD' | 'WAIT' | 'CLEAR' | 'DONE';
+// ---- small DOM helpers ----
 
-function bandFor(request: TransferRequestView): Band {
-  switch (request.status) {
-    case 'NEEDS_APPROVAL':
-      return 'HOLD';
-    case 'AUTO_UNLOCK_SCHEDULED':
-      return 'WAIT';
-    case 'APPROVED':
-    case 'PENDING':
-      return 'CLEAR';
-    default:
-      return 'DONE';
+type Child = string | Node | null | undefined | false;
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  attrs: Record<string, string> = {},
+  ...children: Child[]
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === 'class') node.className = value;
+    else node.setAttribute(key, value);
   }
+  for (const child of children) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(typeof child === 'string' ? document.createTextNode(child) : child);
+  }
+  return node;
 }
 
-const BAND_LABEL: Record<Band, string> = {
-  HOLD: 'Waiting for you',
-  WAIT: 'On hold',
-  CLEAR: 'Cleared',
-  DONE: 'Finished',
+/** From the one authored sprite in index.html, so every icon matches. */
+function icon(name: string, size = 18): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
+
+const BAND_ICON: Record<Band, string> = {
+  HOLD: 'hand',
+  WAIT: 'clock',
+  CLEAR: 'check',
+  DONE: 'check',
 };
 
-/**
- * USDC has 6 decimals, so the on-chain number is a millionth of a
- * dollar. Formatting this wrong by three places is the difference
- * between approving $5 and approving $5,000, which is the single number
- * this whole screen exists to put in front of someone.
- */
-function formatAmount(base: string, coinType: string): { value: string; unit: string } {
-  const isUsdc = /::usdc::USDC$/i.test(coinType);
-  const decimals = isUsdc ? 6 : 9;
-  const unit = isUsdc ? 'USDC' : 'SUI';
-  const n = BigInt(base || '0');
-  const scale = 10n ** BigInt(decimals);
-  const whole = n / scale;
-  const frac = n % scale;
-  const cents = (frac * 100n) / scale;
-  return {
-    value: `${whole.toLocaleString('en-US')}.${cents.toString().padStart(2, '0')}`,
-    unit,
-  };
+/** A stopped transfer and a sent one share a band and must not share a glyph. */
+const statusIcon = (status: string, band: Band): string =>
+  status === 'BLOCKED' ? 'hand' : BAND_ICON[band];
+
+function explorerLink(kind: 'object' | 'txblock', id: string, network: string): HTMLAnchorElement {
+  const a = el(
+    'a',
+    {
+      href: `https://suiscan.xyz/${network}/${kind === 'object' ? 'object' : 'tx'}/${id}`,
+      target: '_blank',
+      rel: 'noreferrer noopener',
+      title: id,
+    },
+    // Shortened: a 66-character id set as a full-width underlined line
+    // reads as a rule across the card rather than as a link, and the
+    // full value is one click (or the title) away.
+    shortAddress(id),
+  );
+  return a;
 }
 
-const shortAddress = (address: string): string =>
-  address && address.length > 14 ? `${address.slice(0, 8)}…${address.slice(-6)}` : address || '—';
-
-function timeAgo(ms: number | null, nowMs: number): string {
-  if (!ms) return 'just now';
-  const seconds = Math.max(0, Math.round((nowMs - ms) / 1000));
-  if (seconds < 90) return `${seconds}s ago`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 90) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  return hours < 36 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
-}
-
-function countdown(unlockAtMs: number, nowMs: number): string {
-  const seconds = Math.max(0, Math.round((unlockAtMs - nowMs) / 1000));
-  if (seconds < 60) return `${seconds} seconds`;
-  const minutes = Math.round(seconds / 60);
-  return minutes < 90 ? `${minutes} minutes` : `${Math.round(minutes / 60)} hours`;
-}
-
-/** The one-line answer to "what am I looking at". */
-function headline(request: TransferRequestView, nowMs: number): string {
-  switch (request.status) {
-    case 'NEEDS_APPROVAL':
-      return 'This one looked like a scam, so the money has stopped and is waiting for you.';
-    case 'APPROVED':
-      return 'You approved this. The money is released and can now be sent.';
-    case 'AUTO_UNLOCK_SCHEDULED':
-      return `A large amount, so it is sitting still for ${countdown(request.unlockAtMs, nowMs)} before it can go.`;
-    case 'PENDING':
-      return 'Nothing looked wrong with this one. It is clear to send.';
-    case 'BLOCKED':
-      return 'This was stopped, and the money went back to her.';
-    case 'EXECUTED':
-      return 'This one went through.';
-    default:
-      return '';
-  }
-}
-
-/**
- * The line that actually decides behaviour: what happens if he closes
- * the tab. A guardian who thinks inaction means "approved" will do
- * nothing on purpose; a guardian who knows it means "she stays stuck"
- * will answer. Both readings are wrong unless we say which it is.
- */
-function consequence(request: TransferRequestView, threshold: number | null): string {
-  switch (request.status) {
-    case 'NEEDS_APPROVAL': {
-      const have = request.approvals.length;
-      const need = threshold ?? 1;
-      const remaining = Math.max(0, need - have);
-      return (
-        `If you do nothing, the money stays where it is — not sent, not lost. ` +
-        `She can cancel it herself at any time and have it refunded. ` +
-        `${have} of ${need} approvals so far; ${remaining} more will release it.`
-      );
-    }
-    case 'APPROVED':
-      return 'Nothing more is needed from you. She can complete the transfer when she wants to.';
-    case 'AUTO_UNLOCK_SCHEDULED':
-      return 'This releases by itself when the wait is over. You can still stop it before then.';
-    case 'PENDING':
-      return 'No action needed. You are seeing it only so nothing happens behind your back.';
-    case 'BLOCKED':
-      return 'The full amount is back in her wallet. It was never sent to the recipient.';
-    case 'EXECUTED':
-      return 'The recipient has the money. This one is closed.';
-    default:
-      return '';
-  }
-}
-
-/** Blocking is available right up until the funds actually leave. */
-const canAct = (status: TransferStatus): boolean =>
-  status !== 'EXECUTED' && status !== 'BLOCKED';
-
-const PLAIN_TIER: Record<RiskTier, string> = {
-  LOW: 'nothing unusual',
-  MEDIUM: 'something a bit off',
-  HIGH: 'likely a scam',
-};
+// ---- state ----
 
 let config: Config | null = null;
 let busy: string | null = null;
-let shownActionError = false;
+/** An error from a button press stays up; a poll recovering must not wipe it. */
+let stickyError: string | null = null;
+/**
+ * Consecutive poll failures. A single one is not worth telling the
+ * guardian about: this polls every five seconds, so one dropped request
+ * on train wifi would flash a red box over a screen about his mother's
+ * savings, and the rows already on screen are still true. Two in a row
+ * means something is actually down.
+ */
+let pollFailures = 0;
 
-async function act(kind: 'approve' | 'block', requestId: string): Promise<void> {
-  busy = requestId;
-  shownActionError = false;
-  $('error').classList.add('hidden');
-  render(lastRequests, lastNow);
-  try {
-    const response = await fetch(`/api/${kind}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ requestId }),
+let requests: TransferRequestView[] = [];
+let requestsLoaded = false;
+let nowMs = Date.now();
+let flags: RedFlagView[] | null = null;
+let flagsError: string | null = null;
+let flagsLoaded = false;
+
+// ---- banners ----
+
+interface Banner {
+  kind: 'bad' | 'warn' | 'info';
+  icon: string;
+  content: Child[];
+}
+
+function renderBanners(): void {
+  const host = $('banners');
+  host.textContent = '';
+  const banners: Banner[] = [];
+
+  if (stickyError) {
+    banners.push({ kind: 'bad', icon: 'alert', content: [stickyError] });
+  } else if (pollFailures > 1) {
+    banners.push({
+      kind: 'bad',
+      icon: 'alert',
+      content: [
+        el('strong', {}, 'Cannot reach the dashboard server. '),
+        'Anything below may be out of date. Nothing has changed on-chain — held transfers ' +
+          'stay held whether this page is running or not.',
+      ],
     });
-    const body = (await response.json()) as { error?: string };
-    // A Move abort is the interesting case, not a failure to hide: it is
-    // the contract refusing, and the abort name says why.
-    if (!response.ok) throw new Error(body.error ?? `server returned ${response.status}`);
-  } catch (error) {
-    // Not subject to the poll-failure tolerance above: he pressed a
-    // button and it did not work, so say so on the first failure.
-    showError(error instanceof Error ? error.message : String(error));
-    shownActionError = true;
-  } finally {
-    busy = null;
-    await refresh();
+  }
+
+  if (config?.error) banners.push({ kind: 'bad', icon: 'alert', content: [config.error] });
+
+  if (config?.approver === false) {
+    banners.push({
+      kind: 'warn',
+      icon: 'alert',
+      content: [
+        el('strong', {}, 'You are not a guardian on this policy. '),
+        `The key this server signs with (${shortAddress(config.guardian ?? '')}) is not on the ` +
+          'approver list, so approving or blocking would be refused by the contract. Set the ' +
+          'rules up on this page with your own address, or reseed: ',
+        el('code', {}, 'SHOU_GUARDIAN_ADDRESS=<you> node --experimental-strip-types packages/driver/src/seed-demo.ts'),
+      ],
+    });
+  }
+
+  if (config && config.pausedUntilMs !== null && config.pausedUntilMs > nowMs) {
+    banners.push({
+      kind: 'warn',
+      icon: 'hand',
+      content: [
+        el('strong', {}, 'Her wallet is paused. '),
+        'No new transfer can be started until the pause lifts. Anything already held stays held.',
+      ],
+    });
+  }
+
+  for (const banner of banners) {
+    host.append(
+      el('div', { class: `notice ${banner.kind}` }, icon(banner.icon, 19), el('div', {}, ...banner.content)),
+    );
   }
 }
 
 function showError(message: string): void {
-  const box = $('error');
-  box.classList.remove('hidden');
-  box.textContent = message;
+  stickyError = message;
+  renderBanners();
 }
 
-function clearError(): void {
-  pollFailures = 0;
-  // A Move abort from a button he just pressed stays on screen. The
-  // five-second poll succeeds a moment later and would otherwise wipe
-  // the one message explaining why his approval was refused, leaving him
-  // to conclude the button simply does nothing.
-  if (shownActionError) return;
-  $('error').classList.add('hidden');
+// ---- confirmation ----
+
+interface ConfirmSpec {
+  title: string;
+  body: string;
+  fact: Child[];
+  confirmLabel: string;
+  danger?: boolean;
 }
 
 /**
- * Consecutive poll failures. A single one is not worth telling the
- * guardian about: this polls every five seconds, so one dropped request
- * on a train wifi connection would flash a red box over a screen about
- * his mother's savings, and the rows already on screen are still true.
- * Two in a row means something is actually down.
+ * Everything on this page that spends gas goes through here first.
+ *
+ * A modal is usually laziness, and it is not laziness here: approving or
+ * blocking is a real transaction against real money that cannot be
+ * undone, and the guardian is about to do it from a list where the
+ * neighbouring row is a different amount to a different person. The
+ * dialog exists to say *which* transfer, in words, before the click
+ * commits. The server refuses anything that did not come through it.
  */
-let pollFailures = 0;
+function confirm(spec: ConfirmSpec): Promise<boolean> {
+  const dialog = $('confirm') as HTMLDialogElement;
+  $('confirm-title').textContent = spec.title;
+  $('confirm-body').textContent = spec.body;
+  const fact = $('confirm-fact');
+  fact.textContent = '';
+  for (const item of spec.fact) {
+    if (item === null || item === undefined || item === false) continue;
+    fact.append(typeof item === 'string' ? document.createTextNode(item) : item);
+  }
+  const yes = $('confirm-yes') as HTMLButtonElement;
+  yes.textContent = spec.confirmLabel;
+  yes.className = `act ${spec.danger ? 'danger' : 'primary'}`;
 
-function card(request: TransferRequestView, nowMs: number): HTMLElement {
-  const band = bandFor(request);
-  const { value, unit } = formatAmount(request.amount, config?.coinType ?? '');
-  const element = document.createElement('div');
-  element.className = `card req ${band}`;
+  return new Promise((resolve) => {
+    const done = (answer: boolean): void => {
+      yes.onclick = null;
+      ($('confirm-no') as HTMLButtonElement).onclick = null;
+      dialog.onclose = null;
+      dialog.close();
+      resolve(answer);
+    };
+    yes.onclick = () => done(true);
+    ($('confirm-no') as HTMLButtonElement).onclick = () => done(false);
+    // Escape and the backdrop both mean no, which is the safe default for
+    // every action this dialog guards.
+    dialog.onclose = () => resolve(false);
+    dialog.showModal();
+    ($('confirm-no') as HTMLButtonElement).focus();
+  });
+}
 
-  const state = document.createElement('div');
-  state.className = `state ${band}`;
-  state.textContent = BAND_LABEL[band];
-  element.append(state);
+// ---- transfers ----
 
-  const amount = document.createElement('div');
-  amount.className = 'amount';
-  amount.textContent = value;
-  const small = document.createElement('small');
-  small.textContent = unit;
-  amount.append(small);
-  element.append(amount);
+function ceilings(): { review: bigint; high: bigint } | null {
+  if (!config?.reviewCeiling || !config?.highRiskCeiling) return null;
+  try {
+    return { review: BigInt(config.reviewCeiling), high: BigInt(config.highRiskCeiling) };
+  } catch {
+    return null;
+  }
+}
 
-  const line = document.createElement('p');
-  line.className = 'headline';
-  line.textContent = headline(request, nowMs);
-  element.append(line);
+/**
+ * The escalation claim, made visible — and derived rather than asserted.
+ *
+ * The chain stores only the effective tier, so "the AI said LOW and the
+ * chain disagreed" is not literally recoverable from the object. What is
+ * recoverable is whether her own ceilings reach this tier by themselves.
+ * When they do, the hold stands whatever the scorer said, including if
+ * the scorer was wrong, offline, or compromised — which is the actual
+ * claim worth making. See holdReason in logic.ts.
+ */
+function whyHeld(request: TransferRequestView): HTMLElement | null {
+  const limits = ceilings();
+  if (!limits || !canAct(request.status)) return null;
+  const reason = holdReason(request.tier, BigInt(request.amount || '0'), limits.review, limits.high);
+  if (reason === 'NONE') return null;
 
-  const to = document.createElement('div');
-  to.className = 'to';
-  to.append(document.createTextNode('To '));
-  const code = document.createElement('code');
-  code.textContent = shortAddress(request.recipient);
-  to.append(code, document.createTextNode(` · asked ${timeAgo(request.requestedAtMs, nowMs)}`));
-  element.append(to);
+  const coin = config?.coinType ?? '';
+  const unit = coinLabel(coin);
+  const at =
+    amountTier(BigInt(request.amount || '0'), limits.review, limits.high) === 'HIGH'
+      ? formatAmount(limits.high.toString(), coin)
+      : formatAmount(limits.review.toString(), coin);
 
-  // The escalation claim, made visible. If the chain assigned a stricter
-  // tier than was submitted, this transfer is being held by her own
-  // rules rather than by the model — which is the whole reason a wrong
-  // or compromised scorer is not a catastrophe.
-  if (request.claimedTier && request.claimedTier !== request.tier) {
-    const escalated = document.createElement('div');
-    escalated.className = 'escalated';
-    escalated.textContent =
-      `The check on her phone said ${PLAIN_TIER[request.claimedTier]}. ` +
-      `Her own limits disagreed and held it anyway — nothing she set can be overridden by the check.`;
-    element.append(escalated);
+  const text =
+    reason === 'AMOUNT'
+      ? `Her own limit did this. She set ${at.value} ${unit} as the point where a transfer stops ` +
+        `and waits, and this is at or above it — so it would have been held even if the check on ` +
+        `her phone had never run, or had got it wrong.`
+      : `The amount alone was within her limits. The check on her phone is what raised this, and ` +
+        `her limits are unchanged by it — a check can only ever make a transfer stricter, never ` +
+        `let one through faster.`;
+
+  // Amber on the amber WAIT card; neutral inside the red HOLD card,
+  // where a second warm tint reads as a second warning rather than as
+  // the explanation of the first.
+  const tone = bandFor(request.status) === 'HOLD' ? 'why plain' : 'why';
+  return el('div', { class: tone }, icon(reason === 'AMOUNT' ? 'sliders' : 'alert', 18), el('div', {}, text));
+}
+
+async function act(kind: 'approve' | 'block', request: TransferRequestView): Promise<void> {
+  const amount = formatAmount(request.amount, config?.coinType ?? '');
+  const approving = kind === 'approve';
+  const ok = await confirm({
+    title: approving ? 'Let this transfer through?' : 'Stop this transfer?',
+    body: approving
+      ? 'This releases the hold. Once the approvals are met she can send the money, and it cannot be recalled.'
+      : 'This cancels the transfer and returns the full amount to her wallet. It cannot be undone, and she would have to start again.',
+    fact: [
+      el('b', {}, `${amount.value} ${amount.unit}`),
+      ' to ',
+      el('code', { class: 'addr' }, shortAddress(request.recipient)),
+      el('br'),
+      `On ${config?.network ?? 'testnet'}. This is a real transaction and costs gas.`,
+    ],
+    confirmLabel: approving ? 'Yes, let it through' : 'Yes, stop it',
+    danger: !approving,
+  });
+  if (!ok) return;
+
+  busy = request.requestId;
+  stickyError = null;
+  renderBanners();
+  renderTransfers();
+  try {
+    const response = await fetch(`/api/${kind}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId: request.requestId, confirm: true }),
+    });
+    const body = (await response.json()) as { error?: string; digest?: string };
+    // A Move abort is the interesting case, not a failure to hide: it is
+    // the contract refusing, and the abort name says why.
+    if (!response.ok) throw new Error(body.error ?? `server returned ${response.status}`);
+    lastDigest = { requestId: request.requestId, digest: body.digest ?? null, kind };
+  } catch (error) {
+    // Not subject to the poll-failure tolerance: he pressed a button and
+    // it did not work, so say so on the first failure.
+    showError(
+      `${approving ? 'Approving' : 'Stopping'} did not go through — ${
+        error instanceof Error ? error.message : String(error)
+      }. Nothing changed on-chain.`,
+    );
+  } finally {
+    busy = null;
+    await refreshRequests();
+  }
+}
+
+/** The receipt for the last successful mutation, shown on its own row. */
+let lastDigest: { requestId: string; digest: string | null; kind: 'approve' | 'block' } | null = null;
+
+function transferCard(request: TransferRequestView): HTMLElement {
+  const band = bandFor(request.status);
+  const amount = formatAmount(request.amount, config?.coinType ?? '');
+  const card = el('article', { class: `card req ${band}` });
+
+  card.append(
+    el('div', { class: `state ${band}` }, icon(statusIcon(request.status, band), 14), stateLabel(request.status)),
+    el('div', { class: 'amount' }, amount.value, el('small', {}, amount.unit)),
+    el('p', { class: 'headline' }, headline(request, nowMs)),
+    el(
+      'div',
+      { class: 'to' },
+      'To',
+      el('code', { class: 'addr' }, shortAddress(request.recipient)),
+      `· asked ${timeAgo(request.requestedAtMs, nowMs)}`,
+    ),
+  );
+
+  if (amount.raw) {
+    card.append(
+      el(
+        'div',
+        { class: 'why' },
+        icon('alert', 18),
+        el(
+          'div',
+          {},
+          `This is shown in the coin's smallest units because we do not know how many decimal ` +
+            `places ${amount.unit} has. Do not read it as a dollar amount.`,
+        ),
+      ),
+    );
   }
 
-  const why = document.createElement('div');
-  why.className = 'consequence';
-  why.textContent = consequence(request, config?.threshold ?? null);
-  element.append(why);
+  const why = whyHeld(request);
+  if (why) card.append(why);
 
-  if (canAct(request.status) && config?.approver !== false) {
-    const actions = document.createElement('div');
-    actions.className = 'actions';
+  card.append(el('div', { class: 'consequence' }, consequence(request, config?.threshold ?? null)));
 
-    const block = document.createElement('button');
-    block.className = 'block';
+  if (canAct(request.status) && config?.approver === true) {
+    const actions = el('div', { class: 'actions' });
+    const working = busy === request.requestId;
+
     // Named for what it does to the money, not for what it does to the
     // record. "Block" alone reads as "delete"; a guardian hesitates over
     // a button that might destroy his mother's savings.
-    block.textContent = 'Stop it — refund her';
-    block.disabled = busy !== null;
-    block.addEventListener('click', () => void act('block', request.requestId));
-    actions.append(block);
+    // Filled red only where stopping is the expected move. On a transfer
+    // that is merely waiting, or already cleared, a full-width red button
+    // is the loudest thing on the screen for the action least likely to
+    // be wanted — so it drops to the quiet treatment and keeps the same
+    // words, rather than disappearing.
+    const urgent = band === 'HOLD';
+    const stop = el(
+      'button',
+      { class: `act ${urgent ? 'danger' : 'quiet'}`, type: 'button' },
+      icon(working ? 'loader' : 'hand'),
+      working ? 'Working…' : 'Stop it — refund her',
+    );
+    if (working) stop.querySelector('svg')?.classList.add('spin');
+    stop.disabled = busy !== null;
+    stop.addEventListener('click', () => void act('block', request));
+    actions.append(stop);
 
     if (request.status === 'NEEDS_APPROVAL') {
-      const approve = document.createElement('button');
-      approve.className = 'approve';
-      approve.textContent = 'I checked — let it through';
+      const approve = el(
+        'button',
+        { class: 'act ghost', type: 'button' },
+        icon('check'),
+        'I checked — let it through',
+      );
       approve.disabled = busy !== null;
-      approve.addEventListener('click', () => void act('approve', request.requestId));
+      approve.addEventListener('click', () => void act('approve', request));
       actions.append(approve);
     }
-    element.append(actions);
+    card.append(actions);
   }
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  // The request id is here so a judge can paste it into a Sui explorer
-  // and confirm the object says what this page says.
+  // The request id is here so a judge can paste it into an explorer and
+  // confirm the object says what this page says.
   //
   // A zero score is suppressed rather than printed. The unattested path
-  // emits truth_score: 0, which is indistinguishable from a model that
+  // reports truth_score 0, which is indistinguishable from a model that
   // genuinely scored zero — and "confidence 0/100" next to a held
   // transfer reads as "we are certain this is fine", the exact opposite
   // of what a missing score means.
-  meta.textContent =
-    `${request.requestId}` +
-    (request.truthScore ? ` · confidence ${request.truthScore}/100` : '');
-  element.append(meta);
-
-  return element;
+  const meta = el('div', { class: 'meta' });
+  meta.append(explorerLink('object', request.requestId, config?.network ?? 'testnet'));
+  if (request.truthScore) meta.append(` · confidence ${request.truthScore}/100`);
+  if (lastDigest?.requestId === request.requestId && lastDigest.digest) {
+    meta.append(
+      el('br'),
+      lastDigest.kind === 'approve' ? 'approved in ' : 'stopped in ',
+      explorerLink('txblock', lastDigest.digest, config?.network ?? 'testnet'),
+    );
+  }
+  card.append(meta);
+  return card;
 }
 
-let lastRequests: TransferRequestView[] = [];
-let lastNow = Date.now();
+function skeletonCard(): HTMLElement {
+  return el(
+    'div',
+    { class: 'card' },
+    el('div', { class: 'skel pill' }),
+    el('div', { class: 'skel big' }),
+    el('div', { class: 'skel line', style: 'width:78%' }),
+    el('div', { class: 'skel line', style: 'width:52%' }),
+  );
+}
 
-function render(requests: TransferRequestView[], nowMs: number): void {
+function emptyState(iconName: string, big: string, body: string): HTMLElement {
+  return el(
+    'div',
+    { class: 'card empty' },
+    icon(iconName, 30),
+    el('div', { class: 'big' }, big),
+    el('p', {}, body),
+  );
+}
+
+function renderTransfers(): void {
   const list = $('list');
   list.textContent = '';
-  if (!requests.length) {
-    const empty = document.createElement('div');
-    empty.className = 'card empty';
-    const big = document.createElement('div');
-    big.className = 'big';
-    big.textContent = 'Nothing needs you right now.';
-    empty.append(big, document.createTextNode('Her wallet is working normally. You will see anything held here.'));
-    list.append(empty);
+
+  if (!requestsLoaded) {
+    list.append(skeletonCard(), skeletonCard());
     return;
   }
-  // Whatever is waiting on him first; resolved history underneath.
-  const order: Band[] = ['HOLD', 'WAIT', 'CLEAR', 'DONE'];
-  const sorted = [...requests].sort(
-    (a, b) =>
-      order.indexOf(bandFor(a)) - order.indexOf(bandFor(b)) ||
-      (b.requestedAtMs ?? 0) - (a.requestedAtMs ?? 0),
+  if (!requests.length) {
+    list.append(
+      emptyState(
+        'inbox',
+        'Nothing needs you right now.',
+        'Her wallet is working normally. Anything that gets held will appear here, ' +
+          'with what it is and what happens if you leave it alone.',
+      ),
+    );
+  } else {
+    for (const request of sortRequests(requests)) list.append(transferCard(request));
+  }
+
+  const waiting = requests.filter((r) => r.status === 'NEEDS_APPROVAL').length;
+  const badge = $('tab-count');
+  badge.textContent = String(waiting);
+  badge.classList.toggle('hidden', waiting === 0);
+}
+
+// ---- reported addresses ----
+
+function flagCard(flag: RedFlagView): HTMLElement {
+  const coin = config?.coinType ?? '';
+  const unit = coinLabel(coin);
+  const ceiling = formatAmount(flag.banCeiling, coin);
+  const everythingBlocked = banBlocksAmount(BigInt(flag.banCeiling || '0'), 1n);
+
+  const card = el('article', { class: 'card flag' });
+  card.append(
+    el(
+      'div',
+      { class: 'who' },
+      el('code', { class: 'addr' }, flag.address),
+      el(
+        'div',
+        { class: 'reports' },
+        flag.reportedAtMs ? `Reported ${timeAgo(flag.reportedAtMs, nowMs)}` : 'Reported',
+        flag.reportCount > 1 ? ` · ${flag.reportCount} reports recorded` : '',
+      ),
+    ),
+    el(
+      'div',
+      { class: 'score' },
+      // A bare "94" answers no question. The caption says what was
+      // scored — the evidence in the report, not the address's guilt —
+      // because the two are not the same claim.
+      el('span', { class: 'cap' }, 'Evidence scored'),
+      el('b', { class: flag.plausibilityScore >= 80 ? 'high' : '' }, `${flag.plausibilityScore}`),
+      el('span', {}, 'out of 100'),
+    ),
   );
-  for (const request of sorted) list.append(card(request, nowMs));
+
+  // The soft ban, said plainly. Calling this "banned" without the ceiling
+  // would be the wrong claim: the contract lets everyday amounts through
+  // on purpose, so that a wrong report degrades service instead of
+  // cutting someone off from their groceries while a reviewer catches up.
+  // The two enforcement states must not look alike. One says "large
+  // payments here are refused"; the other says "this address cannot
+  // receive anything at all". Rendering both in the same neutral box
+  // makes a total block scan as a note.
+  card.append(
+    el(
+      'div',
+      { class: everythingBlocked ? 'ceiling hard' : 'ceiling' },
+      icon(everythingBlocked ? 'hand' : 'info', 18),
+      everythingBlocked
+        ? el('div', {}, el('b', {}, 'Nothing can be sent here. '), 'The limit on this report is zero, so every amount is refused.')
+        : el(
+            'div',
+            {},
+            el('b', {}, `Up to ${ceiling.value} ${unit} still goes through. `),
+            `Anything above ${ceiling.value} ${unit} to this address is refused by the contract ` +
+              `before a transfer is even created. It is a soft limit on purpose: a report that ` +
+              `turns out to be wrong should slow someone down, not cut them off.`,
+          ),
+    ),
+  );
+  return card;
+}
+
+function renderFlags(): void {
+  const host = $('flags');
+  const sub = $('flags-sub');
+  host.textContent = '';
+
+  sub.textContent = config?.canReport
+    ? 'Read from the deny list this policy is bound to. This signer holds the OracleCap, so it could also write to it.'
+    : 'Read from the deny list this policy is bound to. This is a read-only view: writing to the list needs the OracleCap that the scoring service holds, and this signer does not have it.';
+
+  if (!flagsLoaded) {
+    host.append(skeletonCard(), skeletonCard());
+    return;
+  }
+  if (flagsError) {
+    host.append(
+      el(
+        'div',
+        { class: 'notice bad' },
+        icon('alert', 19),
+        el('div', {}, el('strong', {}, 'Could not read the deny list. '), flagsError),
+      ),
+    );
+    return;
+  }
+  if (!flags?.length) {
+    host.append(
+      emptyState(
+        'flag',
+        'No addresses are reported yet.',
+        'When the scoring service records a report, the address appears here with the amount ' +
+          'it is still allowed to receive. An empty list means the list is genuinely empty, ' +
+          'not that this page failed to load it.',
+      ),
+    );
+  } else {
+    for (const flag of flags) host.append(flagCard(flag));
+  }
+
+  // How reports actually become bans, stated where someone would
+  // otherwise assume crowdsourcing. Nothing on this page reports an
+  // address, and no number of community reports bans one by itself.
+  host.append(
+    el(
+      'div',
+      { class: 'notice info' },
+      icon('info', 19),
+      el(
+        'div',
+        {},
+        el('strong', {}, 'Reports do not ban an address on their own. '),
+        'Evidence is scored off-chain first, and only the scoring service — which holds a ' +
+          'capability minted by the package publisher — can write an entry here. That gate is ' +
+          'the point: without it, anyone could cut off a legitimate shop by reporting it. ' +
+          'Staff with a separate capability can clear an entry, and a cleared address ' +
+          'disappears from this list.',
+      ),
+    ),
+  );
+}
+
+// ---- setup ----
+
+const setupState = {
+  guardians: [''],
+  threshold: '1',
+  reviewCeiling: '',
+  highRiskCeiling: '',
+  cooldownMinutes: '',
+  denyListId: '',
+  submitting: false,
+  result: null as { policyId: string; digest?: string } | null,
+  serverError: null as string | null,
+  touched: false,
+};
+
+function validateSetup(): PolicyFormResult {
+  return validatePolicyForm({
+    guardians: setupState.guardians,
+    threshold: setupState.threshold,
+    reviewCeiling: setupState.reviewCeiling,
+    highRiskCeiling: setupState.highRiskCeiling,
+    cooldownMinutes: setupState.cooldownMinutes,
+    denyListId: setupState.denyListId,
+    coinType: config?.coinType ?? '',
+  });
+}
+
+function field(
+  labelText: string,
+  hintText: string,
+  control: HTMLElement,
+  error: string | undefined,
+): HTMLElement {
+  return el(
+    'fieldset',
+    {},
+    el('legend', {}, labelText),
+    el('p', { class: 'hint' }, hintText),
+    control,
+    error ? el('div', { class: 'field-error' }, icon('alert', 15), error) : null,
+  );
+}
+
+function textInput(
+  value: string,
+  placeholder: string,
+  invalid: boolean,
+  onInput: (value: string) => void,
+  extraClass = '',
+): HTMLInputElement {
+  const input = el('input', { type: 'text', placeholder, class: extraClass });
+  input.value = value;
+  if (invalid) input.setAttribute('aria-invalid', 'true');
+  input.addEventListener('input', () => onInput(input.value));
+  return input;
+}
+
+function renderSetup(): void {
+  const host = $('setup');
+  host.textContent = '';
+  const unit = coinLabel(config?.coinType ?? '');
+
+  if (setupState.result) {
+    host.append(
+      el(
+        'div',
+        { class: 'card' },
+        el('div', { class: 'state CLEAR' }, icon('check', 14), 'Rules are live'),
+        el('p', { class: 'headline' }, 'Her policy is on-chain and this page is now watching it.'),
+        el(
+          'div',
+          { class: 'meta' },
+          'policy ',
+          explorerLink('object', setupState.result.policyId, config?.network ?? 'testnet'),
+          setupState.result.digest ? el('br') : null,
+          setupState.result.digest ? 'created in ' : null,
+          setupState.result.digest
+            ? explorerLink('txblock', setupState.result.digest, config?.network ?? 'testnet')
+            : null,
+        ),
+        el(
+          'div',
+          { class: 'notice info', style: 'margin:14px 0 0' },
+          icon('info', 19),
+          el(
+            'div',
+            {},
+            'This page is showing the new policy, but the id is not written to ',
+            el('code', {}, 'demo-ids.json'),
+            ' — the extension and the circuit breaker still point at the old one until you set ',
+            el('code', {}, 'SHOU_POLICY_ID'),
+            ' or reseed.',
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+
+  const { errors, call } = validateSetup();
+  const showErrors = setupState.touched;
+  const err = (key: string): string | undefined => (showErrors ? errors[key] : undefined);
+
+  // How this gets signed, said before anything else on the form. The
+  // elder signs in with Google elsewhere in this project and that flow
+  // does not submit transactions — it signs an enclave attestation. So
+  // this form does the honest thing and says whose key is about to pay
+  // for and own the policy, rather than implying it is hers.
+  host.append(
+    el(
+      'div',
+      { class: 'notice warn' },
+      icon('info', 19),
+      el(
+        'div',
+        {},
+        el('strong', {}, 'This is signed by the demo key, not by her. '),
+        `The policy created here is owned by ${shortAddress(config?.guardian ?? '')}, the local ` +
+          `key this server holds, and only that address can later cancel a held transfer. In the ` +
+          `product she owns it herself through her Google sign-in — that path signs a risk ` +
+          `attestation today and does not yet submit transactions, so it is not wired here. ` +
+          `On ${config?.network ?? 'testnet'}, with real gas.`,
+      ),
+    ),
+  );
+
+  const form = el('form', {});
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitSetup();
+  });
+
+  // Guardians
+  const rows = el('div', { style: 'display:flex;flex-direction:column;gap:9px' });
+  setupState.guardians.forEach((value, index) => {
+    const row = el('div', { class: 'row' });
+    const input = textInput(
+      value,
+      '0x…',
+      Boolean(err('guardians')),
+      (next) => {
+        setupState.guardians[index] = next;
+        if (setupState.touched) renderSetup();
+      },
+      'mono',
+    );
+    input.setAttribute('aria-label', `Guardian ${index + 1} address`);
+    row.append(input);
+    const remove = el('button', { type: 'button', 'aria-label': `Remove guardian ${index + 1}` }, icon('minus', 18));
+    remove.disabled = setupState.guardians.length === 1;
+    remove.addEventListener('click', () => {
+      setupState.guardians.splice(index, 1);
+      renderSetup();
+    });
+    row.append(remove);
+    rows.append(row);
+  });
+  const add = el('button', { type: 'button', class: 'add' }, icon('plus', 17), 'Add another guardian');
+  add.addEventListener('click', () => {
+    setupState.guardians.push('');
+    renderSetup();
+  });
+  rows.append(add);
+
+  form.append(
+    field(
+      'Who can stop a transfer',
+      'The people she trusts — usually her children. A guardian can stop a transfer and send the ' +
+        'money back to her. That is all: nothing in the contract lets a guardian send her money ' +
+        'anywhere else, or move it faster than her rules allow.',
+      rows,
+      err('guardians'),
+    ),
+  );
+
+  // Threshold
+  const threshold = el('input', { type: 'number', min: '1', step: '1', style: 'max-width:140px' });
+  threshold.value = setupState.threshold;
+  threshold.setAttribute('aria-label', 'Approvals required');
+  if (err('threshold')) threshold.setAttribute('aria-invalid', 'true');
+  threshold.addEventListener('input', () => {
+    setupState.threshold = threshold.value;
+    if (setupState.touched) renderSetup();
+  });
+  form.append(
+    field(
+      'How many of them have to agree',
+      'For one child, one. For two children who both need to say yes, two. Asking for more ' +
+        'approvals than she has guardians would leave her money stuck forever, so that is refused.',
+      threshold,
+      err('threshold'),
+    ),
+  );
+
+  // Ceilings
+  const withUnit = (value: string, placeholder: string, invalid: boolean, onInput: (v: string) => void, label: string) => {
+    const wrap = el('div', { class: 'with-unit' });
+    const input = textInput(value, placeholder, invalid, onInput);
+    input.setAttribute('inputmode', 'decimal');
+    input.setAttribute('aria-label', label);
+    wrap.append(input, el('span', { class: 'unit' }, unit));
+    return wrap;
+  };
+
+  const pair = el('div', { class: 'pair' });
+  pair.append(
+    el(
+      'div',
+      {},
+      el('label', { style: 'display:block;margin-bottom:7px' }, 'Stop and wait from'),
+      withUnit(
+        setupState.reviewCeiling,
+        '100',
+        Boolean(err('reviewCeiling')),
+        (next) => {
+          setupState.reviewCeiling = next;
+          if (setupState.touched) renderSetup();
+        },
+        'Amount at which a transfer waits',
+      ),
+      err('reviewCeiling') ? el('div', { class: 'field-error', style: 'margin-top:7px' }, icon('alert', 15), err('reviewCeiling')!) : null,
+    ),
+    el(
+      'div',
+      {},
+      el('label', { style: 'display:block;margin-bottom:7px' }, 'Ask a guardian from'),
+      withUnit(
+        setupState.highRiskCeiling,
+        '500',
+        Boolean(err('highRiskCeiling')),
+        (next) => {
+          setupState.highRiskCeiling = next;
+          if (setupState.touched) renderSetup();
+        },
+        'Amount at which a guardian must approve',
+      ),
+      err('highRiskCeiling') ? el('div', { class: 'field-error', style: 'margin-top:7px' }, icon('alert', 15), err('highRiskCeiling')!) : null,
+    ),
+  );
+  form.append(
+    field(
+      'Her own limits',
+      `These are enforced by the contract on their own. They hold a large transfer even if the ` +
+        `check on her phone saw nothing wrong, was offline, or was tampered with — which is why ` +
+        `they matter more than the scam detection does. Amounts are in ${unit}.`,
+      pair,
+      undefined,
+    ),
+  );
+
+  // Cooldown
+  const cooldown = el('input', { type: 'number', min: '1', step: '1', style: 'max-width:180px' });
+  cooldown.value = setupState.cooldownMinutes;
+  cooldown.placeholder = '1440';
+  cooldown.setAttribute('aria-label', 'Cooling-off period in minutes');
+  if (err('cooldownMinutes')) cooldown.setAttribute('aria-invalid', 'true');
+  cooldown.addEventListener('input', () => {
+    setupState.cooldownMinutes = cooldown.value;
+    if (setupState.touched) renderSetup();
+  });
+  const cooldownMinutes = Number(setupState.cooldownMinutes);
+  form.append(
+    field(
+      'How long a waiting transfer sits still (minutes)',
+      'The time she has to change her mind, and the time a guardian has to notice. A day (1440) ' +
+        'is a sensible real setting. The seeded demo uses two minutes so the wait can be shown ' +
+        'on stage; that is a demo value, not a recommendation.',
+      el(
+        'div',
+        {},
+        cooldown,
+        Number.isFinite(cooldownMinutes) && cooldownMinutes >= 1
+          ? el('p', { class: 'hint', style: 'margin-top:8px' }, `That is ${describeDuration(cooldownMinutes)}.`)
+          : null,
+      ),
+      err('cooldownMinutes'),
+    ),
+  );
+
+  // Deny list
+  form.append(
+    field(
+      'Which deny list to use',
+      'The community list of reported addresses, checked on every transfer. It is fixed at ' +
+        'creation and cannot be swapped later — otherwise an attacker could point her policy at ' +
+        'an empty list to shed a ban.',
+      textInput(
+        setupState.denyListId,
+        '0x…',
+        Boolean(err('denyListId')),
+        (next) => {
+          setupState.denyListId = next;
+          if (setupState.touched) renderSetup();
+        },
+        'mono',
+      ),
+      err('denyListId'),
+    ),
+  );
+
+  // Plain-language summary — the review step, always visible once valid.
+  if (call) {
+    form.append(
+      el(
+        'div',
+        { class: 'card', style: 'margin:0' },
+        el('h2', {}, 'What she is agreeing to'),
+        el('p', { class: 'sub' }, 'Read this to her before anyone signs anything.'),
+        el(
+          'ul',
+          { class: 'summary' },
+          ...describePolicy(call, config?.coinType ?? '').map((line) =>
+            el('li', {}, icon('check', 18), el('span', {}, line)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  if (setupState.serverError) {
+    form.append(
+      el(
+        'div',
+        { class: 'notice bad' },
+        icon('alert', 19),
+        el('div', {}, el('strong', {}, 'The policy was not created. '), setupState.serverError),
+      ),
+    );
+  }
+
+  const submit = el(
+    'button',
+    { class: 'act primary', type: 'submit', style: 'align-self:flex-start' },
+    icon(setupState.submitting ? 'loader' : 'shield'),
+    setupState.submitting ? 'Creating on testnet…' : 'Review and create these rules',
+  );
+  if (setupState.submitting) submit.querySelector('svg')?.classList.add('spin');
+  submit.disabled = setupState.submitting;
+  form.append(submit);
+
+  host.append(form);
+}
+
+async function submitSetup(): Promise<void> {
+  setupState.touched = true;
+  setupState.serverError = null;
+  const { errors, call } = validateSetup();
+  if (!call) {
+    renderSetup();
+    // Move focus to the first thing that is wrong rather than leaving the
+    // person to hunt for the red text on a form this long.
+    const first = Object.keys(errors)[0];
+    if (first) $('setup').querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    return;
+  }
+
+  const lines = describePolicy(call, config?.coinType ?? '');
+  const fact = el('div', {});
+  for (const line of lines.slice(0, 3)) fact.append(el('div', { style: 'margin-bottom:7px' }, line));
+  fact.append(
+    el(
+      'div',
+      { style: 'margin-top:10px' },
+      `Signed by ${shortAddress(config?.guardian ?? '')} on ${config?.network ?? 'testnet'}. Costs gas.`,
+    ),
+  );
+
+  const ok = await confirm({
+    title: 'Create these rules on-chain?',
+    body: 'The rules cannot be edited afterwards. Changing them means creating a new policy and moving her funds to it.',
+    fact: [fact],
+    confirmLabel: 'Yes, create them',
+  });
+  if (!ok) return;
+
+  setupState.submitting = true;
+  renderSetup();
+  try {
+    const response = await fetch('/api/policy', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...call, confirm: true }),
+    });
+    const body = (await response.json()) as { policyId?: string; digest?: string; error?: string };
+    if (!response.ok || !body.policyId) {
+      throw new Error(body.error ?? `server returned ${response.status}`);
+    }
+    setupState.result = { policyId: body.policyId, digest: body.digest };
+    // The page is now about a different policy, so everything it holds
+    // about the old one is stale.
+    requestsLoaded = false;
+    requests = [];
+    await loadConfig();
+    await refreshRequests();
+  } catch (error) {
+    setupState.serverError = error instanceof Error ? error.message : String(error);
+  } finally {
+    setupState.submitting = false;
+    renderSetup();
+  }
+}
+
+// ---- loading ----
+
+async function loadConfig(): Promise<void> {
+  const response = await fetch('/api/config');
+  config = (await response.json()) as Config;
+  // Prefill what the deployment already knows, so the common case is
+  // confirming values rather than hunting for object ids.
+  if (!setupState.denyListId) setupState.denyListId = config.denyListId ?? '';
+  if (!setupState.guardians[0] && config.guardian) setupState.guardians[0] = config.guardian;
+  renderChips();
+  renderBanners();
 }
 
 function renderChips(): void {
   const chips = $('chips');
   chips.textContent = '';
-  const add = (text: string): void => {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.textContent = text;
-    chips.append(chip);
-  };
   if (!config) return;
+  const add = (text: string): void => {
+    chips.append(el('span', { class: 'chip' }, text));
+  };
   add(config.network);
   if (config.guardian) add(`you: ${shortAddress(config.guardian)}`);
-  if (config.threshold !== null) add(`threshold ${config.threshold}`);
+  if (config.threshold !== null) add(`${config.threshold} approval${config.threshold === 1 ? '' : 's'} needed`);
+  if (config.cooldownMs !== null) add(`waits ${describeDuration(config.cooldownMs / 60_000)}`);
   if (config.policyId) add(`policy ${shortAddress(config.policyId)}`);
 }
 
-async function refresh(): Promise<void> {
+async function refreshRequests(): Promise<void> {
   try {
     const response = await fetch('/api/requests');
     const body = (await response.json()) as {
       requests?: TransferRequestView[];
       threshold?: number;
+      reviewCeiling?: string;
+      highRiskCeiling?: string;
       nowMs?: number;
       error?: string;
     };
     if (!response.ok) throw new Error(body.error ?? `server returned ${response.status}`);
-    clearError();
-    lastRequests = body.requests ?? [];
-    lastNow = body.nowMs ?? Date.now();
-    if (config && typeof body.threshold === 'number') config.threshold = body.threshold;
-    render(lastRequests, lastNow);
+    pollFailures = 0;
+    requests = body.requests ?? [];
+    requestsLoaded = true;
+    nowMs = body.nowMs ?? Date.now();
+    if (config) {
+      if (typeof body.threshold === 'number') config.threshold = body.threshold;
+      if (body.reviewCeiling) config.reviewCeiling = body.reviewCeiling;
+      if (body.highRiskCeiling) config.highRiskCeiling = body.highRiskCeiling;
+    }
+    renderBanners();
+    renderTransfers();
   } catch (error) {
     pollFailures += 1;
-    if (pollFailures > 1) {
-      showError(
-        `Cannot reach the dashboard server (${error instanceof Error ? error.message : String(error)}). ` +
-          `Anything shown below may be out of date. Nothing has changed on-chain — ` +
-          `held transfers stay held whether this page is running or not.`,
+    // Only the first load leaves nothing on screen; after that the rows
+    // already rendered are still true, so keep them and say the page is
+    // stale rather than replacing real data with an error.
+    if (!requestsLoaded) {
+      requestsLoaded = true;
+      $('list').textContent = '';
+      $('list').append(
+        emptyState(
+          'alert',
+          'Could not read the chain.',
+          error instanceof Error ? error.message : String(error),
+        ),
       );
     }
+    renderBanners();
   }
 }
 
-async function main(): Promise<void> {
+async function loadFlags(): Promise<void> {
   try {
-    config = (await (await fetch('/api/config')).json()) as Config;
+    const response = await fetch('/api/redflags');
+    const body = (await response.json()) as { flags?: RedFlagView[]; error?: string };
+    if (!response.ok) throw new Error(body.error ?? `server returned ${response.status}`);
+    flags = body.flags ?? [];
+    flagsError = null;
   } catch (error) {
-    return showError(error instanceof Error ? error.message : String(error));
+    flags = null;
+    flagsError = error instanceof Error ? error.message : String(error);
+  } finally {
+    flagsLoaded = true;
+    renderFlags();
   }
-  renderChips();
+}
 
-  if (config.error) showError(config.error);
+// ---- tabs ----
 
-  if (config.approver === false) {
-    const box = $('notApprover');
-    box.classList.remove('hidden');
-    // Fails loudly rather than showing buttons that will abort on-chain.
-    box.textContent =
-      `The key this server signs with (${shortAddress(config.guardian ?? '')}) is not an approver on ` +
-      `this policy, so approving or blocking would be refused by the contract. ` +
-      `Reseed with your own address as the guardian: ` +
-      `SHOU_GUARDIAN_ADDRESS=<you> node --experimental-strip-types packages/driver/src/seed-demo.ts`;
+type View = 'transfers' | 'flags' | 'setup';
+
+function selectView(next: View): void {
+  for (const name of ['transfers', 'flags', 'setup'] as const) {
+    const tab = $(`tab-${name}`);
+    tab.setAttribute('aria-selected', String(name === next));
+    ($(`view-${name}`) as HTMLElement).hidden = name !== next;
+  }
+  if (next === 'flags' && !flagsLoaded) void loadFlags();
+  if (next === 'setup') renderSetup();
+}
+
+async function main(): Promise<void> {
+  for (const name of ['transfers', 'flags', 'setup'] as const) {
+    $(`tab-${name}`).addEventListener('click', () => selectView(name));
   }
 
   $('footnote').textContent =
-    'Approving and blocking are ordinary on-chain calls. A guardian can stop a transfer and send ' +
+    'Approving and stopping are ordinary on-chain calls. A guardian can stop a transfer and send ' +
     'the money back to her, and that is all — there is no call in the contract that redirects her ' +
     'funds to anyone else, including you. This page never shows her messages.';
 
-  await refresh();
+  renderTransfers();
+  try {
+    await loadConfig();
+  } catch (error) {
+    return showError(error instanceof Error ? error.message : String(error));
+  }
+  await refreshRequests();
+
   // Cheap poll. The alternative is a websocket for a screen that is
-  // usually empty and always has a human waiting on it.
-  setInterval(() => void refresh(), 5000);
+  // usually empty and always has a human waiting on it. Paused while a
+  // confirmation is open, so the list cannot re-render underneath the
+  // transfer the guardian is being asked about.
+  setInterval(() => {
+    if (busy || ($('confirm') as HTMLDialogElement).open) return;
+    void refreshRequests();
+  }, 5000);
 }
 
 void main();

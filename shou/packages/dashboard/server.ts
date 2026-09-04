@@ -1,11 +1,11 @@
 // SHOU — the guardian dashboard server.
 //
 // This is the son's screen: the place where a held transfer is approved
-// or blocked. It is a thin shell around @shou/driver — every decision is
-// an ordinary on-chain call to `policy::approve` or
-// `policy::block_and_refund`, so this process has no authority of its
-// own. Stop it and the escrowed funds are unaffected; she can still
-// cancel and be refunded.
+// or blocked, where the community deny list is read, and where a family
+// sets up the rules in the first place. It is a thin shell around
+// @shou/driver — every decision is an ordinary on-chain call, so this
+// process has no authority of its own. Stop it and the escrowed funds
+// are unaffected; she can still cancel and be refunded.
 //
 // WHAT IT DELIBERATELY DOES NOT SERVE: message text, and any description
 // of it. The guardian receives a tier and an amount, never a transcript
@@ -32,7 +32,7 @@ import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
 import { SuiShouClient, TESTNET_USDC } from '../driver/src/client.ts';
-import type { PolicyView, TransferRequestView } from '../driver/src/types.ts';
+import type { PolicyView, RedFlagView, TransferRequestView } from '../driver/src/types.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // 4200: 3000 is the sign-in page (its OAuth origin is registered against
@@ -74,7 +74,9 @@ const cfg = (name: string): string | undefined => process.env[name] || env[name]
 
 const packageId = cfg('SHOU_PACKAGE_ID') ?? demo.packageId ?? '';
 const policyId = cfg('SHOU_POLICY_ID') ?? demo.policyId ?? '';
+const denyListId = cfg('SHOU_DENY_LIST') ?? demo.denyListId ?? '';
 const coinType = cfg('SHOU_COIN_TYPE') ?? demo.coinType ?? TESTNET_USDC;
+const network = (cfg('SHOU_NETWORK') as 'testnet' | 'mainnet' | 'devnet' | 'localnet') ?? 'testnet';
 
 // Same loader the driver scripts use: an explicit key if given, otherwise
 // the local Sui CLI keystore, which is the normal developer setup.
@@ -98,24 +100,40 @@ try {
 }
 
 const client =
-  signer && packageId
-    ? new SuiShouClient({
-        packageId,
-        network: (cfg('SHOU_NETWORK') as 'testnet' | undefined) ?? 'testnet',
-        signer,
-      })
-    : null;
+  signer && packageId ? new SuiShouClient({ packageId, network, signer }) : null;
 
 /**
  * `null` until the first read, then cached: the approver list does not
  * change without a new policy, and the answer decides what the page is
  * allowed to offer rather than only how it looks.
+ *
+ * Invalidated by a successful /api/policy, which is the one thing in this
+ * process that can change which policy is being looked at.
  */
 let policy: PolicyView | null = null;
+let activePolicyId = policyId;
 async function getPolicy(): Promise<PolicyView> {
   if (!client) throw new Error(signerError ?? 'no signer or package id configured');
-  if (!policy) policy = await client.getPolicy(policyId);
+  if (!activePolicyId) throw new Error('no policy id');
+  if (!policy) policy = await client.getPolicy(activePolicyId);
   return policy;
+}
+
+/**
+ * Whether the signer holds the OracleCap that `redflag::report` requires.
+ *
+ * Asked once and cached, because the answer decides whether the page
+ * offers a reporting control at all. Offering one without the capability
+ * would tell a guardian an address had been flagged when the transaction
+ * aborted — and he would then stop watching an address he believes is
+ * handled. Read-only is the honest state when the cap is absent.
+ */
+let oracleCapId: string | null | undefined;
+async function getOracleCap(): Promise<string | null> {
+  if (oracleCapId === undefined) {
+    oracleCapId = client ? await client.findOracleCap() : null;
+  }
+  return oracleCapId;
 }
 
 const TYPES: Record<string, string> = {
@@ -124,85 +142,184 @@ const TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
 };
 
+/** Routes that change something on-chain, and are guarded as such. */
+const MUTATIONS = new Set(['/api/approve', '/api/block', '/api/policy']);
+
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+  const url = new URL(req.url ?? '/', `http://127.0.0.1:${PORT}`);
   const json = (status: number, body: unknown): void => {
-    res.writeHead(status, { 'content-type': 'application/json' });
+    res.writeHead(status, {
+      'content-type': 'application/json',
+      // Nothing here is cacheable: every read is chain state that may
+      // have changed, and a cached /api/requests would show a guardian a
+      // transfer he has already blocked.
+      'cache-control': 'no-store',
+    });
     res.end(JSON.stringify(body));
   };
 
   try {
-    if (url.pathname === '/api/config') {
-      const guardian = signer?.toSuiAddress() ?? null;
-      let approver: boolean | null = null;
-      let threshold: number | null = null;
-      let owner: string | null = null;
-      let error: string | null = signerError;
-      if (client && policyId) {
-        try {
-          const p = await getPolicy();
-          threshold = p.threshold;
-          owner = p.owner;
-          // The .env.example says it outright: to test this dashboard you
-          // must BE the guardian. Saying so here beats letting every
-          // approval fail with an opaque ENotApprover from the chain.
-          approver = Boolean(guardian && p.approvers.includes(guardian));
-        } catch (cause) {
-          error = cause instanceof Error ? cause.message : String(cause);
-        }
-      } else if (!policyId) {
-        error =
-          'No policy id. Run: node --experimental-strip-types packages/driver/src/seed-demo.ts';
-      }
-      return json(200, {
-        guardian,
-        approver,
-        threshold,
-        owner,
-        policyId,
-        packageId,
-        coinType,
-        network: cfg('SHOU_NETWORK') ?? 'testnet',
-        error,
-      });
-    }
-
-    if (url.pathname === '/api/requests') {
-      if (!client || !policyId) return json(503, { error: signerError ?? 'not configured' });
-      const [requests, p] = await Promise.all([
-        client.listTransferRequests(policyId, Number(url.searchParams.get('limit') ?? 25)),
-        getPolicy(),
-      ]);
-      return json(200, { requests, threshold: p.threshold, nowMs: Date.now() });
-    }
-
-    if (url.pathname === '/api/approve' || url.pathname === '/api/block') {
-      // POST only, and JSON only. Both matter: a cross-origin form post
-      // cannot set content-type to application/json without a preflight,
-      // and this server answers no CORS preflight at all — so a page the
-      // guardian happens to have open cannot drive an approval on his
-      // behalf. This server holds his signing key; a GET that approved a
-      // transfer would be one <img> tag away from being exploitable.
+    if (MUTATIONS.has(url.pathname)) {
+      // Four guards, and each closes a different door. This server holds
+      // the guardian's signing key, so a GET that approved a transfer
+      // would be one <img> tag away from being exploitable.
+      //
+      //  - POST only: a URL cannot be a mutation, so no <img>, no link,
+      //    no prefetch, no address bar.
+      //  - JSON only: a cross-origin <form> cannot set this content-type
+      //    without a preflight, and this server answers no preflight at
+      //    all, so the browser refuses before the request is sent.
+      //  - Origin, when present, must be this server: closes the case of
+      //    a page that does manage to send a simple request.
+      //  - Explicit confirmation in the body: the UI asks the guardian
+      //    before every one of these, and the flag is how the server
+      //    refuses anything that skipped the asking.
       if (req.method !== 'POST') return json(405, { error: 'POST required' });
       if (!(req.headers['content-type'] ?? '').includes('application/json')) {
         return json(415, { error: 'content-type must be application/json' });
       }
-      if (!client || !policyId) return json(503, { error: signerError ?? 'not configured' });
+      const origin = req.headers.origin;
+      if (origin && origin !== `http://127.0.0.1:${PORT}` && origin !== `http://localhost:${PORT}`) {
+        return json(403, { error: `cross-origin request from ${origin} refused` });
+      }
+      if (!client || !activePolicyId) return json(503, { error: signerError ?? 'not configured' });
 
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(chunk as Buffer);
       const body = (chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}) as {
         requestId?: string;
+        confirm?: boolean;
+        approvers?: string[];
+        threshold?: number;
+        cooldownMs?: number;
+        denyListId?: string;
+        reviewCeiling?: string;
+        highRiskCeiling?: string;
       };
-      if (!body.requestId) return json(400, { error: 'requestId is required' });
+      if (body.confirm !== true) {
+        return json(400, { error: 'this call spends gas on testnet and needs confirm: true' });
+      }
 
+      if (url.pathname === '/api/policy') {
+        // Re-checked here and not only in the browser: these are the
+        // aborts in `new_policy`, and a Move abort reaches a page as an
+        // opaque failure that costs gas to discover.
+        const approvers = body.approvers ?? [];
+        const threshold = Number(body.threshold);
+        if (!approvers.length) return json(400, { error: 'at least one guardian is required' });
+        if (!Number.isInteger(threshold) || threshold < 1) {
+          return json(400, { error: 'threshold must be at least 1' });
+        }
+        if (threshold > approvers.length) {
+          return json(400, { error: 'threshold cannot exceed the number of guardians' });
+        }
+        const review = BigInt(body.reviewCeiling ?? '0');
+        const high = BigInt(body.highRiskCeiling ?? '0');
+        if (review <= 0n || high <= 0n) return json(400, { error: 'ceilings must be above zero' });
+        if (review > high) {
+          return json(400, { error: 'review ceiling cannot exceed the high-risk ceiling' });
+        }
+        const list = body.denyListId || denyListId;
+        if (!list) return json(400, { error: 'a deny list id is required' });
+
+        // Number() on a u64 ceiling is safe here and nowhere else: these
+        // are amounts a person typed into a form, not values read back
+        // from a chain that may hold u64::MAX.
+        const created = await client.createPolicy(
+          approvers,
+          threshold,
+          Number(body.cooldownMs ?? 0),
+          list,
+          Number(review),
+          Number(high),
+        );
+        // Point this process at what was just created, so the transfers
+        // view is about the policy the family now has.
+        activePolicyId = created.policyId;
+        policy = null;
+        return json(200, { ...created, denyListId: list });
+      }
+
+      if (!body.requestId) return json(400, { error: 'requestId is required' });
       // The coin type is not optional in practice: omitting it builds the
       // Move call for SUI and aborts on-chain against a USDC request.
       const state =
         url.pathname === '/api/approve'
-          ? await client.approveTransfer(body.requestId, policyId, coinType)
-          : await client.blockTransfer(body.requestId, policyId, coinType);
+          ? await client.approveTransfer(body.requestId, activePolicyId, coinType)
+          : await client.blockTransfer(body.requestId, activePolicyId, coinType);
       return json(200, { requestId: body.requestId, ...state });
+    }
+
+    if (url.pathname === '/api/config') {
+      const guardian = signer?.toSuiAddress() ?? null;
+      let approver: boolean | null = null;
+      let policyView: PolicyView | null = null;
+      let error: string | null = signerError;
+      if (client && activePolicyId) {
+        try {
+          policyView = await getPolicy();
+          // The .env.example says it outright: to test this dashboard you
+          // must BE the guardian. Saying so here beats letting every
+          // approval fail with an opaque ENotApprover from the chain.
+          approver = Boolean(guardian && policyView.approvers.includes(guardian));
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : String(cause);
+        }
+      } else if (!activePolicyId) {
+        error =
+          'No policy id. Run: node --experimental-strip-types packages/driver/src/seed-demo.ts, ' +
+          'or set the rules up on this page.';
+      }
+      return json(200, {
+        guardian,
+        approver,
+        owner: policyView?.owner ?? null,
+        threshold: policyView?.threshold ?? null,
+        approvers: policyView?.approvers ?? [],
+        cooldownMs: policyView?.cooldownMs ?? null,
+        reviewCeiling: policyView?.reviewCeiling ?? null,
+        highRiskCeiling: policyView?.highRiskCeiling ?? null,
+        pausedUntilMs: policyView?.pausedUntilMs ?? null,
+        policyId: activePolicyId,
+        packageId,
+        denyListId,
+        coinType,
+        network,
+        // Read-only unless the signer genuinely holds the capability the
+        // contract requires. See getOracleCap above.
+        canReport: Boolean(await getOracleCap()),
+        error,
+      });
+    }
+
+    if (url.pathname === '/api/requests') {
+      if (!client || !activePolicyId) return json(503, { error: signerError ?? 'not configured' });
+      const [requests, p] = await Promise.all([
+        client.listTransferRequests(activePolicyId, Number(url.searchParams.get('limit') ?? 25)),
+        getPolicy(),
+      ]);
+      return json(200, {
+        requests,
+        threshold: p.threshold,
+        reviewCeiling: p.reviewCeiling,
+        highRiskCeiling: p.highRiskCeiling,
+        nowMs: Date.now(),
+      });
+    }
+
+    if (url.pathname === '/api/redflags') {
+      if (!client) return json(503, { error: signerError ?? 'not configured' });
+      if (!denyListId) {
+        return json(503, {
+          error:
+            'No deny list id. Set SHOU_DENY_LIST, or run seed-demo.ts with SHOU_ADMIN_CAP to create one.',
+        });
+      }
+      const flags = await client.listRedFlags(
+        denyListId,
+        Number(url.searchParams.get('limit') ?? 50),
+      );
+      return json(200, { flags, denyListId, coinType, nowMs: Date.now() });
     }
 
     const file = url.pathname === '/' ? '/index.html' : url.pathname;
@@ -232,11 +349,13 @@ server.listen(PORT, '127.0.0.1', () => {
   if (!policyId) {
     console.warn(
       'WARNING: no policy id — run:\n' +
-        '  node --experimental-strip-types packages/driver/src/seed-demo.ts',
+        '  node --experimental-strip-types packages/driver/src/seed-demo.ts\n' +
+        '  (or set the rules up on the Setup tab)',
     );
   } else {
     console.log(`policy: ${policyId}`);
   }
+  if (!denyListId) console.warn('WARNING: no deny list id — the reported-addresses tab is empty');
 });
 
-export type { PolicyView, TransferRequestView };
+export type { PolicyView, RedFlagView, TransferRequestView };

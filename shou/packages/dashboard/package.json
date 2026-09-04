@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "esbuild src/app.ts --bundle --format=esm --outfile=public/app.js",
-    "start": "npm run build && node --experimental-strip-types server.ts"
+    "start": "npm run build && node --experimental-strip-types server.ts",
+    "test": "node --experimental-strip-types --test src/logic.test.ts"
   },
   "dependencies": {
     "@mysten/sui": "^2.28.0"
