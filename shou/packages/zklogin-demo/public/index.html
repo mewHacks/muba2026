@@ -125,30 +125,6 @@
     color: var(--blue);
   }
 
-  .nav-center-pill {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: #F4F6F8;
-    border: 1px solid #E5E7EB;
-    border-radius: 999px;
-    padding: 4px 6px;
-  }
-  .nav-link {
-    text-decoration: none;
-    color: var(--text-muted);
-    font-size: 13.5px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 999px;
-    transition: all 0.15s ease;
-  }
-  .nav-link:hover, .nav-link.active {
-    color: var(--text-dark);
-    background: #FFFFFF;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  }
-
   .nav-right-btn {
     appearance: none;
     background: linear-gradient(to right, var(--blue-dark) 50%, var(--black) 50%);
@@ -355,10 +331,6 @@
     .process-phase { padding: 20px 20px; }
     .process-phase-content { margin-left: 0; }
     .process-phase-num { width: 28px; height: 28px; font-size: 12px; }
-  }
-
-  @media (max-width: 768px) {
-    .nav-center-pill { display: none; }
   }
 
   /* Grant Badge */
@@ -643,14 +615,14 @@
   .bento-highlight-card h4 {
     font-family: var(--font-body);
     font-weight: 800;
-    font-size: 28px;
-    margin: 0 0 8px;
+    font-size: 36px;
+    margin: 0 0 10px;
     color: var(--text-dark);
   }
   .bento-highlight-card p {
-    font-size: 14.5px;
+    font-size: 18px;
     color: var(--text-muted);
-    line-height: 1.45;
+    line-height: 1.5;
     margin: 0;
   }
   .ring-sui {
@@ -681,23 +653,23 @@
   .bento-light-card h4 {
     font-family: var(--font-body);
     font-weight: 800;
-    font-size: 23px;
-    margin: 0 0 5px;
+    font-size: 28px;
+    margin: 0 0 6px;
     color: var(--text-dark);
   }
   .bento-light-card p {
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-muted);
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.45;
   }
   .bento-mini-tag {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--blue);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
     display: block;
   }
 
@@ -1183,12 +1155,6 @@
       </div>
       <div class="brand-text">SHOU <span class="brand-kanji">守</span></div>
     </a>
-
-    <div class="nav-center-pill">
-      <a href="#simulator" class="nav-link active">Test Simulator</a>
-      <a href="#how-it-works" class="nav-link">How It Protects</a>
-      <a href="http://127.0.0.1:4200" target="_blank" class="nav-link">Son's Dashboard ↗</a>
-    </div>
 
     <div class="nav-actions">
       <button id="help-btn" class="nav-help-btn" type="button" title="How SHOU works" aria-label="How SHOU works">
