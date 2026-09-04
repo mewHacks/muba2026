@@ -20,21 +20,32 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 3000);
 
 function loadEnv() {
-  // Walk up to the repo root .env.
+  // Walk up to the repo root .env. Absent in a deployed image on purpose:
+  // .env is gitignored, so a host like Railway builds from a checkout that
+  // has none. Real process env therefore wins over the file, and is the only
+  // source in production — reading the file alone left googleClientId empty
+  // and the sign-in page announcing "Not configured" with the variables set.
+  const fromFile = {};
   for (const path of ['../../../.env', '../../.env', '../.env', '.env']) {
     try {
       const raw = readFileSync(join(HERE, path), 'utf8');
-      const env = {};
       for (const line of raw.split('\n')) {
         const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-        if (match) env[match[1]] = match[2].replace(/^["']|["']$/g, '');
+        if (match) fromFile[match[1]] = match[2].replace(/^["']|["']$/g, '');
       }
-      return env;
+      break;
     } catch {
       /* keep looking */
     }
   }
-  return {};
+  return { ...fromFile, ...stripEmpty(process.env) };
+}
+
+// An env var set to the empty string is not a value. Object spread would let
+// one shadow a real entry from the file, which is how a blank Railway
+// variable silently unconfigures a working local setup.
+function stripEmpty(source) {
+  return Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ''));
 }
 
 // Real on-chain object ids, written by packages/driver/src/seed-demo.ts.
@@ -59,9 +70,12 @@ const config = {
   enokiApiKey: env.NEXT_PUBLIC_ENOKI_API_KEY ?? '',
   network: 'testnet',
   redirectUrl: `http://localhost:${PORT}/auth/callback`,
-  policyId: demo.policyId ?? '',
-  denyListId: demo.denyListId ?? '',
-  packageId: demo.packageId ?? '',
+  // demo-ids.json is gitignored (seed-demo.ts rewrites it per deployment), so
+  // it is absent from a deployed image and these fall back to the environment.
+  // Without them the page refuses to prepare a transfer at all.
+  policyId: demo.policyId ?? env.SHOU_POLICY_ID ?? '',
+  denyListId: demo.denyListId ?? env.SHOU_DENY_LIST ?? '',
+  packageId: demo.packageId ?? env.SHOU_PACKAGE_ID ?? '',
 };
 
 const TYPES = {

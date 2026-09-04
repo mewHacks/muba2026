@@ -21,15 +21,22 @@ fi
 echo ""
 
 # ── Start all 4 services in the background ──
+#
+# Every service defaults its own port but reads process.env.PORT first, and a
+# host like Railway injects a single PORT into the container. Inherited, that
+# one value points all four at the same socket: the first binds, the other
+# three die with EADDRINUSE. So each port is pinned per-process here, and an
+# inherited PORT is dropped rather than passed down.
+unset PORT
 
 echo "[1/4] Starting enclave (TEE scoring) on :3100..."
 cd /app/enclave
-eval "$SCORER_FLAG node --experimental-strip-types src/server.ts" &
+eval "PORT=3100 $SCORER_FLAG node --experimental-strip-types src/server.ts" &
 ENCLAVE_PID=$!
 
 echo "[2/4] Starting circuit breaker on :4000..."
 cd /app/packages/circuit-breaker
-node --experimental-strip-types src/server.ts &
+PORT=4000 node --experimental-strip-types src/server.ts &
 CB_PID=$!
 
 # Give the enclave a moment to be ready before the dashboard tries to reach it
@@ -37,12 +44,12 @@ sleep 1
 
 echo "[3/4] Starting zkLogin demo (sign-in + transfer panel) on :3000..."
 cd /app/packages/zklogin-demo
-npm start &
+PORT=3000 npm start &
 DEMO_PID=$!
 
 echo "[4/4] Starting guardian dashboard on :4200..."
 cd /app/packages/dashboard
-npm start &
+PORT=4200 npm start &
 DASH_PID=$!
 
 # ── Serve the extension dist/ folder for download ──
