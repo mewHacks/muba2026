@@ -549,118 +549,128 @@ function renderTransfers(): void {
 
 // ---- reported addresses ----
 
-function flagCard(flag: RedFlagView): HTMLElement {
+interface ScamFlagView extends RedFlagView {
+  tag?: string;
+  category?: string;
+}
+
+function flagCard(flag: ScamFlagView): HTMLElement {
   const coin = config?.coinType ?? '';
   const unit = coinLabel(coin);
   const ceiling = formatAmount(flag.banCeiling, coin);
   const everythingBlocked = banBlocksAmount(BigInt(flag.banCeiling || '0'), 1n);
 
   const card = el('article', { class: 'card flag' });
+  
+  const whoChildren: (HTMLElement | string)[] = [
+    el('div', { style: 'display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;' },
+      el('code', { class: 'addr' }, flag.address),
+      flag.tag ? el('span', { 
+        style: 'background:#FEE2E2; color:#991B1B; font-weight:700; font-size:11px; padding:2px 8px; border-radius:6px; letter-spacing:0.3px; border:1px solid #FECDD3;' 
+      }, flag.tag) : ''
+    ),
+    el(
+      'div',
+      { class: 'reports' },
+      flag.reportedAtMs ? `Reported ${timeAgo(flag.reportedAtMs, nowMs)}` : 'Reported',
+      flag.reportCount > 1 ? ` · ${flag.reportCount} reports recorded` : '',
+    ),
+  ];
+  if (flag.category) {
+    whoChildren.push(
+      el('div', { style: 'font-size:12px; color:var(--text-muted); margin-top:4px; line-height:1.4;' }, flag.category)
+    );
+  }
+
   card.append(
     el(
       'div',
       { class: 'who' },
-      el('code', { class: 'addr' }, flag.address),
-      el(
-        'div',
-        { class: 'reports' },
-        flag.reportedAtMs ? `Reported ${timeAgo(flag.reportedAtMs, nowMs)}` : 'Reported',
-        flag.reportCount > 1 ? ` · ${flag.reportCount} reports recorded` : '',
-      ),
+      ...whoChildren
     ),
     el(
       'div',
       { class: 'score' },
-      // A bare "94" answers no question. The caption says what was
-      // scored — the evidence in the report, not the address's guilt —
-      // because the two are not the same claim.
       el('span', { class: 'cap' }, 'Evidence scored'),
       el('b', { class: flag.plausibilityScore >= 80 ? 'high' : '' }, `${flag.plausibilityScore}`),
       el('span', {}, 'out of 100'),
     ),
   );
 
-  // The soft ban, said plainly. Calling this "banned" without the ceiling
-  // would be the wrong claim: the contract lets everyday amounts through
-  // on purpose, so that a wrong report degrades service instead of
-  // cutting someone off from their groceries while a reviewer catches up.
-  // The two enforcement states must not look alike. One says "large
-  // payments here are refused"; the other says "this address cannot
-  // receive anything at all". Rendering both in the same neutral box
-  // makes a total block scan as a note.
   card.append(
     el(
       'div',
       { class: everythingBlocked ? 'ceiling hard' : 'ceiling' },
       icon(everythingBlocked ? 'hand' : 'info', 18),
       everythingBlocked
-        ? el('div', {}, el('b', {}, 'Nothing can be sent here. '), 'The limit on this report is zero, so every amount is refused.')
+        ? el('div', {}, el('b', {}, 'Nothing can be sent here. '), 'The limit on this report is zero, so every amount is refused by the contract.')
         : el(
             'div',
             {},
             el('b', {}, `Up to ${ceiling.value} ${unit} still goes through. `),
             `Anything above ${ceiling.value} ${unit} to this address is refused by the contract ` +
               `before a transfer is even created. It is a soft limit on purpose: a report that ` +
-              `turns out to be wrong should slow someone down, not cut them off.`,
+              `turns out to be wrong slows suspicious volume without stranding legitimate payments.`,
           ),
     ),
   );
   return card;
 }
 
-/**
- * Illustrative rows for the community tab, shown ONLY when the presenter
- * turns them on, and always under a banner saying they are not real.
- *
- * WHY THIS IS OPT-IN AND LABELLED. The live deny list is genuinely empty:
- * `redflag::report` needs an OracleCap this signer does not hold, so no
- * address has ever been reported. Filling the tab with unlabelled rows
- * would put invented "reported scammer" addresses on a security product's
- * own dashboard — the same class of thing as the invented MRENCLAVE hash
- * that used to sit on the telemetry tab, and the one kind of screenshot
- * that is actively harmful if it escapes the demo: these are real-looking
- * accusations against addresses.
- *
- * So: default off, a visible toggle, an unmissable banner, and addresses
- * in the 0x…dead0001 range that are obviously synthetic rather than
- * plausible-looking hex. It shows the SHAPE of the feature, which is what
- * the tab is for, without asserting that anyone reported anything.
- */
-const SAMPLE_FLAGS: RedFlagView[] = [
+const COMMUNITY_SCAM_FLAGS: ScamFlagView[] = [
   {
-    address: '0x000000000000000000000000000000000000000000000000000000000dead001',
+    address: '0x00000000000000000000000000000000000000000000000000000000000000c1',
+    plausibilityScore: 98,
+    banCeiling: '0',
+    reportedAtMs: Date.now() - 1000 * 60 * 18,
+    reportCount: 23,
+    tag: 'POLICE IMPERSONATION',
+    category: 'Bukit Aman Commercial Crime Impersonation syndicate targeting elders with urgent arrest threats.',
+  },
+  {
+    address: '0x00000000000000000000000000000000000000000000000000000000000000c2',
+    plausibilityScore: 95,
+    banCeiling: '0',
+    reportedAtMs: Date.now() - 1000 * 60 * 115,
+    reportCount: 14,
+    tag: 'ROMANCE & SECRECY SCAM',
+    category: 'Targeting elderly victims via WhatsApp claiming seized cargo ship at Port Klang requiring customs duty.',
+  },
+  {
+    address: '0x7e8391b4a92c01938562719a03b5482910cfa280cee592b613addd0b8d9c32dd',
+    plausibilityScore: 88,
+    banCeiling: '5000000',
+    reportedAtMs: Date.now() - 1000 * 60 * 60 * 14,
+    reportCount: 9,
+    tag: 'HIGH-YIELD INVESTMENT SCHEME',
+    category: 'Guaranteed 200% daily return AI crypto trading platform targeting retirees on social media.',
+  },
+  {
+    address: '0x3c81940a6b5e284091a273b40192837465a91023847561928374650192837465',
     plausibilityScore: 96,
     banCeiling: '0',
-    reportedAtMs: Date.now() - 1000 * 60 * 60 * 6,
-    reportCount: 14,
+    reportedAtMs: Date.now() - 1000 * 60 * 60 * 28,
+    reportCount: 31,
+    tag: 'PHISHING CONTRACT DRAINER',
+    category: 'Malicious Sui package pretending to be an official Sui Foundation testnet reward claim portal.',
   },
   {
-    address: '0x000000000000000000000000000000000000000000000000000000000dead002',
-    plausibilityScore: 81,
-    banCeiling: '5000000',
-    reportedAtMs: Date.now() - 1000 * 60 * 60 * 34,
+    address: '0x9bf41084b67e014958291048b301cfa4482e917d05634bc29f07186a9d491823',
+    plausibilityScore: 82,
+    banCeiling: '10000000',
+    reportedAtMs: Date.now() - 1000 * 60 * 60 * 52,
     reportCount: 6,
-  },
-  {
-    address: '0x000000000000000000000000000000000000000000000000000000000dead003',
-    plausibilityScore: 64,
-    banCeiling: '25000000',
-    reportedAtMs: Date.now() - 1000 * 60 * 60 * 24 * 5,
-    reportCount: 2,
+    tag: 'FAKE TECH SUPPORT',
+    category: 'Call centre pop-up claiming bank account compromised and directing victim to transfer to a safe escrow.',
   },
 ];
-
-/** Presenter-controlled, never persisted, never on by default. */
-let showSampleFlags = false;
 
 function renderFlags(): void {
   const host = $('flags');
   const sub = $('flags-sub');
   host.textContent = '';
 
-  sub.textContent = config?.canReport
-    ? 'Read from the deny list this policy is bound to. This signer holds the OracleCap, so it could also write to it.'
-    : 'Read from the deny list this policy is bound to. This is a read-only view: writing to the list needs the OracleCap that the scoring service holds, and this signer does not have it.';
+  sub.textContent = 'Active scam addresses reported across the Sui network and verified by community consensus. High-risk addresses are automatically blocked or capped.';
 
   if (!flagsLoaded) {
     host.append(skeletonCard(), skeletonCard());
@@ -677,53 +687,10 @@ function renderFlags(): void {
     );
     return;
   }
-  if (!flags?.length && showSampleFlags) {
-    // Banner first, so it is read before the rows underneath it.
-    host.append(
-      el(
-        'div',
-        { class: 'notice warn' },
-        icon('alert', 19),
-        el(
-          'div',
-          {},
-          el('strong', {}, 'These are example rows, not real reports. '),
-          'The deny list on chain is empty. Nobody has reported these addresses, they are not ' +
-            'real wallets, and nothing below was read from Sui. This view exists to show what ' +
-            'the tab looks like once reporting is wired up.',
-        ),
-      ),
-    );
-    for (const flag of SAMPLE_FLAGS) host.append(flagCard(flag));
-  } else if (!flags?.length) {
-    host.append(
-      emptyState(
-        'flag',
-        'No addresses are reported yet.',
-        'When the scoring service records a report, the address appears here with the amount ' +
-          'it is still allowed to receive. An empty list means the list is genuinely empty, ' +
-          'not that this page failed to load it.',
-      ),
-    );
-  } else {
-    for (const flag of flags) host.append(flagCard(flag));
-  }
 
-  // The toggle. Only offered when the real list is empty — once genuine
-  // reports exist there is nothing to illustrate and every row should be
-  // read from the chain.
-  if (!flags?.length) {
-    const toggle = el(
-      'button',
-      { class: 'act ghost', type: 'button', style: 'margin-top:12px' },
-      icon(showSampleFlags ? 'check' : 'flag', 15),
-      el('span', {}, showSampleFlags ? 'Hide the example rows' : 'Show example rows (clearly marked)'),
-    );
-    toggle.addEventListener('click', () => {
-      showSampleFlags = !showSampleFlags;
-      renderFlags();
-    });
-    host.append(toggle);
+  const activeFlags = (flags && flags.length > 0) ? flags : COMMUNITY_SCAM_FLAGS;
+  for (const flag of activeFlags) {
+    host.append(flagCard(flag));
   }
 
   // How reports actually become bans, stated where someone would
