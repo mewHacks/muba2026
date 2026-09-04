@@ -7,7 +7,13 @@ export type RiskTier = 'LOW' | 'MEDIUM' | 'HIGH';
 /** Output of Gonka Router scoring — Dev B produces this, Dev A only ever consumes it. */
 export interface RiskAssessment {
   tier: RiskTier;
-  truthScore: number; // 0–100, Gonka's Truth Score
+  // 0-100, and it is a RISK score despite the name: HIGHER MEANS MORE
+  // DANGEROUS. `tierFor()` maps a high value to HIGH, and the enclave keeps
+  // the worst verdict in a session with Math.max. A real scam scores ~86-91;
+  // a benign family message scores 0. Rendering it as a trustworthiness
+  // figure inverts it — the elder page did exactly that and showed
+  // "Truth Score: 86/100" next to a scam warning.
+  truthScore: number;
   requestId: string; // Gonka Request ID — must be displayed in UI per submission reqs
   category: string; // e.g. "urgency + unknown recipient"
   messageHash: string; // sha256 of the source message — never the message itself

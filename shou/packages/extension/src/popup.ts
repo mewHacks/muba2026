@@ -3,7 +3,9 @@
 // tabs (Chats / Wallet / Options) behind a bottom dock.
 //
 // Zero complex crypto jargon for elderly:
-// 1. Plain words: "Safe to send", "Scam stopped", "Locked safely on Sui".
+// 1. Plain words, describing what her RULES do rather than claiming this
+//    extension has already done it — it scores conversations and holds no
+//    money. See the note on the HIGH branch below.
 // 2. Gonka Request IDs and Truth Scores are tucked inside a clean verification
 //    toggle so judges can audit them without overwhelming mom.
 
@@ -37,13 +39,20 @@ function updateViewForVerdict(verdict: Verdict, scoredCount: number): void {
 
   if (isHigh) {
     if (statusTitle) {
-      statusTitle.textContent = 'SCAM STOPPED & SAFE';
+      statusTitle.textContent = 'SCAM DETECTED';
       statusTitle.classList.add('danger');
     }
     if (coinEmblem) coinEmblem.classList.add('danger');
     if (statusDesc) {
+      // Describes what her RULES will do, not something this extension did.
+      // It said "SCAM STOPPED & SAFE / your money was NOT sent — it is locked
+      // safely on Sui", but the extension only scores conversations: it holds
+      // no funds, creates no escrow and submits nothing. Nothing had been
+      // stopped at the moment this text appeared, and telling someone under
+      // active pressure that she is already safe is the worst possible time
+      // to be wrong about it.
       statusDesc.textContent =
-        'Someone is trying to pressure you. Your money was NOT sent to the scammer — it is locked safely on Sui.';
+        'Someone is trying to pressure you. Do not send money. If you try, your own rules will hold it on Sui until someone you trust agrees.';
     }
   } else if (isMed) {
     if (statusTitle) {
@@ -52,7 +61,7 @@ function updateViewForVerdict(verdict: Verdict, scoredCount: number): void {
     }
     if (statusDesc) {
       statusDesc.textContent =
-        'This chat looks unusual. Any transfer is held for 2 minutes so your son can review it.';
+        'This chat looks unusual. A transfer will wait for the cooling-off period she set, so there is time to check with family.';
     }
   } else {
     if (statusTitle) {
@@ -79,7 +88,13 @@ function updateViewForVerdict(verdict: Verdict, scoredCount: number): void {
     reason.style.marginTop = '6px';
     reason.style.opacity = '0.9';
     reason.style.fontSize = '12px';
-    reason.innerHTML = `<strong>AI spotted:</strong> ${verdict.reasoning}`;
+    // textContent, not innerHTML. `reasoning` is model-generated text derived
+    // from an attacker-controlled message, so a scammer who can steer the
+    // model's wording could inject markup into the popup with it. The label
+    // is built as a separate element so it can still be bold.
+    const label = document.createElement('strong');
+    label.textContent = 'AI spotted: ';
+    reason.append(label, document.createTextNode(verdict.reasoning));
     box.append(reason);
   }
 
@@ -90,7 +105,11 @@ function updateViewForVerdict(verdict: Verdict, scoredCount: number): void {
   details.style.color = 'var(--text-muted)';
   const summary = document.createElement('summary');
   summary.style.cursor = 'pointer';
-  summary.textContent = `Audit: Truth Score ${verdict.truthScore ?? 'N/A'}/100 · Gonka Receipts (${verdict.gonkaRequestIds.length})`;
+  // "Scam risk", not "Truth Score": the number is a RISK score — high means
+  // dangerous — so the old label inverted it for anyone reading the drawer.
+  summary.textContent =
+    `Audit: scam risk ${verdict.truthScore ?? 'N/A'}/100 (higher is worse)` +
+    ` · Gonka receipts (${verdict.gonkaRequestIds.length})`;
   details.append(summary);
 
   if (verdict.gonkaRequestIds.length) {

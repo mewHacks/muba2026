@@ -32,6 +32,48 @@ interface Config {
   policyId: string;
   denyListId: string;
   packageId: string;
+  /**
+   * Her actual limits, in base units, proxied from the guardian dashboard's
+   * read of the chain. Null when the dashboard is not running — in which
+   * case the page describes the rule without asserting a figure, rather
+   * than printing a limit she never chose.
+   */
+  reviewCeiling?: string | null;
+  highRiskCeiling?: string | null;
+  cooldownMs?: number | null;
+}
+
+/**
+ * The score line, with the polarity the number actually has.
+ *
+ * `truthScore` is a RISK score everywhere in this codebase: `tierFor()` maps
+ * a high value to HIGH, and the enclave keeps the WORST verdict in a session
+ * with `Math.max`. Live values bear that out — the Bukit Aman scam scores 86,
+ * a benign family message scores 0.
+ *
+ * The screen used to label it "Truth Score: N/100" alongside fallbacks that
+ * assumed the opposite (HIGH -> 12, LOW -> 98), so a real scam read
+ * "Truth Score: 86/100" and a genuinely safe message read "0/100" — the
+ * number contradicting the banner directly above it. Call it what it is, and
+ * print no number at all when none came back rather than inventing one.
+ */
+function riskLine(score: unknown): string {
+  return typeof score === 'number'
+    ? `Scam risk score: ${score}/100 (higher is more dangerous)`
+    : 'Scam risk score: not returned';
+}
+
+/** Base units -> "1.00". USDC is 6dp; SUI would be 9. */
+function formatUsdc(base: string | null | undefined): string | null {
+  if (base === null || base === undefined || base === '') return null;
+  try {
+    const n = BigInt(base);
+    const whole = n / 1_000_000n;
+    const cents = ((n % 1_000_000n) * 100n) / 1_000_000n;
+    return `${whole.toLocaleString('en-US')}.${cents.toString().padStart(2, '0')}`;
+  } catch {
+    return null;
+  }
 }
 
 const els = {
@@ -229,17 +271,31 @@ if (!config.googleClientId || !config.enokiApiKey) {
     advice: string;
   }
 
+  /**
+   * Plain-English wrapper around a verdict the ENCLAVE already reached.
+   *
+   * THE TIER ARGUMENT IS AUTHORITATIVE AND THIS FUNCTION MAY NOT LOWER IT.
+   * It picks friendlier wording for a tier; it does not decide the tier.
+   *
+   * This used to match keywords first — `lower.includes('groceries')`
+   * returned SAFE CONVERSATION regardless of what the models said, and the
+   * caller then derived an `effectiveTier` from that title. So a message
+   * the enclave scored HIGH rendered green if it happened to mention fruit,
+   * and the README's central promise — "the AI's verdict is a floor, never
+   * a ceiling; tell the contract a large transfer is low-risk and it
+   * escalates anyway" — was false in the one place a judge would look.
+   * A scammer writing "send the grocery money, auntie" defeated it.
+   *
+   * Keyword matching survives only to CHOOSE THE FLAVOUR of a warning that
+   * the tier has already justified, which is the direction it is safe in.
+   */
   function humanizeReasoning(text: string, data: any): HumanVerdict {
     const lower = text.toLowerCase();
+    const tier = data?.tier;
 
-    // Safe / benign message check first
-    if (
-      lower.includes('groceries') ||
-      lower.includes('market') ||
-      lower.includes('fruits') ||
-      lower.includes('love you') ||
-      (data?.tier === 'LOW' && !lower.includes('police') && !lower.includes('arrest') && !lower.includes('custom') && !lower.includes('cargo'))
-    ) {
+    // A LOW verdict from the enclave is the only route to a safe screen.
+    // Nothing on this page may talk a MEDIUM or HIGH down to green.
+    if (tier === 'LOW') {
       return {
         title: 'SAFE CONVERSATION',
         summary: 'Normal friendly message. No scam signals, threats, or urgent money pressure found.',
@@ -291,24 +347,22 @@ if (!config.googleClientId || !config.enokiApiKey) {
       };
     }
 
-    if (
-      lower.includes('500') ||
-      lower.includes('plumbing') ||
-      lower.includes('renovation') ||
-      data?.tier === 'MEDIUM'
-    ) {
+    if (tier === 'MEDIUM') {
+      // No hard-coded "$1.00" or "2 minutes" here: both are hers to choose,
+      // they live on the policy, and this function is not given them. The
+      // caller, which does have them, states the actual figures.
       return {
-        title: 'OVER SPENDING LIMIT',
-        summary: 'This transfer exceeds your normal $1.00 safe spending limit.',
+        title: 'CHECK THIS ONE FIRST',
+        summary: 'Something about this message looked unusual, so the transfer waits instead of going straight through.',
         reasons: [
-          { label: 'Spending Limit', desc: 'Transfer amount is above your daily safe rule.' },
-          { label: 'Safety Delay', desc: 'Held safely for 2 minutes so your son can review.' },
+          { label: 'Unusual Request', desc: 'This does not look like her normal day-to-day spending.' },
+          { label: 'Safety Delay', desc: 'Held for the cooling-off period she set, so there is time to check.' },
         ],
-        advice: 'Advice: If this is legitimate, wait 2 minutes or ask your son to approve on his dashboard.',
+        advice: 'Advice: Check with your family before confirming. Your son can also approve or cancel it on his dashboard.',
       };
     }
 
-    if (data?.tier === 'HIGH') {
+    if (tier === 'HIGH') {
       return {
         title: 'HIGH SCAM RISK',
         summary: data?.reasoning || 'Social engineering attack detected.',
@@ -320,14 +374,18 @@ if (!config.googleClientId || !config.enokiApiKey) {
       };
     }
 
+    // No tier at all — scoring failed or has not run. This used to fall
+    // through to SAFE CONVERSATION, so an outage rendered a green screen
+    // that looked exactly like a real all-clear. "We could not check" is
+    // the honest state, and it is the one an elder needs to see.
     return {
-      title: 'SAFE CONVERSATION',
-      summary: 'Normal message. No scam signals found.',
+      title: 'NOT CHECKED YET',
+      summary: 'This message has not been scored, so nothing here is an all-clear.',
       reasons: [
-        { label: 'Normal Chat', desc: 'Standard communication.' },
-        { label: 'No Pressure', desc: 'No threats or suspicious demands.' },
+        { label: 'No Verdict', desc: 'The enclave did not return a result for this message.' },
+        { label: 'Not A Green Light', desc: 'Treat it as unchecked, not as safe.' },
       ],
-      advice: 'Advice: Safe to reply and send normal small payments.',
+      advice: 'Advice: Check with your family before sending anything.',
     };
   }
 
@@ -360,16 +418,25 @@ if (!config.googleClientId || !config.enokiApiKey) {
     const deepAdvice = document.getElementById('mock-deep-advice');
 
     const human = humanizeReasoning(currentMsg, { tier, ...analysisData });
-    const effectiveTier = human.title === 'SAFE CONVERSATION' ? 'LOW' : (human.title === 'OVER SPENDING LIMIT' ? 'MEDIUM' : (human.title.includes('SCAM') ? 'HIGH' : tier));
+    // The tier the enclave returned, full stop. This line used to read the
+    // tier back OUT of the human-readable title, so the keyword matcher in
+    // humanizeReasoning silently became the decision-maker and could turn a
+    // HIGH into a green screen. The title is now derived from the tier, not
+    // the other way round.
+    const effectiveTier = tier;
 
     if (effectiveTier === 'HIGH') {
       title?.classList.add('danger');
       if (title) {
-        title.textContent = 'SCAM STOPPED & SAFE';
+        title.textContent = 'SCAM DETECTED';
         title.style.color = '#E11D48';
       }
       coin?.classList.add('danger');
-      if (desc) desc.textContent = detailText || 'Scam detected. Your money was NOT sent to the scammer. It is locked safely on Sui.';
+      // Same correction as the send card below: scoring a message stops
+      // nothing by itself. This said "SCAM STOPPED & SAFE / your money was
+      // NOT sent — it is locked safely on Sui" the instant a message scored
+      // HIGH, before any transfer had been attempted at all.
+      if (desc) desc.textContent = detailText || 'Scam detected. Do not send money. If you try, your own rules will hold it on Sui until someone you trust agrees.';
 
       if (chatBadge && chatDot) {
         chatDot.className = 'status-dot red';
@@ -386,7 +453,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#FECDD3';
       }
       if (scoreDot) scoreDot.className = 'status-dot red';
-      if (scoreText) scoreText.textContent = `Scam Risk: 95% · Truth Score: ${analysisData?.truthScore ?? 12}/100`;
+      if (scoreText) scoreText.textContent = riskLine(analysisData?.truthScore);
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -422,7 +489,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#FDE68A';
       }
       if (scoreDot) scoreDot.className = 'status-dot yellow';
-      if (scoreText) scoreText.textContent = `Caution: 50% · Truth Score: ${analysisData?.truthScore ?? 50}/100`;
+      if (scoreText) scoreText.textContent = riskLine(analysisData?.truthScore);
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -458,7 +525,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#A7F3D0';
       }
       if (scoreDot) scoreDot.className = 'status-dot green';
-      if (scoreText) scoreText.textContent = `Safe Message · Truth Score: ${analysisData?.truthScore ?? 98}/100`;
+      if (scoreText) scoreText.textContent = riskLine(analysisData?.truthScore);
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -490,15 +557,16 @@ if (!config.googleClientId || !config.enokiApiKey) {
     }
   }
 
-  // Wire Extension Mockup 2x2 buttons
+  // Wire Extension Mockup buttons.
+  //
+  // `mock-btn-send`, `mock-btn-hold` and `mock-btn-scan` were wired here but
+  // no element with those ids exists in index.html, so the listeners never
+  // attached to anything. Removed rather than left in place: a dead listener
+  // reads as a working control to the next person editing this file, and the
+  // one that mattered (`mock-btn-send`) hid the fact that the ONLY way to
+  // reach the send path is #send-btn on the Wallet tab.
   document.getElementById('mock-btn-check')?.addEventListener('click', () => {
     checkRiskBtn?.click();
-  });
-  document.getElementById('mock-btn-send')?.addEventListener('click', () => {
-    sendBtn?.click();
-  });
-  document.getElementById('mock-btn-hold')?.addEventListener('click', () => {
-    resetBtn?.click();
   });
 
   // Wire Bottom Dock Tabs (Chats is Screen 1, Wallet is Screen 2, Options is Screen 3)
@@ -536,19 +604,6 @@ if (!config.googleClientId || !config.enokiApiKey) {
   document.getElementById('mock-banner-close')?.addEventListener('click', () => {
     const banner = document.getElementById('mock-banner');
     if (banner) banner.style.display = 'none';
-  });
-
-  // Wire secondary buttons in Mockup tabs
-  const scanBtn = document.getElementById('mock-btn-scan');
-  scanBtn?.addEventListener('click', () => {
-    scanBtn.innerHTML = '<span>System Verified · All Systems Healthy</span>';
-    scanBtn.style.background = '#065F46';
-    scanBtn.style.borderColor = '#10B981';
-    setTimeout(() => {
-      scanBtn.innerHTML = '<span>Run System Health Check</span>';
-      scanBtn.style.background = '';
-      scanBtn.style.borderColor = '';
-    }, 3000);
   });
 
   // Wire Manual Paste & Deep Analysis Button in Chats Tab
@@ -619,8 +674,12 @@ if (!config.googleClientId || !config.enokiApiKey) {
 
         syncMockup(data.tier as any, simpleAdvice, data);
 
-        const scoreVal = data.truthScore ?? (high ? 12 : medium ? 50 : 98);
-        const scamRiskPct = high ? '95%' : medium ? '50%' : '5%';
+        // No invented "95% / 50% / 5%" confidence and no fabricated score.
+        // Those percentages were constants keyed off the tier, so they read
+        // as model output while carrying no information the tier did not
+        // already give — and the fallback scores ran opposite to the real
+        // polarity. See riskLine().
+        const scoreLabel = riskLine(data.truthScore);
 
         transferFeedback.innerHTML = `
           <div style="padding:1.2rem;background:${cardBg};border:2px solid ${cardBorder};border-radius:12px;color:${cardColor};margin-top:.75rem;">
@@ -630,7 +689,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
                 <span>${titleText}</span>
               </div>
               <div style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#FFFFFF;border:1px solid ${cardBorder};">
-                Truth Score: ${scoreVal}/100 · Scam Risk: ${scamRiskPct}
+                ${esc(scoreLabel)}
               </div>
             </div>
             <div style="font-size:16px;font-weight:600;line-height:1.45;margin-bottom:8px;">
@@ -674,6 +733,13 @@ if (!config.googleClientId || !config.enokiApiKey) {
       }
     };
   }
+
+  // The visible control for the reset shim above. Without this the session's
+  // worst verdict is sticky for the life of the enclave process, and the
+  // "goes straight through" path cannot be demonstrated after any scam.
+  document.getElementById('reset-scenario-btn')?.addEventListener('click', () => {
+    resetBtn?.click();
+  });
 
   // Voice Warning Readout (Plain-English Web Speech API from DESIGN.md §3.4)
   const speakBtn = document.getElementById('speak-warning-btn') as HTMLButtonElement | null;
@@ -747,7 +813,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
     if (transferFeedback) {
       transferFeedback.innerHTML = `
         <div style="padding:.5rem .8rem;background:#F1F5F9;border:1.5px solid #CBD5E1;border-radius:6px;font-size:13px;color:#334155;display:flex;align-items:center;gap:6px;">
-          <span class="status-dot green"></span> Loaded scenario and analyzed in extension. Click <strong>"Try to Send Money &rarr;"</strong> below to test transfer rules.
+          <span class="status-dot green"></span> Scenario loaded and scored. Now open the <strong>Wallet</strong> tab in the phone above, then press <strong>"Try to Send Money &rarr;"</strong> to see what the rules do with it.
         </div>
       `;
     }
@@ -882,13 +948,41 @@ if (!config.googleClientId || !config.enokiApiKey) {
         const msgText = messageInput?.value.trim() || '';
         const human = humanizeReasoning(msgText, { tier: data.tier, ...data });
 
-        // Determine whether chat was flagged as scam vs safe
-        const isChatSafe = human.title === 'SAFE CONVERSATION' || 
-          (data.tier === 'LOW' && !msgText.toLowerCase().includes('police') && !msgText.toLowerCase().includes('arrest') && !msgText.toLowerCase().includes('custom') && !msgText.toLowerCase().includes('cargo'));
-        const isChatScam = !isChatSafe && (data.tier === 'HIGH' || human.title.includes('SCAM') || human.title.includes('POLICE'));
-        
-        // Mom's instant unreviewed limit is $1.00 USDC
-        const isOverInstantLimit = amount > 1.0;
+        // The enclave's tier decides, nothing else. These used to be
+        // keyword tests over the message text, which meant the browser could
+        // overrule a signed verdict in either direction.
+        const isChatScam = data.tier === 'HIGH';
+        const isChatSafe = data.tier === 'LOW';
+
+        // Her instant limit, from the policy on chain (via the dashboard),
+        // not a constant. `null` means the dashboard was unreachable, so the
+        // page describes the rule without quoting a figure it cannot verify.
+        const reviewCeilingUsd = config.reviewCeiling ? Number(config.reviewCeiling) / 1_000_000 : null;
+        const limitLabel = formatUsdc(config.reviewCeiling);
+        // Same reasoning as the limit: the wait is hers, so quote the real
+        // one or none. The old copy said "2 minutes" unconditionally, which
+        // is only the seeder's default and not what any real policy has to say.
+        const cooldownLabel =
+          typeof config.cooldownMs === 'number' && config.cooldownMs > 0
+            ? config.cooldownMs >= 3_600_000
+              ? `${Math.round(config.cooldownMs / 3_600_000)} hour(s)`
+              : `${Math.max(1, Math.round(config.cooldownMs / 60_000))} minute(s)`
+            : null;
+        const isOverInstantLimit = reviewCeilingUsd === null ? amount > 0 : amount > reviewCeilingUsd;
+
+        // THE ONE THING THIS PANEL MUST NOT IMPLY. Nothing below submits a
+        // transaction: /transfer/prepare asks the enclave to SIGN a verdict
+        // bound to this policy, recipient and amount, and returns it. No
+        // TransferRequest is created, no escrow is funded, no balance moves.
+        // The copy previously said "executed directly on Sui testnet" and
+        // "locked safely on Sui", both of which a judge can disprove by
+        // refreshing the guardian dashboard and seeing nothing there.
+        const notSubmitted =
+          `<div style="margin-top:10px;padding:9px 11px;background:#F8FAFC;border:1px dashed #94A3B8;border-radius:6px;font-size:12.5px;color:#475569;line-height:1.45;">` +
+          `<strong>Demo scope:</strong> this signed the enclave's verdict for this exact transfer. ` +
+          `It did <strong>not</strong> submit anything to Sui — no escrow was created and no balance changed. ` +
+          `The on-chain half runs from <code>packages/driver/src/e2e.ts</code>.` +
+          `</div>`;
 
         let headline = '';
         let plainSummary = '';
@@ -904,8 +998,8 @@ if (!config.googleClientId || !config.enokiApiKey) {
           cardBg = '#FFF1F2';
           cardBorder = '#E11D48';
           cardColor = '#9F1239';
-          headline = '<span class="status-dot red"></span> MONEY STOPPED &amp; PROTECTED';
-          plainSummary = `We stopped this transfer of $${amount.toFixed(2)}. The message was detected as a high-risk scam (${human.title}). Your money was NOT sent to the scammer. It is locked safely on Sui until your son reviews it.`;
+          headline = '<span class="status-dot red"></span> THIS WOULD BE STOPPED';
+          plainSummary = `The enclave scored this conversation HIGH (${human.title}), and signed that verdict against this exact transfer of $${amount.toFixed(2)}. On chain, a HIGH verdict sends the money into escrow instead of to the recipient, and it stays there until a guardian approves or refunds it to her.`;
           adviceHtml = `
             <div style="background:#FFFFFF;border:1.5px solid ${cardBorder};border-radius:8px;padding:12px 14px;color:#0F172A;font-size:14px;margin-top:10px;line-height:1.45;">
               <strong>What Mom should do:</strong> Do NOT send any money! Relax and give your son a call. He can permanently block and refund this on his 
@@ -918,11 +1012,11 @@ if (!config.googleClientId || !config.enokiApiKey) {
           cardBg = '#ECFDF5';
           cardBorder = '#059669';
           cardColor = '#065F46';
-          headline = '<span class="status-dot green"></span> TRANSFER SENT INSTANTLY';
-          plainSummary = `Normal conversation detected. Safe transfer of $${amount.toFixed(2)} was executed directly on Sui testnet with zero delay.`;
+          headline = '<span class="status-dot green"></span> THIS WOULD GO STRAIGHT THROUGH';
+          plainSummary = `The conversation scored LOW, and $${amount.toFixed(2)} is within her instant limit${limitLabel ? ` of $${limitLabel}` : ''}. On chain this needs no guardian and no waiting period — it settles like an ordinary payment.`;
           adviceHtml = `
             <div style="background:#FFFFFF;border:1.5px solid ${cardBorder};border-radius:8px;padding:12px 14px;color:#0F172A;font-size:14px;margin-top:10px;line-height:1.45;">
-              <strong>Status:</strong> Completed immediately! Because $${amount.toFixed(2)} is under Mom's $1.00 daily safety limit, no guardian approval or waiting period was required.
+              <strong>Why nothing is asked of her:</strong> ${limitLabel ? `anything under $${limitLabel}` : 'anything under her instant limit'} goes through with nobody consulted. That limit is hers, set while she was calm, and it is the reason ordinary spending is not interrupted.
             </div>
           `;
         } else if (isChatSafe && isOverInstantLimit) {
@@ -931,14 +1025,14 @@ if (!config.googleClientId || !config.enokiApiKey) {
           cardBg = '#FFFBEB';
           cardBorder = '#D97706';
           cardColor = '#92400E';
-          headline = `<span class="status-dot yellow"></span> $${amount.toFixed(2)} HELD: OVER $1.00 SPENDING LIMIT`;
-          plainSummary = `The chat is verified 100% SAFE (Groceries / Family). This transfer cannot send immediately because $${amount.toFixed(2)} exceeds Mom's $1.00 instant limit set by her Guardian.`;
+          headline = `<span class="status-dot yellow"></span> $${amount.toFixed(2)} WOULD WAIT${limitLabel ? `: OVER $${limitLabel}` : ''}`;
+          plainSummary = `The conversation scored LOW — nothing about the chat looks wrong. The amount is what holds it: $${amount.toFixed(2)} is above her instant limit${limitLabel ? ` of $${limitLabel}` : ''}, so on chain it waits out her cooling-off period${cooldownLabel ? ` of ${cooldownLabel}` : ''} rather than going straight through.`;
           adviceHtml = `
             <div style="background:#FFFFFF;border:1.5px solid ${cardBorder};border-radius:8px;padding:12px 14px;color:#0F172A;font-size:14px;margin-top:10px;line-height:1.45;">
-              <div style="margin-bottom:6px;"><strong>Why it cannot transfer immediately:</strong> The recipient is <strong>NOT a scammer</strong>. However, to protect Mom's life savings from accidental drains, any transfer over $1.00 requires a safety pause.</div>
-              <div style="margin-bottom:6px;"><strong>What happens next:</strong> It will auto-unlock in 2 minutes, or her son can release the funds immediately on his 
+              <div style="margin-bottom:6px;"><strong>Why it waits:</strong> not because the recipient is suspicious — the amount alone is above the line she set. This is the rule that catches a mistake or a moment of pressure, not a scammer.</div>
+              <div style="margin-bottom:6px;"><strong>What happens next:</strong> it unlocks by itself after the cooling-off period, she can cancel it herself at any time, or her son can release it early on his 
               <a href="http://127.0.0.1:4200" target="_blank" style="color:#3898FF;font-weight:700;text-decoration:underline;">Guardian Dashboard</a>.</div>
-              <div style="font-size:13px;color:#64748B;"><em>Want to test an instant transfer? Send an amount under $1.00 (e.g. $0.50).</em></div>
+              ${limitLabel ? `<div style="font-size:13px;color:#64748B;"><em>To see the instant path instead, send an amount under $${limitLabel}.</em></div>` : ''}
             </div>
           `;
         } else {
@@ -947,8 +1041,8 @@ if (!config.googleClientId || !config.enokiApiKey) {
           cardBg = '#FFFBEB';
           cardBorder = '#D97706';
           cardColor = '#92400E';
-          headline = '<span class="status-dot yellow"></span> 2-MINUTE SAFETY HOLD: CAUTION';
-          plainSummary = `Something about this message looked unusual (${data.category || 'unverified contact'}). Transfer of $${amount.toFixed(2)} is held on Sui for a 2-minute cooling off period so you and your family have time to verify.`;
+          headline = '<span class="status-dot yellow"></span> THIS WOULD WAIT: CAUTION';
+          plainSummary = `Something about this message looked unusual (${data.category || 'unverified contact'}). On chain, $${amount.toFixed(2)} would wait out her cooling-off period${cooldownLabel ? ` of ${cooldownLabel}` : ''} so she and her family have time to check.`;
           adviceHtml = `
             <div style="background:#FFFFFF;border:1.5px solid ${cardBorder};border-radius:8px;padding:12px 14px;color:#0F172A;font-size:14px;margin-top:10px;line-height:1.45;">
               <strong>What Mom should do:</strong> Check with your family before confirming. Your son can approve or cancel this on his 
@@ -968,6 +1062,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
               ${plainSummary}
             </div>
             ${adviceHtml}
+            ${notSubmitted}
           </div>
         `;
       } catch (e) {

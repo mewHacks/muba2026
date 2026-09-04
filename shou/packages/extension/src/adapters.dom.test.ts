@@ -167,3 +167,93 @@ test('messageDirection reports what the markup actually says', () => {
   assert.equal(messageDirection(all[0]!), null, 'no tick, no data-id -> unknown, treated as incoming');
   assert.equal(messageDirection(all[1]!), 'out');
 });
+
+// ─── Messenger ────────────────────────────────────────────────────────
+//
+// These exist because the README claims the extension reads "WhatsApp Web
+// and Messenger", and until now every DOM test above was a WhatsApp
+// fixture — Messenger was covered only by pickAdapter() host matching in
+// adapters.test.ts, which proves the adapter is SELECTED, not that it can
+// read anything. An adapter that returns zero nodes on every real page
+// would have passed the whole suite.
+//
+// The fixtures pin the two decisions the Messenger adapter actually makes:
+// "You sent" marks a row as ours, and short rows (date separators, "Seen")
+// are not messages.
+
+const messenger = ADAPTERS.find((a) => a.site === 'messenger.com')!;
+
+function mRoot(inner: string): { doc: Document; root: Element } {
+  const { document } = parseHTML(
+    `<html><body><div role="main"><h1>Danial</h1>${inner}</div></body></html>`,
+  );
+  const doc = document as unknown as Document;
+  return { doc, root: messenger.root(doc)! };
+}
+
+test('messenger: an incoming row is returned', () => {
+  const { root } = mRoot(
+    `<div role="row">Auntie, please transfer the money before 6pm today.</div>`,
+  );
+  const nodes = messenger.incoming(root);
+  assert.equal(nodes.length, 1);
+  assert.match(nodes[0]!.text, /transfer the money/);
+});
+
+test('messenger: a row labelled "You sent" is skipped as ours', () => {
+  const { root } = mRoot(
+    `<div role="row" aria-label="You sent: I will check with my son first">I will check with my son first</div>`,
+  );
+  assert.equal(messenger.incoming(root).length, 0);
+});
+
+test('messenger: "You sent" is matched case-insensitively at the start only', () => {
+  // A message that merely mentions the phrase mid-sentence is still hers to
+  // be protected from, so it must NOT be skipped.
+  const { root } = mRoot(
+    `<div role="row">Did you see what you sent me yesterday about the fee?</div>`,
+  );
+  assert.equal(messenger.incoming(root).length, 1);
+});
+
+test('messenger: one- and two-word rows (date separators, receipts) are not messages', () => {
+  const { root } = mRoot(`<div role="row">Today</div><div role="row">Seen</div>`);
+  assert.equal(messenger.incoming(root).length, 0);
+});
+
+// KNOWN GAP, pinned rather than hidden. The filter is `< 3 words`, so a
+// three-word date separator like "Wed 3 Sep" is still sent for scoring.
+// It is not a safety problem — it scores LOW and the badge is meaningless
+// rather than wrong — but it costs a model call per separator, and on this
+// router that is seconds. Not tightened here because the obvious fix
+// (require 4+ words) would drop real scam lines: "send RM5000 now" is three.
+// A date-shaped test would be the right fix if Messenger becomes a demo path.
+test('messenger: KNOWN GAP — a three-word date separator is still scored', () => {
+  const { root } = mRoot(`<div role="row">Wed 3 Sep</div>`);
+  assert.equal(
+    messenger.incoming(root).length,
+    1,
+    'if this now returns 0, the gap was fixed — delete this test',
+  );
+});
+
+test('messenger: a mixed thread returns only the incoming half', () => {
+  const { root } = mRoot(
+    `<div role="row">Send RM3000 for the customs clearance fee now.</div>
+     <div role="row" aria-label="You sent: why do you need it">why do you need it</div>
+     <div role="row">Please, do not tell your family about this.</div>`,
+  );
+  const nodes = messenger.incoming(root);
+  assert.equal(nodes.length, 2);
+  assert.ok(nodes.every((n) => !/why do you need it/.test(n.text)));
+});
+
+test('messenger: threadKey reads the conversation heading', () => {
+  const { doc } = mRoot(`<div role="row">hello there friend</div>`);
+  assert.equal(messenger.threadKey(doc), 'Danial');
+});
+
+test('messenger: root() is null when no conversation is open', () => {
+  const { document } = parseHTML(`<html><body><div id="something-else"></div></body></html>`);
+  assert.equal(messenger.root(document as unknown as Document), null);
+});

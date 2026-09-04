@@ -72,3 +72,21 @@ test('assertRedacted passes on clean text and throws on raw PII', () => {
   assert.doesNotThrow(() => assertRedacted(redact(SCAM).text));
   assert.throws(() => assertRedacted(SCAM), /unredacted PII/);
 });
+
+test('an account number keeps its grouping and is still stripped', () => {
+  // Regression. The account rule was `\b\d{8,13}\b` — bare digits only —
+  // so `512088776655` was stripped but `5140-2288-9911`, the same number
+  // written the way a person actually types one, went to the model intact:
+  // too short for the 14-19 digit card rule, and invisible to a rule that
+  // could not look past the separators.
+  for (const written of ['5140-2288-9911', '5140 2288 9911', '512088776655']) {
+    const { text } = redact(`Transfer RM8500 to Maybank ${written} now`);
+    assert.ok(
+      !text.includes('5140') && !text.includes('2288') && !text.includes('9911') && !text.includes('8877'),
+      `account digits survived redaction in "${written}": ${text}`,
+    );
+    // The amount is the strongest scam signal and identifies nobody, so it
+    // must NOT be swept up by the widened rule.
+    assert.match(text, /8500/, `the amount was destroyed for "${written}": ${text}`);
+  }
+});

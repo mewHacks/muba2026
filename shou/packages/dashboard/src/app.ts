@@ -54,6 +54,8 @@ interface Config {
   reviewCeiling: string | null;
   highRiskCeiling: string | null;
   pausedUntilMs: number | null;
+  /** Base units, or null when the balance could not be read. */
+  ownerBalance?: string | null;
   policyId: string;
   packageId: string;
   denyListId: string;
@@ -1103,6 +1105,26 @@ function updateDashboardKpis(): void {
   if (sideGuardian && config?.guardian) {
     sideGuardian.textContent = shortAddress(config.guardian);
   }
+  // Her real balance, or an explicit dash. Never a placeholder figure —
+  // this is the number a guardian reads to decide whether a held transfer
+  // is a large share of what she has.
+  const momBalance = document.getElementById('sidebar-mom-balance');
+  if (momBalance) {
+    const unit = coinLabel(config?.coinType ?? '');
+    if (config?.ownerBalance !== null && config?.ownerBalance !== undefined) {
+      momBalance.innerHTML = '';
+      momBalance.append(
+        document.createTextNode(`$${formatAmount(config.ownerBalance, config.coinType).value} `),
+        el('small', { style: 'font-size:12px; color:var(--text-muted); font-family:var(--font-sans);' }, unit),
+      );
+    } else {
+      momBalance.innerHTML = '';
+      momBalance.append(
+        document.createTextNode('— '),
+        el('small', { style: 'font-size:12px; color:var(--text-muted); font-family:var(--font-sans);' }, `${unit} (balance unavailable)`),
+      );
+    }
+  }
   if (widgetGuardian && config?.guardian) {
     widgetGuardian.textContent = config.guardian;
   }
@@ -1231,8 +1253,15 @@ async function main(): Promise<void> {
       return;
     }
     reportModal?.close();
+    // NOT "recorded on-chain". This handler makes no network call, and
+    // `redflag::report` requires an OracleCap this server does not hold
+    // (config.canReport is false). Telling a guardian an address was banned
+    // when nothing happened is worse than refusing: he stops watching an
+    // address he believes is handled. Say what actually occurred.
     showError(
-      `Report recorded on-chain: ${shortAddress(addrInput.value)} (${reasonInput?.value || 'Malicious Actor'}) added to deny list. Transfers refused.`,
+      `Not submitted. ${shortAddress(addrInput.value)} (${reasonInput?.value || 'Malicious Actor'}) ` +
+        `was NOT added to the deny list — reporting needs the OracleCap that ` +
+        `redflag::report requires, and this server does not hold one. Nothing was sent to the chain.`,
     );
   });
 
@@ -1240,7 +1269,12 @@ async function main(): Promise<void> {
   const handleEmergencyPause = async () => {
     const ok = await confirm({
       title: "Freeze Mom's Wallet?",
-      body: 'This pauses all outgoing transfers from her wallet for 24 hours. No funds can leave her wallet until the pause lifts or you cancel it. Anything already held remains safely in escrow.',
+      body:
+        'NOT WIRED IN THIS BUILD. policy::pause exists on-chain and the driver ' +
+        'can call it, but this dashboard server has no /api/pause route, so ' +
+        'confirming here changes nothing on the chain. In the product this ' +
+        'pauses all outgoing transfers for 24 hours; anything already held ' +
+        'stays in escrow either way.',
       fact: [
         el(
           'div',
@@ -1251,12 +1285,14 @@ async function main(): Promise<void> {
           el('div', {}, el('strong', {}, 'Emergency Freeze: '), '24 Hours (1,440 min) · Outgoing paused'),
         ),
       ],
-      confirmLabel: 'Yes, Freeze Wallet Now',
+      confirmLabel: 'I understand — nothing will happen',
       danger: true,
     });
     if (ok) {
       showError(
-        "Mom's wallet is now paused in Emergency Freeze for 24 hours. Outgoing transactions will be automatically refused by the smart contract.",
+        'Nothing was sent to the chain. Her wallet is NOT paused: this button has ' +
+          'no server route behind it in this build. To pause for real, call ' +
+          'SuiShouClient.pause(policyId, untilMs) from packages/driver.',
       );
     }
   };

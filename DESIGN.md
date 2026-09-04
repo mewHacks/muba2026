@@ -79,7 +79,20 @@ The design language pairs **retro-computing pixel aesthetics** with **high-contr
   - `Cryptographic Privacy` (`// 003` — TEE / Hash-anchoring, raw chats never exposed)
 
 ### 3.6 Ecosystem & Alliances
-- Verified partner badges (Mysten Labs, Sui Foundation, Cetus AMM, OtterSec).
+
+> **DO NOT IMPLEMENT AS WRITTEN.** "Verified partner badges" naming Mysten Labs,
+> Cetus AMM and **OtterSec** would each assert a relationship we do not have, and
+> an OtterSec badge specifically reads as *"this code has been security-audited"* —
+> it has not been. None of these badges are on any page today, and none should be
+> added without a real, citable relationship. The one badge that does ship is
+> "Grant recipient from SUI FOUNDATION" on the sign-in page; keep it only if that
+> is literally true, and remove it otherwise.
+>
+> Kept here rather than deleted so the intent (an ecosystem/credibility strip) is
+> not lost — populate it with things that are true, e.g. the track entered, the
+> network deployed to, or the Gonka models actually called.
+
+- ~~Verified partner badges (Mysten Labs, Sui Foundation, Cetus AMM, OtterSec).~~
 - Pixel burst emblem representing Sui Security Agent 004.
 
 ---

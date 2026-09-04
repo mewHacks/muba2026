@@ -66,7 +66,11 @@ export const RiskTierCode = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
 
 export interface ScoreResult {
   tier: RiskTierName;
-  /** 0–100. Gonka's Truth Score — must be rendered in the UI. */
+  /**
+   * 0-100. Named "Truth Score" for the Gonka track, but it is a RISK score:
+   * HIGHER MEANS MORE DANGEROUS. Must be rendered in the UI — label it as
+   * risk, never as trustworthiness. See tierFor() below.
+   */
   truthScore: number;
   /** Short label for the badge, e.g. "urgency + payment-request". */
   category: string;

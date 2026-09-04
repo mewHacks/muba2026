@@ -1354,6 +1354,22 @@
     <button id="reset-btn" style="display:none;" type="button"></button>
     <button id="speak-warning-btn" style="display:none;" type="button"></button>
 
+    <!-- Reset scenario.
+         #reset-btn below is a hidden compatibility shim that other controls
+         click programmatically, and after the redesign NOTHING clicked it,
+         so there was no way to clear session risk from the UI at all. That
+         matters more than it sounds: the enclave keeps the WORST verdict per
+         policy (deliberately — it is what stops a swapped session id
+         laundering a HIGH away), so once any scam had been scored, every
+         later transfer in the demo stayed HIGH and the "small payment goes
+         straight through" path became unreachable for the rest of the run. -->
+    <div style="display:flex; justify-content:flex-end; margin:0 0 10px;">
+      <button type="button" id="reset-scenario-btn"
+              style="font-size:13px; font-weight:600; padding:8px 14px; border-radius:8px; border:1.5px solid #CBD5E1; background:#FFFFFF; color:#334155; cursor:pointer;">
+        ↺ Reset scenario (clear past risk)
+      </button>
+    </div>
+
     <div class="sim-single-container">
       <!-- Live Chrome Extension Mockup -->
       <div class="ext-frame-mockup" id="ext-mockup">
@@ -1363,7 +1379,7 @@
             <div class="ext-dot dot-yellow"></div>
             <div class="ext-dot dot-green"></div>
           </div>
-          <span>SHOU Extension · WhatsApp &amp; Telegram Web</span>
+          <span>SHOU Extension · WhatsApp Web</span>
         </div>
 
         <div class="ext-mock-body">

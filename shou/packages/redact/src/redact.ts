@@ -65,8 +65,16 @@ const RULES: { kind: keyof typeof PLACEHOLDERS; pattern: RegExp }[] = [
   { kind: 'card', pattern: /\b\d(?:[ -]?\d){13,18}(?!\d)/g },
   // Local mobile format, e.g. 012-345 6789.
   { kind: 'phone', pattern: /\b0\d{1,2}[\s-]?\d{3,4}[\s-]?\d{4}(?!\d)/g },
-  // Bank accounts: bare runs of 8–13 digits that survived the above.
-  { kind: 'account', pattern: /\b\d{8,13}(?!\d)/g },
+  // Bank accounts: runs of 8–13 digits that survived the above, WITH or
+  // WITHOUT separators — same shape as the card rule above.
+  //
+  // This used to be `\b\d{8,13}\b`, bare digits only, which left a hole
+  // exactly where account numbers are usually written. `512088776655`
+  // was stripped but `5140-2288-9911` — the same number, grouped the way
+  // a person types one — passed through untouched and reached the model,
+  // because it is too short for the 14–19 digit card rule and the account
+  // rule could not see past the dashes.
+  { kind: 'account', pattern: /\b\d(?:[ -]?\d){7,12}(?!\d)/g },
 ];
 
 /** Keeps the domain (a lookalike domain is signal) and drops the rest. */

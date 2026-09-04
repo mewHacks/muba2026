@@ -75,12 +75,43 @@ const TYPES = {
   '.webp': 'image/webp',
 };
 
-const server = createServer((req, res) => {
+// Her real limits, read from the guardian dashboard, which reads them from
+// the chain. Fetched HERE rather than in the browser because :4200 binds to
+// 127.0.0.1 and answers no CORS preflight, so the page cannot reach it.
+//
+// This exists because the transfer panel used to hard-code "$1.00" in four
+// places. The whole premise is that she sets her own limits, so a screen
+// that states a number she did not choose is describing a different product.
+// When the dashboard is down these stay null and the page says "her limit"
+// rather than inventing a figure.
+const DASHBOARD_URL = process.env.SHOU_DASHBOARD_URL ?? 'http://127.0.0.1:4200';
+async function fetchCeilings() {
+  try {
+    const response = await fetch(`${DASHBOARD_URL}/api/config`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!response.ok) return {};
+    const body = await response.json();
+    return {
+      reviewCeiling: body.reviewCeiling ?? null,
+      highRiskCeiling: body.highRiskCeiling ?? null,
+      cooldownMs: body.cooldownMs ?? null,
+      policyOwner: body.owner ?? null,
+    };
+  } catch {
+    // The dashboard is not running. Not an error here — this server's job
+    // is sign-in, and the page degrades to describing the rule without a
+    // number rather than failing.
+    return {};
+  }
+}
+
+const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
 
   if (url.pathname === '/config.json') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify(config));
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify({ ...config, ...(await fetchCeilings()) }));
   }
 
   // The OAuth callback lands here with the JWT in the URL *fragment*,

@@ -255,9 +255,19 @@ const server = createServer(async (req, res) => {
       let approver: boolean | null = null;
       let policyView: PolicyView | null = null;
       let error: string | null = signerError;
+      // Her actual balance, read from the chain. `null` means the read
+      // failed and the page shows a dash — the sidebar used to print a
+      // hard-coded "$50.00", which is the single number on this screen a
+      // guardian would act on, and the demo address holds no USDC at all.
+      let ownerBalance: string | null = null;
       if (client && activePolicyId) {
         try {
           policyView = await getPolicy();
+          try {
+            ownerBalance = (await client.balanceOf(policyView.owner, coinType)).toString();
+          } catch {
+            /* a balance we cannot read is shown as unknown, never as a figure */
+          }
           // The .env.example says it outright: to test this dashboard you
           // must BE the guardian. Saying so here beats letting every
           // approval fail with an opaque ENotApprover from the chain.
@@ -280,6 +290,7 @@ const server = createServer(async (req, res) => {
         reviewCeiling: policyView?.reviewCeiling ?? null,
         highRiskCeiling: policyView?.highRiskCeiling ?? null,
         pausedUntilMs: policyView?.pausedUntilMs ?? null,
+        ownerBalance,
         policyId: activePolicyId,
         packageId,
         denyListId,

@@ -467,6 +467,29 @@
     .dash-body-grid { grid-template-columns: 1fr; }
   }
 
+  /* Phone. The shell is a flex row with a fixed 270px sidebar, so on a
+     390px screen the main column was left ~120px and the heading, the KPI
+     figures and the transfer amounts were all clipped off the right edge —
+     the guardian could not read the amount he was being asked to approve.
+     Stack instead: the sidebar becomes a normal block at the top and the
+     content gets the full width. */
+  @media (max-width: 820px) {
+    .dash-app { flex-direction: column; }
+    aside.dash-sidebar {
+      width: 100%;
+      height: auto;
+      position: static;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 16px 14px;
+    }
+    .dash-main { width: 100%; min-width: 0; }
+    /* The brand block and the status box read fine stacked; the nav menu is
+       the part that benefits from wrapping into a row of chips. */
+    .sidebar-menu { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sidebar-menu li { flex: 1 1 auto; }
+  }
+
   /* Left Main Workspace */
   .dash-main-col {
     min-width: 0;
@@ -1143,13 +1166,18 @@
           <span>Network</span>
           <strong id="sidebar-net-pill"><span class="status-dot green"></span> Sui Testnet</strong>
         </div>
+        <!-- No hardware TEE claim here. This build runs the enclave as an
+             ordinary local process; /get_attestation returns
+             attestationDocument: null. Claiming "SGX Active" next to a green
+             dot would be the one thing on this page a judge could disprove
+             in a single curl. -->
         <div class="sidebar-status-row">
-          <span>Hardware TEE</span>
-          <strong><span class="status-dot green"></span> Intel SGX Active</strong>
+          <span>Enclave</span>
+          <strong><span class="status-dot yellow"></span> Local process</strong>
         </div>
         <div class="sidebar-status-row">
-          <span>Node Latency</span>
-          <span style="font-family:var(--font-mono); color:var(--safe-green); font-weight:700;">12ms</span>
+          <span>Attestation</span>
+          <span style="font-family:var(--font-mono); font-weight:700;">not hardware-backed</span>
         </div>
       </div>
 
@@ -1204,7 +1232,10 @@
               <span class="status-dot green"></span> <small style="color:var(--safe-green); font-weight:700;">Active Protection</small>
             </div>
           </div>
-          <div class="sidebar-mom-balance">$50.00 <small style="font-size:12px; color:var(--text-muted); font-family:var(--font-sans);">USDC</small></div>
+          <!-- Filled by app.ts from a real balance read. It said "$50.00"
+               unconditionally, and the demo address holds no USDC at all, so
+               the one number a guardian would actually act on was invented. -->
+          <div class="sidebar-mom-balance" id="sidebar-mom-balance">— <small style="font-size:12px; color:var(--text-muted); font-family:var(--font-sans);">USDC</small></div>
           <a href="http://localhost:3000" target="_blank" class="sidebar-mom-link">Open Mom's View ↗</a>
         </div>
       </div>
@@ -1276,7 +1307,7 @@
         </div>
         <div class="dash-kpi-value" style="font-size:26px; color:var(--safe-text);">PROTECTED</div>
         <div class="dash-kpi-sub">
-          <span class="status-dot green"></span> Intel SGX + Gonka Router
+          <span class="status-dot green"></span> Signed verdicts + Gonka Router
         </div>
       </div>
     </div>
@@ -1331,26 +1362,36 @@
 
         <!-- View 4: Enclave Telemetry -->
         <section id="view-telemetry" role="tabpanel" aria-labelledby="side-telemetry" hidden>
-          <h2>Hardware TEE Enclave Telemetry</h2>
+          <h2>Enclave Telemetry</h2>
           <p class="sub">
-            Real-time verification of confidential computing proofs, cryptographic signatures, and privacy protections.
+            What this build actually proves, and what it does not. The
+            signature and the redaction are real and checkable; the hardware
+            is not, because this runs as a local process.
           </p>
           <div class="card" style="font-size:13.5px; line-height:1.6;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--line); padding-bottom:10px;">
-              <span style="font-weight:700; color:var(--text-main);">Intel SGX Attestation</span>
-              <span class="state CLEAR"><span class="status-dot green"></span> HARDWARE VERIFIED</span>
+              <span style="font-weight:700; color:var(--text-main);">Enclave attestation</span>
+              <span class="state HELD"><span class="status-dot yellow"></span> SOFTWARE ONLY</span>
             </div>
-            <div style="display:grid; grid-template-columns:140px 1fr; gap:8px 14px;">
-              <span style="color:var(--text-muted);">Enclave Host:</span>
-              <code>127.0.0.1:3100 (TEE Server)</code>
-              <span style="color:var(--text-muted);">Circuit Breaker:</span>
-              <code>127.0.0.1:4000 (Autonomous Gateway)</code>
-              <span style="color:var(--text-muted);">MRENCLAVE Hash:</span>
-              <code style="word-break:break-all;">a94f83b271dc9820f1837648392100df948721cba37482910fedca3910293847</code>
-              <span style="color:var(--text-muted);">AI Scam Scorer:</span>
-              <span>DeepSeek-V4-Flash + MiniMax-M2.7 (via Intel SGX Gonka Router)</span>
-              <span style="color:var(--text-muted);">PII Protection:</span>
-              <span><span class="status-dot green"></span> Names, Phone numbers, and IC numbers redacted before inference</span>
+            <!-- There is no MRENCLAVE / PCR row here on purpose. A hardware
+                 measurement is exactly the value that cannot be invented: this
+                 build has none to show, and printing a plausible-looking hex
+                 string would be a fabricated cryptographic proof on a security
+                 product's own dashboard. See enclave/src/server.ts, whose
+                 /get_attestation returns attestationDocument: null. -->
+            <div style="display:grid; grid-template-columns:170px 1fr; gap:8px 14px;">
+              <span style="color:var(--text-muted);">Enclave host:</span>
+              <code>127.0.0.1:3100 (local Node process)</code>
+              <span style="color:var(--text-muted);">Circuit breaker:</span>
+              <code>127.0.0.1:4000</code>
+              <span style="color:var(--text-muted);">Hardware measurement:</span>
+              <span>None. <code>/get_attestation</code> returns <code>attestationDocument: null</code> outside a Nitro enclave — the design targets the AWS Nitro / Nautilus pattern, which is not what is running here.</span>
+              <span style="color:var(--text-muted);">What IS verified:</span>
+              <span><span class="status-dot green"></span> The ed25519 signature over each verdict, checked on-chain by <code>shou::enclave</code>. A verdict cannot be altered after signing.</span>
+              <span style="color:var(--text-muted);">AI scam scorer:</span>
+              <span>DeepSeek-V4-Flash classifies, MiniMax-M2.7 cross-verifies, via Gonka Router</span>
+              <span style="color:var(--text-muted);">PII protection:</span>
+              <span><span class="status-dot green"></span> Phone numbers, IC numbers and account numbers redacted on-device before inference</span>
             </div>
           </div>
         </section>

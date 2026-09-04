@@ -28,10 +28,12 @@ than a ceiling — it can tighten her limits, never loosen them. Tell the contra
 large transfer is low-risk and it escalates anyway, which is why you do not have to
 trust our model.
 
-**Status:** wallet guardian deployed to Sui testnet — 91 tests passing, five critical
+**Status:** wallet guardian deployed to Sui testnet — 99 tests passing, five critical
 security bugs found and fixed, a seven-step end-to-end run in real USDC. Scoring,
 redaction, the enclave, the Chrome extension and the guardian dashboard are all built.
-([details](docs/DECISIONS.md))
+The elder-facing browser demo signs verdicts but does not yet submit them on-chain; the
+enclave runs as a local process rather than in real Nitro hardware. Both gaps are marked
+where they appear below. ([details](docs/DECISIONS.md))
 
 ---
 
@@ -85,22 +87,35 @@ spending limits but no awareness of the conversation cannot tell groceries from 
 scam. Together, the conversation decides how the money behaves.
 
 
-**1 · Passive detection.** The extension reads the on-screen chat DOM in WhatsApp Web
-and Messenger automatically — no copy-pasting, no button to press — and shows an
-inline 🟢/🟡/🔴 badge. Every message goes to a Gonka Router classifier, then to a
+**1 · Passive detection.** The extension reads the on-screen chat DOM automatically —
+no copy-pasting, no button to press — and shows an inline 🟢/🟡/🔴 badge. **WhatsApp Web
+is the supported and demonstrated surface.** A Messenger adapter ships and is unit-tested
+against fixtures, but it has never been run against the live site, so treat it as
+best-effort rather than a second working integration. Every message goes to a Gonka Router classifier, then to a
 second model for cross-verification if the shared deadline allows, and
 **deterministic rules set floors that no model is permitted to talk down**.
 
-**2 · Private and tamper-evident.** Inference runs inside a TEE, so message content is
-never exposed to operators — only a hash, a tier and a signature leave, and PII is
-stripped before scoring. That hash is anchored on-chain inside the signed attestation,
-so a verdict cannot be altered afterwards without invalidating the signature.
+**2 · Private and tamper-evident.** Scoring happens behind a signing boundary built to
+the AWS Nitro / Nautilus pattern — only a hash, a tier and a signature leave, and PII is
+stripped on her own device before scoring. That hash is anchored on-chain inside the
+signed attestation, so a verdict cannot be altered afterwards without invalidating the
+signature.
+
+> **What is and is not proven today.** The signature and the redaction are real and
+> checkable. The *hardware* is not: this build runs the enclave as an ordinary local
+> process, and `/get_attestation` returns `attestationDocument: null`, exactly as it is
+> written to. Deploying the same binary into a Nitro enclave is what turns the pattern
+> into a hardware guarantee, and that step has not been done. Read every "TEE" in this
+> document as "the enclave boundary, software-enforced today".
 
 **3 · Behavioural circuit breaker into Seniority Mode.** When a live flagged
 conversation correlates with an unusual payment, the transfer does not fail — it
 **waits**, and high-risk transfers require trusted-family co-approval, enforced as an
 on-chain Sui policy rather than by our backend. Reported scammers get a **soft ban**
-that blocks suspicious amounts while still allowing daily necessities.
+that blocks suspicious amounts while still allowing daily necessities. The soft ban is
+implemented and unit-tested in `redflag.move`; note that **no address has been reported
+on the live deny list**, because reporting requires an `OracleCap` that the demo signer
+does not hold — so the community tab is genuinely empty rather than showing seeded data.
 
 **4 · Safe by construction.** The AI's verdict is a floor, never a ceiling. Guardians
 can block a transfer and refund it **to her**, but never redirect it to themselves.
@@ -141,7 +156,8 @@ Setup is over. She is never asked to do any of it again.
 
 ### Every day — she does nothing differently
 
-**5 · She chats as usual.** WhatsApp Web, Messenger, whatever she already uses.
+**5 · She chats as usual.** WhatsApp Web (the demonstrated surface; a Messenger
+adapter ships but is unverified against the live site).
 No button to press, no message to copy anywhere.
 
 **6 · A coloured dot appears beside each message.** 🟢 normal, 🟡 be careful,
@@ -151,6 +167,14 @@ laptop, then scored inside an enclave, so the text never sits anywhere readable
 
 **7 · She sends money the ordinary way.** Recipient, amount, send. A small
 payment to the coffee shop lands immediately, exactly as it would without us.
+
+> **Which surface does which half.** Steps 5–7 are live in the browser demo and the
+> extension: the message is really scored and the enclave really signs a verdict bound
+> to that exact policy, recipient and amount. Steps 8–10 are on-chain, and the browser
+> demo **stops at the signature** — it does not submit, so no escrow appears on the
+> guardian dashboard from clicking "send" there. The on-chain half is real but is driven
+> by `packages/driver/src/e2e.ts`, which moves actual testnet funds through escrow,
+> refusal and release. Wiring the browser page to submit is the one seam left open.
 
 ### When something is wrong — the part that matters
 
@@ -195,9 +219,9 @@ delivered or back with her.
 | Private compute | **Nautilus pattern**, ed25519 + BCS over `node:crypto` | The message is scored where nobody can read it; the chain verifies the enclave's signature itself. No SDK in the signing path — the bytes the enclave signs are the bytes Move reconstructs. |
 | Scoring | **Gonka Router** — DeepSeek classifies, MiniMax cross-verifies | Called from *inside* the enclave. If the extension called it directly the message would leave the device unprotected, and the privacy claim would be a promise rather than a property. |
 | Sign-in | **zkLogin + Enoki 1.2** | An 80-year-old will not write down twelve words. Enoki carries the salt, whose loss would destroy the address permanently. |
-| Recovery | **Weighted multisig** (2·1·1, threshold 2) | Weights, not counts — the only shape that lets her act alone while still allowing recovery. |
+| Recovery | **Weighted multisig** (2·1·1, threshold 2) — *address derivation only* | Weights, not counts — the only shape that lets her act alone while still allowing recovery. The address is derived and shown on the sign-in page and covered by 6 tests; **no funds are held at it and no recovery transaction is implemented**, so this is a demonstrated construction, not a working recovery path. |
 | Detection surface | **Chrome extension, Manifest V3** — TypeScript bundled by esbuild | A service worker, one content script per site, a popup and an options page. Its only permission is `storage`, and its only hosts are our two localhost ports: it can read the chat tab it is injected into and talk to us, and reach nothing else. |
-| DOM adapters | **One file per site**, tested against **linkedom** | WhatsApp Web and Messenger ship obfuscated class names, so the fragile part is quarantined in `adapters.ts` and the logic above it is unit-tested on parsed fixtures rather than a live page. |
+| DOM adapters | **One file per site**, tested against **linkedom** | WhatsApp Web and Messenger ship obfuscated class names, so the fragile part is quarantined in `adapters.ts` and the logic above it is unit-tested on parsed fixtures rather than a live page. WhatsApp has 14 fixture tests and live confirmation; Messenger has 8 fixture tests and no live confirmation. |
 | Guardian surfaces | **Plain TypeScript + esbuild**, no framework | Three screens over one JSON API: the held-transfer list, the community deny list (read-only), and policy setup. The page holds no key and imports no Sui SDK — its server makes every call — so there is one place where an on-chain mutation can happen and one place to guard it. |
 | Services | **Node 22 `node:http`**, TypeScript run directly via `--experimental-strip-types` | Four servers, zero web frameworks and no build step to run one. The whole repo's runtime dependency list is `@mysten/sui` and `@mysten/enoki`; nothing else ships. |
 | Tests | **`node:test`**, 91 across TS + 38 in `sui move test` | Built in, so a suite is one file and no runner config. |
@@ -344,9 +368,14 @@ Three things we have not seen combined elsewhere:
    never de-escalate one. Almost every AI safety product fails open — ours cannot lower
    a limit the user set herself, so a wrong or compromised model degrades to "her own
    rules still apply" rather than to "approved".
-3. **The model runs inside a TEE and signs its verdict**, which a blockchain then
-   verifies independently. The privacy claim is a measurable property, not a promise:
-   the message never leaves the enclave.
+3. **The model's verdict is signed at the enclave boundary**, and a blockchain then
+   verifies that signature independently — `shou::enclave` checks the ed25519 signature
+   over the exact BCS bytes, so a verdict cannot be edited after the fact. Redaction is
+   applied on her device before anything is sent, and again on arrival. The part that is
+   *not* yet proven is the hardware: this build runs the enclave as a local process
+   (`attestationDocument: null`), so "the message never leaves the enclave" is an
+   architectural property of the code today, and becomes a hardware guarantee only once
+   the same binary is deployed into a Nitro enclave.
 
 **Use of different models**
 
