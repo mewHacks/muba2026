@@ -564,118 +564,217 @@
   }
 
   /* ========================================================
-     BENTO SECTION
+     SHIELD FOR SENIORS - SUI-STYLE LEFT-RIGHT STRUCTURE (LIGHT MODE)
      ======================================================== */
   .section-bento {
-    max-width: 1440px;
-    margin: 20px auto 50px;
+    max-width: 1140px;
+    margin: 40px auto 60px;
     padding: 0 24px;
   }
   .bento-heading-wrap {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 40px;
+  }
+  .shield-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #F1F5F9;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+    border: 1px solid #E2E8F0;
   }
   .bento-big-title {
     font-family: var(--font-body);
     font-weight: 800;
-    font-size: 44px;
-    letter-spacing: -0.01em;
+    font-size: 42px;
+    letter-spacing: -0.02em;
     margin: 0;
     color: var(--text-dark);
   }
   .bento-sub-title {
     color: var(--text-muted);
-    font-size: 16px;
-    margin-top: 4px;
+    font-size: 17px;
+    margin-top: 8px;
+    font-family: var(--font-body);
   }
 
-  .bento-grid {
+  .shield-rows-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 24px;
+  }
+
+  .shield-row-item {
+    position: relative;
+    border-top: 1.5px dotted #CBD5E1;
+    padding: 34px 20px;
     display: grid;
-    grid-template-columns: 1.1fr 1fr;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 48px;
+    align-items: center;
+    transition: all 0.2s ease;
+    border-radius: 12px;
+  }
+  .shield-row-item:last-child {
+    border-bottom: 1.5px dotted #CBD5E1;
+  }
+
+  /* Blue pip at the start of each dotted line matching Sui design */
+  .shield-row-item::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 0;
+    width: 7px;
+    height: 7px;
+    background: var(--blue, #3898FF);
+  }
+  .shield-row-item:last-child::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 7px;
+    height: 7px;
+    background: var(--blue, #3898FF);
+  }
+
+  /* Light mode hover highlight */
+  .shield-row-item:hover {
+    background: #F8FAFC;
+  }
+
+  .shield-row-left {
+    display: flex;
+    align-items: center;
     gap: 20px;
   }
-  @media (max-width: 840px) {
-    .bento-grid { grid-template-columns: 1fr; }
+
+  /* Solid blue square icon badge */
+  .shield-icon-square {
+    width: 52px;
+    height: 52px;
+    background: #1677FF;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .shield-row-item:hover .shield-icon-square {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(22, 119, 255, 0.3);
   }
 
-  .bento-highlight-card {
-    background: #FFFFFF;
-    color: var(--text-dark);
-    border-radius: 24px;
-    padding: 32px 28px;
+  .shield-row-title-wrap {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    position: relative;
-    overflow: hidden;
-    min-height: 340px;
-    border: 1.5px solid #E2E8F0;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    gap: 4px;
   }
-  .bento-highlight-card h4 {
-    font-family: var(--font-body);
-    font-weight: 800;
-    font-size: 36px;
-    margin: 0 0 10px;
-    color: var(--text-dark);
-  }
-  .bento-highlight-card p {
-    font-size: 18px;
-    color: var(--text-muted);
-    line-height: 1.5;
-    margin: 0;
-  }
-  .ring-sui {
-    width: 120px;
-    height: 120px;
-    border: 4px solid var(--blue);
-    background: #EFF6FF;
-    border-radius: 50%;
-    box-shadow: 0 0 24px rgba(56, 152, 255, 0.25);
-    display: grid;
-    place-items: center;
-    margin: 20px auto 0;
-  }
-
-  .bento-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .bento-light-card {
-    background: #FFFFFF;
-    border: 1.5px solid #E2E8F0;
-    border-radius: 18px;
-    padding: 22px;
-    transition: transform 0.15s ease;
-  }
-  .bento-light-card:hover { transform: translateY(-2px); border-color: #CBD5E1; }
-  .bento-light-card h4 {
-    font-family: var(--font-body);
-    font-weight: 800;
-    font-size: 28px;
-    margin: 0 0 6px;
-    color: var(--text-dark);
-  }
-  .bento-light-card p {
-    font-size: 16px;
-    color: var(--text-muted);
-    margin: 0;
-    line-height: 1.45;
-  }
-  .bento-mini-tag {
+  .shield-row-tag {
     font-size: 13px;
     font-weight: 700;
-    color: var(--blue);
+    color: var(--blue, #3898FF);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 5px;
-    display: block;
+    font-family: var(--font-body);
+  }
+  .shield-row-title {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--text-dark);
+    margin: 0;
+  }
+
+  .shield-row-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .shield-row-desc {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .shield-row-desc em {
+    color: var(--text-dark);
+    font-style: normal;
+    font-weight: 600;
+    background: #FEF3C7;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 860px) {
+    .shield-row-item {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 24px 14px;
+    }
+    .bento-big-title {
+      font-size: 32px;
+    }
+    .shield-row-title {
+      font-size: 24px;
+    }
   }
 
   /* ========================================================
      SIMULATOR SECTION: Dual Panel with Picture 2 Extension View
      ======================================================== */
+  /* ========================================================
+     SECTION-BY-SECTION SCROLL REVEAL ANIMATIONS
+     ======================================================== */
+  .reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+  .reveal-on-scroll.is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-stagger > * {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+  .reveal-stagger.is-revealed > * {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-stagger.is-revealed > *:nth-child(1) { transition-delay: 0.06s; }
+  .reveal-stagger.is-revealed > *:nth-child(2) { transition-delay: 0.16s; }
+  .reveal-stagger.is-revealed > *:nth-child(3) { transition-delay: 0.26s; }
+  .reveal-stagger.is-revealed > *:nth-child(4) { transition-delay: 0.36s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll,
+    .reveal-stagger > * {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
   .sim-section {
     max-width: 1440px;
     margin: 30px auto 80px;
@@ -683,29 +782,210 @@
   }
   .sim-centered-header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 36px;
   }
   .sim-centered-header .sim-title {
     font-family: var(--font-body);
     font-weight: 800;
     font-size: 38px;
-    margin: 8px 0 6px;
+    margin: 8px 0 8px;
     color: var(--text-dark);
     letter-spacing: -0.01em;
   }
   .sim-centered-header .sim-sub {
-    font-size: 16px;
+    font-size: 17px;
     color: var(--text-muted);
-    max-width: 580px;
+    max-width: 680px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+
+  /* Stacked Showcase: Extension UP, Dashboard DOWN */
+  .sim-dual-container {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    align-items: center;
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .showcase-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+  }
+  .showcase-column.mom-col {
+    max-width: 1080px;
+    margin: 0 auto;
+    align-items: center;
+    text-align: center;
+  }
+  .showcase-column.son-col {
+    max-width: 1080px;
+    margin: 0 auto;
+    align-items: center;
+    text-align: center;
+  }
+
+  /* Mom's 2-Column Split: Grandma Story Card on Left, Live Mockup on Right */
+  .mom-showcase-split {
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) 420px;
+    gap: 32px;
+    align-items: center;
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  @media (max-width: 940px) {
+    .mom-showcase-split {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+  }
+  .mom-story-card {
+    background: #FFFFFF;
+    border: 2px solid #CBD5E1;
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06), 3px 3px 0px #CBD5E1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .mom-story-img-box {
+    border-radius: 18px;
+    overflow: hidden;
+    background: #0A0F1D;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1.5px solid #1E293B;
+    padding: 10px;
+  }
+  .mom-story-img {
+    width: 100%;
+    max-height: 290px;
+    object-fit: contain;
+    display: block;
+    image-rendering: pixelated;
+  }
+  .mom-story-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1D4ED8;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 4px;
+  }
+  .mom-story-title {
+    font-family: var(--font-body);
+    font-size: 22px;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .mom-story-desc {
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.5;
+    margin: 0 0 10px;
+  }
+  .mom-story-features {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .mom-story-feat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #334155;
+    font-weight: 600;
+  }
+
+  .showcase-column-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .showcase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  .showcase-badge.mom {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+  }
+  .showcase-badge.son {
+    background: #F0FDF4;
+    color: #15803D;
+    border: 1px solid #BBF7D0;
+  }
+  .showcase-column-title {
+    font-family: var(--font-body);
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .showcase-column-desc {
+    font-size: 15px;
+    color: var(--text-muted);
     margin: 0 auto;
     line-height: 1.5;
   }
 
-  .sim-single-container {
-    max-width: 520px;
-    margin: 0 auto;
-    position: relative;
+  /* Flow Connector between Mom's Extension and Son's Dashboard */
+  .showcase-flow-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 720px;
+    margin: 10px auto;
   }
+  .flow-line {
+    flex: 1;
+    height: 1px;
+    border-top: 1.5px dashed #CBD5E1;
+  }
+  .flow-pill {
+    background: #F8FAFC;
+    border: 1.5px solid #CBD5E1;
+    color: #475569;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 7px 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  }
+
   /* Scenario Pills */
   .scen-pills-row {
     display: flex;
@@ -736,18 +1016,161 @@
   }
 
   /* ========================================================
-     CENTERED: Live Chrome Extension Mockup (Light Mode)
+     LEFT: Live Chrome Extension Mockup (Light Mode, Compact)
      ======================================================== */
   .ext-frame-mockup {
     width: 100%;
+    max-width: 420px;
     background: #FFFFFF;
     border: 2px solid #CBD5E1;
-    border-radius: 26px;
-    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 4px 4px 0px #CBD5E1;
+    border-radius: 24px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08), 3px 3px 0px #CBD5E1;
     overflow: hidden;
     color: #0F172A;
     margin: 0 auto;
   }
+
+  /* ========================================================
+     RIGHT: Guardian Dashboard Preview Window
+     ======================================================== */
+  .dashboard-window-frame {
+    background: #FFFFFF;
+    border: 2px solid #CBD5E1;
+    border-radius: 24px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08), 3px 3px 0px #CBD5E1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .dashboard-window-frame:hover {
+    border-color: #94A3B8;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12), 3px 3px 0px #94A3B8;
+  }
+  .dashboard-window-header {
+    background: #F8FAFC;
+    padding: 12px 18px;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .dashboard-window-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dashboard-url-bar {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #64748B;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono, monospace);
+  }
+  .dashboard-img-wrap {
+    position: relative;
+    overflow: hidden;
+    background: #F8FAFC;
+    aspect-ratio: 16 / 10;
+    display: block;
+    border-bottom: 1px solid #E2E8F0;
+  }
+  .dashboard-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top left;
+    display: block;
+    transition: transform 0.25s ease;
+  }
+  .dashboard-img-wrap:hover .dashboard-preview-img {
+    transform: scale(1.02);
+  }
+  .dashboard-window-footer {
+    padding: 16px 20px;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .dashboard-pills-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .dash-feature-tag {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    background: #F1F5F9;
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .dash-launch-btn {
+    appearance: none;
+    text-decoration: none;
+    background: #1677FF;
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 13.5px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.25);
+  }
+  .dash-launch-btn:hover {
+    background: #0958D9;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(22, 119, 255, 0.35);
+  }
+
+  /* Guardian Highlights Chips */
+  .guardian-highlights-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 4px;
+  }
+  @media (max-width: 1100px) {
+    .guardian-highlights-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .highlight-chip {
+    background: #F8FAFC;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+  }
+  .highlight-chip-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
   .ext-frame-header {
     background: #F8FAFC;
     padding: 12px 18px;
@@ -779,14 +1202,14 @@
     margin-bottom: 12px;
   }
   .mock-logo {
-    width: 36px;
-    height: 36px;
-    background: radial-gradient(circle at 35% 30%, #5CB0FF 0%, #1A73E8 60%, #0B336B 100%);
+    width: 38px;
+    height: 38px;
+    background: radial-gradient(circle at 35% 30%, #5CB0FF 0%, #1A73E8 55%, #0B336B 100%);
     border-radius: 50%;
     display: grid;
     place-items: center;
-    border: 1.5px solid #3898FF;
-    box-shadow: 0 4px 10px rgba(26, 115, 232, 0.25);
+    border: none;
+    box-shadow: 0 4px 14px rgba(26, 115, 232, 0.35);
   }
   .mock-bal-pill {
     background: #F8FAFC;
@@ -843,8 +1266,8 @@
   }
   .mock-coin-wrapper {
     position: relative;
-    width: 90px;
-    height: 90px;
+    width: 100px;
+    height: 100px;
     margin: 0 auto 10px;
     display: grid;
     place-items: center;
@@ -856,12 +1279,12 @@
     animation: sparkle-pulse 2s ease-in-out infinite;
   }
   .mock-coin-sui {
-    width: 76px;
-    height: 76px;
-    background: radial-gradient(circle at 35% 30%, #5CB0FF 0%, #1A73E8 55%, #0A3270 100%);
+    width: 90px;
+    height: 90px;
+    background: radial-gradient(circle at 35% 30%, #5CB0FF 0%, #1A73E8 55%, #0B336B 100%);
     border-radius: 50%;
-    border: 3px solid #1A73E8;
-    box-shadow: 0 8px 20px rgba(26, 115, 232, 0.25);
+    border: none;
+    box-shadow: 0 10px 28px rgba(26, 115, 232, 0.38);
     display: grid;
     place-items: center;
     color: #FFF;
@@ -869,13 +1292,13 @@
   }
   .mock-coin-sui.danger {
     background: radial-gradient(circle at 35% 30%, #FF6B8B 0%, #E11D48 55%, #7F0B24 100%);
-    border-color: #E11D48;
-    box-shadow: 0 8px 20px rgba(225, 29, 72, 0.25);
+    border: none;
+    box-shadow: 0 10px 28px rgba(225, 29, 72, 0.38);
   }
 
   .mock-pixel-title {
     font-family: var(--font-body);
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 800;
     line-height: 1.15;
     margin-bottom: 6px;
@@ -902,6 +1325,45 @@
   .status-dot.red { background: #EF4444; }
   .status-dot.yellow { background: #F59E0B; }
   .status-dot.green { background: #10B981; }
+
+  /* 3-card action grid matching Image 2 */
+  .mock-action-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .wallet-card-btn {
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 14px;
+    padding: 14px 6px;
+    color: #0F172A;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  }
+  .wallet-card-btn:hover {
+    border-color: #1A73E8;
+    background: #EFF6FF;
+    color: #1A73E8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.15);
+  }
+  .wallet-card-btn svg {
+    stroke: currentColor;
+    stroke-width: 2.2;
+    fill: none;
+  }
 
   /* 2x2 buttons inside Mockup */
   .mock-btn-grid {
@@ -1013,42 +1475,43 @@
   }
   .mock-deep-result {
     margin-top: 14px;
-    padding: 16px 18px;
+    padding: 14px 16px;
     border-radius: 14px;
     text-align: left;
     font-size: 13px;
     line-height: 1.5;
     border: 1.5px solid #E2E8F0;
     background: #F8FAFC;
+    color: #334155;
   }
   .mock-deep-result.danger {
-    background: #FFF1F2;
+    background: #FEF2F2;
     border-color: #FECDD3;
-    color: #9F1239;
+    color: #334155;
   }
   .mock-deep-result.caution {
     background: #FFFBEB;
     border-color: #FDE68A;
-    color: #92400E;
+    color: #334155;
   }
   .mock-deep-result.safe {
     background: #F0FDF4;
     border-color: #BBF7D0;
-    color: #166534;
+    color: #334155;
   }
   .mock-deep-title {
     font-family: var(--font-body);
-    font-weight: 800;
-    font-size: 22px;
+    font-weight: 700;
+    font-size: 17px;
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 4px 0 8px;
+    margin: 6px 0 4px;
     color: #0F172A;
     word-break: break-word;
   }
-  .mock-deep-result.danger .mock-deep-title { color: #9F1239; }
+  .mock-deep-result.danger .mock-deep-title { color: #991B1B; }
   .mock-deep-result.caution .mock-deep-title { color: #92400E; }
   .mock-deep-result.safe .mock-deep-title { color: #166534; }
   .mock-reason-item {
@@ -1148,11 +1611,7 @@
   <!-- Top Navigation -->
   <nav class="navbar">
     <a href="/" class="nav-brand">
-      <div class="brand-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-        </svg>
-      </div>
+      <img src="img/shou-icon.png" alt="SHOU Shield" style="width:36px; height:36px; border-radius:9px; object-fit:contain;" />
       <div class="brand-text">SHOU <span class="brand-kanji">守</span></div>
     </a>
 
@@ -1189,7 +1648,7 @@
   </div>
 
   <!-- Hero Section: Picture 1 (Nexaris Style Floating Wave) -->
-  <div class="hero-container">
+  <div class="hero-container reveal-on-scroll">
     <div class="nexaris-wave-wrap">
       <svg class="nexaris-svg-wave" viewBox="0 0 820 190" fill="none" preserveAspectRatio="none">
         <defs>
@@ -1257,46 +1716,98 @@
     </div>
   </div>
 
-  <!-- Bento Grid Section -->
+  <!-- The Shield for Seniors - Left/Right Structure (Light Mode) -->
   <section class="section-bento" id="how-it-works">
-    <div class="bento-heading-wrap">
+    <div class="bento-heading-wrap reveal-on-scroll">
       <h2 class="bento-big-title">The Shield for Seniors</h2>
-      <div class="bento-sub-title">Two simple layers that keep her money safe.</div>
+      <div class="bento-sub-title">Multiple protective layers working invisibly to keep her money safe.</div>
     </div>
 
-    <div class="bento-grid">
-      <!-- Left Big Feature Card (Light Mode) -->
-      <div class="bento-highlight-card">
-        <div>
-          <span style="font-family: var(--font-body); font-weight: 800; letter-spacing: -0.01em; font-size: 16px; color: var(--blue);">// 01 ON SUI BLOCKCHAIN</span>
-          <h4>Automatic Escrow Hold</h4>
-          <p>
+    <div class="shield-rows-list reveal-stagger">
+      <!-- Row 1: Automatic Escrow Hold -->
+      <div class="shield-row-item">
+        <div class="shield-row-left">
+          <div class="shield-icon-square">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="shield-row-title-wrap">
+            <span class="shield-row-tag">// 01 ON SUI BLOCKCHAIN</span>
+            <h3 class="shield-row-title">Automatic Escrow Hold</h3>
+          </div>
+        </div>
+        <div class="shield-row-right">
+          <p class="shield-row-desc">
             When a scam message is detected, her transfer does not go to the thief.
             The money is locked safely on-chain so her family can review it.
           </p>
         </div>
-        <div class="ring-sui">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#3898FF" stroke-width="2.2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
+      </div>
+
+      <!-- Row 2: Catches Urgent Scam Messages -->
+      <div class="shield-row-item">
+        <div class="shield-row-left">
+          <div class="shield-icon-square">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="11" y1="8" x2="11" y2="14"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+          </div>
+          <div class="shield-row-title-wrap">
+            <span class="shield-row-tag">// 02 AI SAFETY CHECK</span>
+            <h3 class="shield-row-title">Catches Urgent Scam Messages</h3>
+          </div>
+        </div>
+        <div class="shield-row-right">
+          <p class="shield-row-desc">
+            Gonka AI analyzes messages inside an isolated hardware enclave to catch fake police officers, fake bank threats, or people telling mom <em>"don't tell your family"</em>.
+          </p>
         </div>
       </div>
 
-      <!-- Right 2 Stacked Cards -->
-      <div class="bento-stack">
-        <div class="bento-light-card">
-          <span class="bento-mini-tag">// 02 AI SAFETY CHECK</span>
-          <h4>Catches Urgent Scam Messages</h4>
-          <p>
-            The system looks for fake police officers, fake bank threats, or people telling mom <em>"don't tell your family"</em>.
+      <!-- Row 3: Son Can Recover Funds -->
+      <div class="shield-row-item">
+        <div class="shield-row-left">
+          <div class="shield-icon-square">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div class="shield-row-title-wrap">
+            <span class="shield-row-tag">// 03 FAMILY BACKUP</span>
+            <h3 class="shield-row-title">Son Can Recover Funds</h3>
+          </div>
+        </div>
+        <div class="shield-row-right">
+          <p class="shield-row-desc">
+            Mom controls her money alone. But if she ever loses her phone or access, her trusted family can recover her wallet safely together without seed phrases.
           </p>
         </div>
+      </div>
 
-        <div class="bento-light-card">
-          <span class="bento-mini-tag">// 03 FAMILY BACKUP</span>
-          <h4>Son Can Recover Funds</h4>
-          <p>
-            Mom controls her money alone. But if she ever loses her phone, her family can recover her wallet together.
+      <!-- Row 4: One-Click Stop & Refund -->
+      <div class="shield-row-item">
+        <div class="shield-row-left">
+          <div class="shield-icon-square">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+          <div class="shield-row-title-wrap">
+            <span class="shield-row-tag">// 04 GUARDIAN REVIEW</span>
+            <h3 class="shield-row-title">One-Click Stop &amp; Refund</h3>
+          </div>
+        </div>
+        <div class="shield-row-right">
+          <p class="shield-row-desc">
+            When suspicious transfers are held, the guardian dashboard provides instant transparency to verify the threat and refund money directly to mom's wallet with one click.
           </p>
         </div>
       </div>
@@ -1305,11 +1816,10 @@
 
   <!-- Interactive Simulator: Centered Roomy Chrome Extension Showcase -->
   <section class="sim-section" id="simulator">
-    <div class="sim-centered-header">
-      <span class="bento-mini-tag">// CHROME EXTENSION SECURITY</span>
-      <h3 class="sim-title">SHOU Chrome Extension</h3>
+    <div class="sim-centered-header reveal-on-scroll">
+      <h3 class="sim-title">Simple for Mom. Complete Peace of Mind for Family.</h3>
       <p class="sim-sub">
-        Passively monitors chats in the background on WhatsApp Web &amp; Telegram Web. You can also paste any message directly inside to check it instantly with Gonka AI.
+        Mom chats naturally on WhatsApp &amp; Telegram. If someone pressures her for money, transfers are paused safely for family review.
       </p>
     </div>
 
@@ -1323,41 +1833,73 @@
     <button id="reset-btn" style="display:none;" type="button"></button>
     <button id="speak-warning-btn" style="display:none;" type="button"></button>
 
-    <!-- Reset scenario.
-         #reset-btn below is a hidden compatibility shim that other controls
-         click programmatically, and after the redesign NOTHING clicked it,
-         so there was no way to clear session risk from the UI at all. That
-         matters more than it sounds: the enclave keeps the WORST verdict per
-         policy (deliberately — it is what stops a swapped session id
-         laundering a HIGH away), so once any scam had been scored, every
-         later transfer in the demo stayed HIGH and the "small payment goes
-         straight through" path became unreachable for the rest of the run. -->
-    <div style="display:flex; justify-content:flex-end; margin:0 0 10px;">
-      <button type="button" id="reset-scenario-btn"
-              style="font-size:13px; font-weight:600; padding:8px 14px; border-radius:8px; border:1.5px solid #CBD5E1; background:#FFFFFF; color:#334155; cursor:pointer;">
-        ↺ Reset scenario (clear past risk)
-      </button>
-    </div>
+    <div class="sim-dual-container">
+      <!-- Top Section: Mom's View (Chrome Extension UP) -->
+      <div class="showcase-column mom-col reveal-on-scroll">
+        <div class="showcase-column-header">
+          <span class="showcase-badge mom">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            MOM'S VIEW · CHROME EXTENSION
+          </span>
+          <h4 class="showcase-column-title">Quiet Chat Protection</h4>
+          <p class="showcase-column-desc">
+            Passively watches incoming chats. If someone demands urgent money, SHOU pauses transfers before anything can leave.
+          </p>
+        </div>
 
-    <div class="sim-single-container">
-      <!-- Live Chrome Extension Mockup -->
-      <div class="ext-frame-mockup" id="ext-mockup">
+        <!-- Mom's 2-Panel Split: Grandma Story Card on Left, Live Mockup on Right -->
+        <div class="mom-showcase-split">
+          <div class="mom-story-card">
+            <div class="mom-story-img-box">
+              <img src="img/grandma-shield.png" alt="Happy grandma protected on Chrome by SHOU" class="mom-story-img" />
+            </div>
+            <div class="mom-story-info">
+              <div class="mom-story-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1677FF" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Family Protection in Action</span>
+              </div>
+              <h3 class="mom-story-title">Safe Browsing, Total Peace of Mind</h3>
+              <p class="mom-story-desc">
+                Mom enjoys chatting on WhatsApp with complete confidence.
+                If a scammer tries to impersonate police or demand urgent money, SHOU's Chrome extension flags the threat instantly and pauses payments on-chain.
+              </p>
+              <div class="mom-story-features">
+                <div class="mom-story-feat-item">
+                  <span class="status-dot green"></span>
+                  <span>Zero passwords or seed phrases for Mom</span>
+                </div>
+                <div class="mom-story-feat-item">
+                  <span class="status-dot green"></span>
+                  <span>Scam threats caught before money leaves</span>
+                </div>
+                <div class="mom-story-feat-item">
+                  <span class="status-dot green"></span>
+                  <span>Family backup ready from anywhere</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mom-mockup-col">
+            <!-- Live Chrome Extension Mockup -->
+            <div class="ext-frame-mockup" id="ext-mockup">
         <div class="ext-frame-header">
           <div class="ext-dots">
             <div class="ext-dot dot-red"></div>
             <div class="ext-dot dot-yellow"></div>
             <div class="ext-dot dot-green"></div>
           </div>
-          <span>SHOU Extension · WhatsApp Web</span>
+          <span style="display:inline-flex; align-items:center; gap:6px;">
+            <img src="img/shou-icon.png" alt="SHOU" style="width:15px; height:15px; border-radius:3px; object-fit:contain;" />
+            SHOU Extension · WhatsApp Web
+          </span>
         </div>
 
         <div class="ext-mock-body">
           <!-- Top Bar -->
           <div class="mock-top-bar">
-            <div class="mock-logo">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#FFF">
-                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-              </svg>
+            <div class="mock-logo" style="background:transparent; padding:0; width:26px; height:26px; display:flex; align-items:center; justify-content:center;">
+              <img src="img/shou-icon.png" alt="SHOU" style="width:26px; height:26px; border-radius:6px; object-fit:contain;" />
             </div>
             <div class="mock-bal-pill">
               <span id="mock-bal">$50.00</span>
@@ -1377,130 +1919,159 @@
             </button>
           </div>
 
-
-
-          <!-- Tab 1: Chats View (Active by default: Chat Scanner & Paste Validator) -->
+          <!-- Tab 1: Chats View (Active by default: Chat Scanner & Reassuring Alert) -->
           <div class="mock-tab-content" id="mock-tab-chats">
             <div class="mock-main-card">
-              <div class="mock-card-header" style="justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="status-dot green"></span>
-                  <span style="font-size:13px; font-weight:700; color:#0F172A;">CHROME EXTENSION SCANNER</span>
-                </div>
-                <span style="font-size:11px; color:#64748B;">WhatsApp &amp; Telegram Web</span>
+              <!-- Scenario quick test pills -->
+              <div class="scen-pills-row" style="justify-content:center; margin-bottom:14px;">
+                <button type="button" class="scen-pill active" id="scen-police">🚨 Fake Police</button>
+                <button type="button" class="scen-pill" id="scen-romance">💔 Romance Trap</button>
+                <button type="button" class="scen-pill" id="scen-normal">☕ Family Chat</button>
               </div>
 
               <!-- Passive Observation Bubble -->
               <div class="mock-chat-bubble" id="mock-passive-bubble">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span style="font-size:11.5px; color:#64748B; font-weight:600;">Passive Background Observer</span>
-                  <span id="mock-chat-status-badge" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 8px; border-radius:6px; background:#FEE2E2; color:#991B1B; font-weight:600; border:1px solid #FECDD3;">
-                    <span class="status-dot red" id="mock-chat-dot"></span> Threat Flagged
+                  <span style="font-size:11.5px; color:#64748B; font-weight:600;">WhatsApp · Incoming Message</span>
+                  <span id="mock-chat-status-badge" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 8px; border-radius:6px; background:#FEF2F2; color:#B91C1C; font-weight:600; border:1px solid #FECDD3;">
+                    <span class="status-dot red" id="mock-chat-dot"></span> Flagged
                   </span>
                 </div>
-                <div style="font-size:13px; color:#0F172A; line-height:1.45;" id="mock-chat-bubble-text">
-                  "Madam Wong, this is Inspector Danial from Bukit Aman police. Your IC is linked to money laundering. Transfer RM8,500 immediately. Do not tell your family."
+                <div style="font-size:13px; color:#0F172A; line-height:1.4;" id="mock-chat-bubble-text">
+                  "Urgent from Bukit Aman: Transfer RM8,500 immediately to verify your account. Do not tell your family."
                 </div>
               </div>
 
-              <!-- Manual Paste & Deep Analysis Box -->
-              <div style="margin-top: 16px; text-align: left;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                  <label for="mock-chat-manual-input" style="font-size:12.5px; font-weight:600; color:#0F172A;">
-                    Or Paste Any Message to Validate:
-                  </label>
-                </div>
-                <textarea id="mock-chat-manual-input" class="mock-chat-input" rows="3" placeholder="Paste suspicious WhatsApp, SMS, or Telegram chat message here to check..."></textarea>
-
-                <button class="mock-btn primary" id="mock-btn-deep-analyze" type="button" style="width:100%; margin-top:10px; padding:12px; background:#1A73E8; color:#FFF; border-color:#1A73E8; font-weight:700; font-size:14px; border-radius:12px; display:flex; flex-direction:row; justify-content:center; align-items:center; gap:8px;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <span>Deep Analyze with Gonka AI →</span>
-                </button>
-              </div>
-
-              <!-- Deep Analysis Result Box in Plain Human Language -->
+              <!-- Reassuring, Calm Detection Result Box (Not scary, senior-friendly) -->
               <div id="mock-deep-result-box" class="mock-deep-result danger">
-                <div class="mock-score-pill" style="background:#FEE2E2; color:#991B1B; border-color:#FECDD3;" id="mock-score-pill">
-                  <span class="status-dot red" id="mock-score-dot"></span>
-                  <span id="mock-score-text">High Scam Risk · 95% Chance</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <div class="mock-score-pill" style="background:#FEF2F2; color:#B91C1C; border-color:#FECDD3; margin:0;" id="mock-score-pill">
+                    <span class="status-dot red" id="mock-score-dot"></span>
+                    <span id="mock-score-text">High Scam Risk</span>
+                  </div>
+                  <span style="font-size:11px; font-weight:700; color:#166534; background:#DCFCE7; padding:2px 8px; border-radius:6px; border:1px solid #BBF7D0;">
+                    🛡️ Funds Safe
+                  </span>
                 </div>
+
                 <div class="mock-deep-title" id="mock-deep-title">
-                  FAKE POLICE SCAM
+                  Police Impersonation Attempt
                 </div>
-                <div style="font-size:13px; color:#475569; margin-bottom:10px; line-height:1.45;" id="mock-deep-summary">
-                  Someone is pretending to be a police officer to scare you into sending money.
+
+                <div style="font-size:12.5px; color:#475569; margin-bottom:6px; line-height:1.4;" id="mock-deep-summary">
+                  Real police and banks never demand money or transfers over chat.
                 </div>
+
                 <div id="mock-deep-reasons-list">
                   <div class="mock-reason-item">
                     <span class="status-dot red"></span>
-                    <span><strong>Fake Officer:</strong> Real police never ask for money or crypto in chat.</span>
-                  </div>
-                  <div class="mock-reason-item">
-                    <span class="status-dot red"></span>
-                    <span><strong>False Arrest:</strong> Threatens you with arrest to make you panic.</span>
-                  </div>
-                  <div class="mock-reason-item">
-                    <span class="status-dot red"></span>
-                    <span><strong>Keep Secret:</strong> Tells you to hide this from your family.</span>
+                    <span><strong>Urgent Demands:</strong> Pressuring you to pay without telling family.</span>
                   </div>
                 </div>
-                <div id="mock-deep-advice" style="margin-top:12px; padding:10px 14px; background:#FEF3C7; border:1px solid #FCD34D; border-radius:8px; font-size:12.5px; color:#92400E; font-weight:600; line-height:1.4;">
-                  Advice: Do not send any money. Hang up and tell your family immediately.
+
+                <div id="mock-deep-advice" style="margin-top:10px; padding:8px 12px; background:#FEF3C7; border:1px solid #FDE68A; border-radius:8px; font-size:12px; color:#92400E; font-weight:600; line-height:1.4;">
+                  Don't worry — transfers are paused. Call your son to verify.
                 </div>
-                <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #E2E8F0; font-size:11px; color:#64748B;" id="mock-deep-privacy">
-                  Personal Privacy: IC number and phone were removed before checking.
-                </div>
+                <div style="display:none;" id="mock-deep-privacy"></div>
               </div>
+
+              <!-- Collapsed Custom Tester (keeps interface clean) -->
+              <details style="margin-top:12px; text-align:left;">
+                <summary style="font-size:12px; color:#64748B; font-weight:600; cursor:pointer; user-select:none; padding:4px 0;">
+                  ✍️ Test your own custom message...
+                </summary>
+                <div style="margin-top:8px;">
+                  <textarea id="mock-chat-manual-input" class="mock-chat-input" rows="2" placeholder="Type or paste any chat message here..."></textarea>
+                  <button class="mock-btn primary" id="mock-btn-deep-analyze" type="button" style="width:100%; margin-top:8px; padding:9px; background:#1A73E8; color:#FFF; border-color:#1A73E8; font-weight:700; font-size:13px; border-radius:10px; display:flex; flex-direction:row; justify-content:center; align-items:center; gap:6px;">
+                    <span>Check Message Safety →</span>
+                  </button>
+                </div>
+              </details>
             </div>
           </div>
 
-          <!-- Tab 2: Home View (Wallet Status & Send Test) -->
+          <!-- Tab 2: Home View (Wallet Status & Guardrails matching Image 2) -->
           <div class="mock-tab-content" id="mock-tab-home" style="display:none;">
             <div class="mock-main-card">
+              <!-- Big SHOU Shield Icon -->
               <div class="mock-coin-wrapper">
-                <div class="mock-coin-sui" id="mock-coin">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="#FFF">
-                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-                  </svg>
+                <div class="mock-coin-sui" id="mock-coin" style="background:#1677FF; border:3px solid #60A5FA; box-shadow:0 10px 28px rgba(22,119,255,0.35); border-radius:20px; width:72px; height:72px; display:grid; place-items:center;">
+                  <img src="img/shou-icon.png" alt="SHOU Shield" style="width:58px; height:58px; border-radius:14px; object-fit:contain;" />
                 </div>
               </div>
 
-              <!-- Big Pixel Heading -->
+              <!-- Branded Title -->
+              <div style="font-size:10.5px; font-weight:700; letter-spacing:0.12em; color:#2563EB; text-transform:uppercase; margin-bottom:4px; font-family:var(--font-mono);">GUARDIAN COMMAND</div>
               <div class="mock-pixel-title" id="mock-status-title">PROTECTED BY SHOU</div>
               <p class="mock-plain-desc" id="mock-status-desc">
-                Your money is safe on Sui. Transfers over $1.00 require your son's approval.
+                Your money is safe on Sui. If anyone tries to trick you, the transfer is locked until your family checks it.
               </p>
 
-              <!-- Send Money Form Inside Home View -->
-              <div style="background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:14px; padding:16px; margin-bottom:14px; text-align:left;">
-                <div style="font-size:12px; font-weight:700; color:#0F172A; margin-bottom:8px;">TEST TRANSFER ON SUI:</div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                  <div>
-                    <label for="recipient" style="font-size:11px; color:#475569; font-weight:600;">Recipient Address:</label>
-                    <input id="recipient" value="0x00000000000000000000000000000000000000000000000000000000000000c1" class="mock-chat-input" style="font-family:var(--font-mono); font-size:11.5px; padding:8px 10px; margin-top:3px;" />
-                  </div>
-                  <div>
-                    <label for="amount" style="font-size:11px; color:#475569; font-weight:600;">Amount (USDC):</label>
-                    <input id="amount" value="2.00" class="mock-chat-input" style="font-weight:700; font-size:13.5px; padding:8px 10px; margin-top:3px;" />
-                  </div>
-                  <button id="send-btn" class="mock-btn" type="button" style="width:100%; padding:11px; background:#1A73E8; color:#FFF; font-weight:700; font-size:13px; border:none; border-radius:10px; margin-top:4px; cursor:pointer;">
-                    <span>Try to Send Money →</span>
-                  </button>
-                </div>
-                <div id="transfer-feedback" style="margin-top:10px;"></div>
-              </div>
-
-              <!-- Action Buttons -->
-              <div class="mock-btn-grid">
-                <button class="mock-btn" id="mock-btn-check" type="button">
-                  <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-                  <span>Chat Scanner</span>
+              <!-- The 3 Action Cards exactly matching User's Image 2 -->
+              <div class="mock-action-cards">
+                <button class="wallet-card-btn" id="btn-mock-send" type="button" title="Send Money">
+                  <svg width="22" height="22" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  <span>Send Money</span>
                 </button>
-                <a class="mock-btn" href="http://127.0.0.1:4200" target="_blank">
-                  <svg width="18" height="18" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <button class="wallet-card-btn" id="btn-mock-pause" type="button" title="Emergency Safety Pause">
+                  <svg width="22" height="22" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  <span>Safety Pause</span>
+                </button>
+                <a class="wallet-card-btn" href="http://127.0.0.1:4200" target="_blank" title="Open Son's Guardian Dashboard">
+                  <svg width="22" height="22" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                   <span>Son's View ↗</span>
                 </a>
               </div>
+
+              <!-- Real Senior-Friendly Wallet Breakdown Card -->
+              <div style="background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:14px; padding:14px 16px; margin-bottom:12px; text-align:left;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed #E2E8F0; padding-bottom:8px;">
+                  <span style="font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">MOM'S SUI WALLET</span>
+                  <span style="font-size:11px; font-weight:600; color:#15803D; background:#DCFCE7; padding:2px 8px; border-radius:999px;">● zkLogin Active</span>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+                  <div style="background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; padding:8px 10px;">
+                    <div style="font-size:11px; color:#64748B; font-weight:600;">Available to Spend:</div>
+                    <div style="font-size:18px; font-weight:800; color:#0F172A; font-family:var(--font-body);">$24.00 <span style="font-size:11px; font-weight:600; color:#64748B;">USDC</span></div>
+                  </div>
+                  <div style="background:#FFFFFF; border:1px solid #FCD34D; border-radius:10px; padding:8px 10px;">
+                    <div style="font-size:11px; color:#92400E; font-weight:600;">Protected in Escrow:</div>
+                    <div style="font-size:18px; font-weight:800; color:#B45309; font-family:var(--font-body);">$2,000.00 <span style="font-size:11px; font-weight:600; color:#92400E;">USDC</span></div>
+                  </div>
+                </div>
+
+                <div style="font-size:11.5px; color:#64748B; line-height:1.45; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px;">
+                  <div style="color:#0F172A; font-weight:700; margin-bottom:2px;">Last Transfer Status:</div>
+                  <div>$2,000.00 USDC blocked on-chain (Scam detected) · Refund pending son's 1-click confirmation.</div>
+                </div>
+              </div>
+
+              <!-- Senior Safety Guardrails Info -->
+              <div style="text-align:left; font-size:12px; color:#475569; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:10px 14px; line-height:1.45;">
+                <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#0F172A; margin-bottom:4px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span>Safety Policy Rules</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                  <span>Small Transfer Limit:</span>
+                  <strong>$1.00 USDC</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                  <span>Guardian Approval:</span>
+                  <strong>Son (Active 1/1)</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                  <span>Recovery Net:</span>
+                  <strong>Social Multisig 2-of-3</strong>
+                </div>
+              </div>
+
+              <!-- Hidden form inputs retained for script compatibility -->
+              <input id="recipient" type="hidden" value="0x00000000000000000000000000000000000000000000000000000000000000c1" />
+              <input id="amount" type="hidden" value="2000.00" />
+              <button id="send-btn" type="button" style="display:none;"></button>
+              <div id="transfer-feedback" style="display:none;"></div>
             </div>
           </div>
 
@@ -1552,13 +2123,119 @@
           </div>
         </div>
       </div>
+      </div>
+      </div>
+      </div>
+      <!-- /Top Section: Mom's View (Extension UP) -->
 
-      <!-- Developer & TEE Enclave Logs collapsed below -->
-      <details class="senior-details" id="debug-card" style="margin-top:24px;">
-        <summary>Developer &amp; TEE Enclave Logs</summary>
-        <pre id="debug"></pre>
-      </details>
+      <!-- Visual Connection Flow -->
+      <div class="showcase-flow-connector reveal-on-scroll">
+        <div class="flow-line"></div>
+        <div class="flow-pill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+          <span>Held transfers immediately sync to Guardian Dashboard</span>
+        </div>
+        <div class="flow-line"></div>
+      </div>
+
+      <!-- Bottom Section: Son's View (Guardian Dashboard DOWN) -->
+      <div class="showcase-column son-col reveal-on-scroll">
+        <div class="showcase-column-header">
+          <span class="showcase-badge son">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            SON'S VIEW · GUARDIAN DASHBOARD
+          </span>
+          <h4 class="showcase-column-title">Guardian Command Dashboard</h4>
+          <p class="showcase-column-desc">
+            Review paused payments and keep Mom safe with one-click refund from anywhere in the world.
+          </p>
+        </div>
+
+        <!-- Dashboard Window Frame -->
+        <div class="dashboard-window-frame">
+          <div class="dashboard-window-header">
+            <div class="dashboard-window-header-left">
+              <div class="ext-dots">
+                <div class="ext-dot dot-red"></div>
+                <div class="ext-dot dot-yellow"></div>
+                <div class="ext-dot dot-green"></div>
+              </div>
+              <div class="dashboard-url-bar">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>guardian.shou.app · 127.0.0.1:4200</span>
+              </div>
+            </div>
+            <span style="font-size:11.5px; font-weight:700; color:#15803D; background:#DCFCE7; padding:3px 10px; border-radius:999px; border:1px solid #BBF7D0;">
+              ● Live on Port 4200
+            </span>
+          </div>
+
+          <!-- Dashboard Preview Image (Click to open) -->
+          <a href="http://127.0.0.1:4200" target="_blank" class="dashboard-img-wrap" title="Click to open Live Guardian Dashboard">
+            <img src="img/dashboard-preview.png" alt="SHOU Guardian Command Dashboard" class="dashboard-preview-img" />
+          </a>
+
+          <!-- Dashboard Window Footer -->
+          <div class="dashboard-window-footer">
+            <div class="dashboard-pills-row">
+              <span class="dash-feature-tag">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                1-Click Stop &amp; Refund
+              </span>
+              <span class="dash-feature-tag">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                2-Min Safety Delay
+              </span>
+              <span class="dash-feature-tag">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Scam Registry
+              </span>
+            </div>
+            <a href="http://127.0.0.1:4200" target="_blank" class="dash-launch-btn">
+              <span>Open Live Dashboard ↗</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Clean 3-Chip Guardian Highlights (No scary jargon) -->
+        <div class="guardian-highlights-grid reveal-stagger">
+          <div class="highlight-chip">
+            <div class="highlight-chip-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <strong style="display:block; font-size:13px; color:#0F172A; margin-bottom:2px;">Automatic Safety Hold</strong>
+              <span style="font-size:12px; color:#64748B; line-height:1.35; display:block;">Transfers pause before funds can leave.</span>
+            </div>
+          </div>
+
+          <div class="highlight-chip">
+            <div class="highlight-chip-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            </div>
+            <div>
+              <strong style="display:block; font-size:13px; color:#0F172A; margin-bottom:2px;">1-Click Refund</strong>
+              <span style="font-size:12px; color:#64748B; line-height:1.35; display:block;">Son cancels scams and returns money directly to Mom.</span>
+            </div>
+          </div>
+
+          <div class="highlight-chip">
+            <div class="highlight-chip-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <strong style="display:block; font-size:13px; color:#0F172A; margin-bottom:2px;">Family Protection</strong>
+              <span style="font-size:12px; color:#64748B; line-height:1.35; display:block;">Protect parents from another city or overseas.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /Bottom Section: Son's View -->
     </div>
+    <!-- /sim-dual-container -->
+
+    <!-- Hidden pre for script logs compatibility (Developer details removed) -->
+    <pre id="debug" style="display:none;"></pre>
   </section>
 
   <!-- Process Overlay: How SHOU Works -->
@@ -1691,6 +2368,29 @@
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && overlay.classList.contains('open')) close();
       });
+    })();
+
+    /* Section-by-section Scroll Reveal Observer */
+    (function () {
+      var revealEls = document.querySelectorAll('.reveal-on-scroll, .reveal-stagger');
+      if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function (entries, obs) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-revealed');
+              obs.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+
+        revealEls.forEach(function (el) {
+          observer.observe(el);
+        });
+      } else {
+        revealEls.forEach(function (el) {
+          el.classList.add('is-revealed');
+        });
+      }
     })();
   </script>
 </body>

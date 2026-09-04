@@ -297,13 +297,12 @@ if (!config.googleClientId || !config.enokiApiKey) {
     // Nothing on this page may talk a MEDIUM or HIGH down to green.
     if (tier === 'LOW') {
       return {
-        title: 'SAFE CONVERSATION',
-        summary: 'Normal friendly message. No scam signals, threats, or urgent money pressure found.',
+        title: 'Safe Conversation',
+        summary: 'Friendly message with family. No warning signs detected.',
         reasons: [
-          { label: 'Normal Chat', desc: 'Standard friendly family or commercial communication.' },
-          { label: 'No Coercion', desc: 'No threats, urgency, or secrecy demands detected.' },
+          { label: 'Normal Chat', desc: 'Standard everyday conversation.' },
         ],
-        advice: 'Advice: Safe to reply and send normal small payments.',
+        advice: 'Safe to reply and send normal payments.',
       };
     }
 
@@ -316,14 +315,12 @@ if (!config.googleClientId || !config.enokiApiKey) {
       lower.includes('inspector')
     ) {
       return {
-        title: 'FAKE POLICE SCAM',
-        summary: 'Someone is pretending to be a police officer to scare you into sending money.',
+        title: 'Police Impersonation Attempt',
+        summary: 'Real police and banks never demand money or transfers over chat.',
         reasons: [
-          { label: 'Fake Officer', desc: 'Real police never ask for money or crypto in chat.' },
-          { label: 'False Arrest', desc: 'Threatens you with arrest to make you panic and rush.' },
-          { label: 'Keep Secret', desc: 'Tells you to hide this from your family and children.' },
+          { label: 'Urgent Demands', desc: 'Pressuring you to pay without telling family.' },
         ],
-        advice: 'Advice: Do not send any money. Hang up and tell your family immediately.',
+        advice: "Don't worry — transfers are paused. Call your son to verify.",
       };
     }
 
@@ -336,41 +333,34 @@ if (!config.googleClientId || !config.enokiApiKey) {
       lower.includes('port klang')
     ) {
       return {
-        title: 'SWEETHEART / CARGO SCAM',
-        summary: 'An online contact is asking for emergency money or customs clearance fees.',
+        title: 'Suspicious Online Request',
+        summary: 'An online contact is asking for emergency package or customs fees.',
         reasons: [
-          { label: 'Customs Fee Trap', desc: 'Claims a package or cargo needs urgent clearance fee.' },
-          { label: 'Emotional Trust', desc: 'Uses affectionate words to build false intimacy quickly.' },
-          { label: 'Confidentiality', desc: 'Asks you to keep the payment secret from your relatives.' },
+          { label: 'Emergency Fee', desc: 'Claims an urgent parcel needs clearance.' },
         ],
-        advice: 'Advice: Never send money for online acquaintances. Call your son to verify.',
+        advice: 'Never send money to someone you only met online. Check with family.',
       };
     }
 
     if (tier === 'MEDIUM') {
-      // No hard-coded "$1.00" or "2 minutes" here: both are hers to choose,
-      // they live on the policy, and this function is not given them. The
-      // caller, which does have them, states the actual figures.
       return {
-        title: 'CHECK THIS ONE FIRST',
-        summary: 'Something about this message looked unusual, so the transfer waits instead of going straight through.',
+        title: 'Unusual Request',
+        summary: 'This payment looks unfamiliar. Your safety delay is active.',
         reasons: [
-          { label: 'Unusual Request', desc: 'This does not look like her normal day-to-day spending.' },
-          { label: 'Safety Delay', desc: 'Held for the cooling-off period she set, so there is time to check.' },
+          { label: 'Safety Delay', desc: 'Held temporarily so there is time to check.' },
         ],
-        advice: 'Advice: Check with your family before confirming. Your son can also approve or cancel it on his dashboard.',
+        advice: 'Check with your family. Your son can approve or refund it on his dashboard.',
       };
     }
 
     if (tier === 'HIGH') {
       return {
-        title: 'HIGH SCAM RISK',
-        summary: data?.reasoning || 'Social engineering attack detected.',
+        title: 'Safety Alert',
+        summary: data?.reasoning || 'Suspicious payment pressure detected.',
         reasons: [
-          { label: 'Urgency Trap', desc: 'Pressures payment quickly.' },
-          { label: 'Suspicious Demands', desc: 'Requests unusual transfer.' },
+          { label: 'Urgent Demands', desc: 'Asks you to transfer quickly and keep secret.' },
         ],
-        advice: 'Advice: Do not send any money. Contact family immediately.',
+        advice: "Transfers are paused. Take a breath and call your family.",
       };
     }
 
@@ -453,7 +443,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#FECDD3';
       }
       if (scoreDot) scoreDot.className = 'status-dot red';
-      if (scoreText) scoreText.textContent = riskLine(analysisData?.truthScore);
+      if (scoreText) scoreText.textContent = 'High Scam Risk';
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -489,7 +479,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#FDE68A';
       }
       if (scoreDot) scoreDot.className = 'status-dot yellow';
-      if (scoreText) scoreText.textContent = riskLine(analysisData?.truthScore);
+      if (scoreText) scoreText.textContent = 'Caution Advised';
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -525,7 +515,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#A7F3D0';
       }
       if (scoreDot) scoreDot.className = 'status-dot green';
-      if (scoreText) scoreText.textContent = riskLine(analysisData?.truthScore);
+      if (scoreText) scoreText.textContent = 'Safe Conversation';
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -734,12 +724,6 @@ if (!config.googleClientId || !config.enokiApiKey) {
     };
   }
 
-  // The visible control for the reset shim above. Without this the session's
-  // worst verdict is sticky for the life of the enclave process, and the
-  // "goes straight through" path cannot be demonstrated after any scam.
-  document.getElementById('reset-scenario-btn')?.addEventListener('click', () => {
-    resetBtn?.click();
-  });
 
   // Voice Warning Readout (Plain-English Web Speech API from DESIGN.md §3.4)
   const speakBtn = document.getElementById('speak-warning-btn') as HTMLButtonElement | null;
