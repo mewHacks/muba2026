@@ -48,6 +48,17 @@ export interface TransferState {
   /** The tier the CHAIN assigned, which may be stricter than the one submitted. */
   tier: RiskTier;
   unlockAtMs: number;
+  /**
+   * Digest of the transaction that produced this state, when this state is
+   * the result of one. Absent from a plain `getTransferStatus` read, which
+   * observes the object rather than changing it.
+   *
+   * Optional, and additive: a caller that ignores it is unaffected. It
+   * exists because a UI that says "approved" without a digest is asking to
+   * be taken on trust — the digest is how a guardian (or a judge) confirms
+   * on an explorer that the click really reached the chain.
+   */
+  digest?: string;
 }
 
 /**
@@ -95,6 +106,36 @@ export interface TransferRequestView extends TransferState {
 }
 
 /**
+ * One address on the community deny list, as a read-only list needs it.
+ *
+ * Everything here is read back from the `DenyList` table itself, not from
+ * the report events — the events record what was asked for at the time,
+ * and a later `clear` does not amend them. An address that has been
+ * cleared by staff simply does not appear.
+ *
+ * `reportCount` is the exception and is labelled as such: it counts
+ * `AddressBanned` events for this address across the whole package,
+ * because the event carries no deny-list id to filter on. It is
+ * corroboration ("this has been reported three times"), not the ban.
+ */
+export interface RedFlagView {
+  address: string;
+  /** 0-100, decided off-chain by the Gonka scoring service before the ban landed. */
+  plausibilityScore: number;
+  /**
+   * Base units of the coin. This is the "soft" in soft ban: a transfer of
+   * this amount or less to this address still goes through. Left as a
+   * string because 0 and u64::MAX are both meaningful and the latter does
+   * not survive a JS number.
+   */
+  banCeiling: string;
+  /** When the most recent report was recorded on-chain. */
+  reportedAtMs: number;
+  /** See the note above: package-wide event count, not a per-list tally. */
+  reportCount: number;
+}
+
+/**
  * The chain-facing client. Dev A implements this against the deployed
  * shou::policy / shou::redflag Move modules; Dev A's Circuit Breaker and
  * Dev B's dashboard both call it — it's the only way either side touches
@@ -118,7 +159,7 @@ export interface ShouClient {
     denyListId: string,
     reviewCeiling: number,
     highRiskCeiling: number,
-  ): Promise<{ policyId: string }>;
+  ): Promise<{ policyId: string; digest?: string }>;
 
   /**
    * Locks funds into a request. The returned `tier` is what the CHAIN
@@ -224,4 +265,15 @@ export interface ShouClient {
 
   /** True only if a transfer of `amount` to `address` would be blocked. */
   isAmountBlocked(denyListId: string, address: string, amount: number): Promise<boolean>;
+
+  /**
+   * Read-side of Layer 3: every address currently banned on `denyListId`.
+   *
+   * Enumerated from the `Table` inside the DenyList object rather than
+   * from `AddressBanned` events, because the events are a log of requests
+   * and the table is the state that `policy::submit_transfer` actually
+   * consults. A cleared address is gone from one and still present in the
+   * other.
+   */
+  listRedFlags(denyListId: string, limit?: number): Promise<RedFlagView[]>;
 }

@@ -14,6 +14,7 @@ import type { Signer } from '@mysten/sui/cryptography';
 import type {
   EnclaveAttestation,
   PolicyView,
+  RedFlagView,
   RiskAssessment,
   RiskTier,
   ShouClient,
@@ -76,6 +77,58 @@ function balanceValue(funds: unknown): string {
   if (value === null || value === undefined) return '0';
   if (typeof value === 'object') return balanceValue(value);
   return String(value);
+}
+
+/**
+ * A Move `Table`'s own object id — the parent its entries hang off as
+ * dynamic fields — and how many entries it says it holds.
+ *
+ * The id decodes as `{ id: { id: "0x…" } }` on some transports and
+ * flattened to `{ id: "0x…" }` on others, so accept both rather than
+ * depending on which one this full node happens to be. Exported for
+ * testing: the shapes are the whole risk in this function.
+ */
+export function tableInfo(table: unknown): { id: string; size: number } | null {
+  if (typeof table === 'string') return { id: table, size: -1 };
+  const record = table as { id?: unknown; size?: unknown } | null | undefined;
+  const id = record?.id;
+  const resolved =
+    typeof id === 'string'
+      ? id
+      : typeof (id as { id?: unknown } | null | undefined)?.id === 'string'
+        ? ((id as { id: string }).id)
+        : null;
+  if (!resolved) return null;
+  // -1 for "the node did not say", which must not be read as "empty".
+  const size = record?.size === undefined || record?.size === null ? -1 : Number(record.size);
+  return { id: resolved, size };
+}
+
+/**
+ * One decoded `Field<address, BanEntry>` as the dashboard needs it.
+ *
+ * gRPC decodes Move struct fields in snake_case and other transports have
+ * used camelCase, so both are read. Exported for testing, because the
+ * live deny list is legitimately empty most of the time and an untested
+ * mapping would only ever be exercised in front of an audience.
+ */
+export function redFlagFromField(
+  entry: { name?: unknown; value?: unknown } | undefined,
+  reportCounts: Map<string, number>,
+): RedFlagView | null {
+  const address = typeof entry?.name === 'string' ? entry.name : '';
+  if (!address) return null;
+  const value = (entry?.value ?? {}) as Record<string, unknown>;
+  const pick = (snake: string, camel: string): unknown => value[snake] ?? value[camel];
+  return {
+    address,
+    plausibilityScore: Number(pick('plausibility_score', 'plausibilityScore') ?? 0),
+    banCeiling: String(pick('ban_ceiling', 'banCeiling') ?? '0'),
+    reportedAtMs: Number(pick('reported_at_ms', 'reportedAtMs') ?? 0),
+    // At least one: the entry exists, so it was reported at least once,
+    // even if the event stream could not be read to corroborate it.
+    reportCount: reportCounts.get(address.toLowerCase()) ?? 1,
+  };
 }
 
 interface ChangedObject {
@@ -176,7 +229,7 @@ export class SuiShouClient implements ShouClient {
     denyListId: string,
     reviewCeiling: number,
     highRiskCeiling: number,
-  ): Promise<{ policyId: string }> {
+  ): Promise<{ policyId: string; digest?: string }> {
     const tx = new Transaction();
     tx.moveCall({
       target: `${this.packageId}::policy::create_policy`,
@@ -190,7 +243,10 @@ export class SuiShouClient implements ShouClient {
       ],
     });
     const result = await this.execute(tx, 'createPolicy');
-    return { policyId: await findCreatedObjectId(this.client, result, '::policy::SeniorityPolicy') };
+    return {
+      policyId: await findCreatedObjectId(this.client, result, '::policy::SeniorityPolicy'),
+      digest: result.digest,
+    };
   }
 
   async requestTransfer(
@@ -344,8 +400,11 @@ export class SuiShouClient implements ShouClient {
       typeArguments: [coinType],
       arguments: [tx.object(requestId), tx.object(policyId)],
     });
-    await this.execute(tx, 'approveTransfer');
-    return this.getTransferStatus(requestId);
+    const result = await this.execute(tx, 'approveTransfer');
+    // The digest travels with the new state so the caller can show it. A
+    // UI that reports "blocked" with nothing to check is asking to be
+    // believed; the digest is how the guardian confirms it on an explorer.
+    return { ...(await this.getTransferStatus(requestId)), digest: result.digest };
   }
 
   async blockTransfer(
@@ -359,8 +418,11 @@ export class SuiShouClient implements ShouClient {
       typeArguments: [coinType],
       arguments: [tx.object(requestId), tx.object(policyId)],
     });
-    await this.execute(tx, 'blockTransfer');
-    return this.getTransferStatus(requestId);
+    const result = await this.execute(tx, 'blockTransfer');
+    // The digest travels with the new state so the caller can show it. A
+    // UI that reports "blocked" with nothing to check is asking to be
+    // believed; the digest is how the guardian confirms it on an explorer.
+    return { ...(await this.getTransferStatus(requestId)), digest: result.digest };
   }
 
   async cancelTransfer(
@@ -374,8 +436,11 @@ export class SuiShouClient implements ShouClient {
       typeArguments: [coinType],
       arguments: [tx.object(requestId), tx.object(policyId)],
     });
-    await this.execute(tx, 'cancelTransfer');
-    return this.getTransferStatus(requestId);
+    const result = await this.execute(tx, 'cancelTransfer');
+    // The digest travels with the new state so the caller can show it. A
+    // UI that reports "blocked" with nothing to check is asking to be
+    // believed; the digest is how the guardian confirms it on an explorer.
+    return { ...(await this.getTransferStatus(requestId)), digest: result.digest };
   }
 
   async executeTransfer(
@@ -389,8 +454,11 @@ export class SuiShouClient implements ShouClient {
       typeArguments: [coinType],
       arguments: [tx.object(requestId), tx.object(policyId), tx.object.clock()],
     });
-    await this.execute(tx, 'executeTransfer');
-    return this.getTransferStatus(requestId);
+    const result = await this.execute(tx, 'executeTransfer');
+    // The digest travels with the new state so the caller can show it. A
+    // UI that reports "blocked" with nothing to check is asking to be
+    // believed; the digest is how the guardian confirms it on an explorer.
+    return { ...(await this.getTransferStatus(requestId)), digest: result.digest };
   }
 
   async getTransferStatus(requestId: string): Promise<TransferState> {
@@ -583,6 +651,130 @@ export class SuiShouClient implements ShouClient {
     });
     await this.execute(tx, 'reportRedFlag');
     return { banned: true };
+  }
+
+  /**
+   * Every address currently banned on `denyListId`.
+   *
+   * WHY THE TABLE AND NOT THE EVENTS. `AddressBanned` is the obvious
+   * source and the wrong one twice over: it carries no deny-list id, so a
+   * package guarding two lists would blend them, and `clear` emits a
+   * separate event that does not amend the first — so an events-only list
+   * shows addresses a reviewer has already exonerated. The `Table` inside
+   * the DenyList is the state `policy::submit_transfer` actually consults,
+   * so it is the only honest thing to put on a screen that says "banned".
+   *
+   * The events are still read, for one thing they alone can say: how many
+   * times an address has been reported. `report` overwrites the entry, so
+   * the table remembers only the latest. That count is corroboration and
+   * is labelled as such — it is package-wide, not per-list.
+   */
+  async listRedFlags(denyListId: string, limit = 50): Promise<RedFlagView[]> {
+    const { object } = await this.client.getObject({
+      objectId: denyListId,
+      include: { json: true },
+    });
+    const decoded = (object as { json?: unknown } | undefined)?.json as
+      | { banned?: unknown }
+      | undefined;
+    if (!decoded) throw new Error(`DenyList ${denyListId} not found or has no readable content`);
+
+    // A Move `Table` is a UID plus a size; its entries are dynamic fields
+    // hanging off that UID, so the table's own id is the parent to list.
+    const table = tableInfo(decoded.banned);
+    if (!table) throw new Error(`DenyList ${denyListId} has no readable "banned" table`);
+
+    const { dynamicFields } = await this.client.listDynamicFields({
+      parentId: table.id,
+      limit,
+    });
+
+    const counts = await this.countReports();
+    const rows: RedFlagView[] = [];
+    for (const field of dynamicFields) {
+      // Reading the field object gives the decoded `{ name, value }` and
+      // avoids guessing whether the raw BCS is the bare value or the whole
+      // `Field<K, V>` wrapper, which differs by transport.
+      let entry: { name?: unknown; value?: unknown } | undefined;
+      try {
+        const read = await this.client.getObject({
+          objectId: field.fieldId,
+          include: { json: true },
+        });
+        entry = (read.object as { json?: unknown } | undefined)?.json as typeof entry;
+      } catch {
+        // A field that vanished between listing and reading is not worth
+        // failing the whole page over.
+        continue;
+      }
+      const row = redFlagFromField(entry, counts);
+      if (row) rows.push(row);
+    }
+
+    // "The table says it holds entries and we read none" is not an empty
+    // list, it is a failed read — and a screen that renders it as "no
+    // addresses are reported" would be stating the opposite of the truth.
+    // Say so instead, and let the page show an error.
+    if (table.size > 0 && rows.length === 0) {
+      throw new Error(
+        `DenyList ${denyListId} reports ${table.size} banned address(es) but none could be read`,
+      );
+    }
+    // Most recently reported first: a guardian reading this wants to know
+    // what has just been added, not what has sat there for a month.
+    return rows.sort((a, b) => b.reportedAtMs - a.reportedAtMs);
+  }
+
+  /**
+   * How many times each address has been reported, from `AddressBanned`.
+   * Package-wide — the event carries no list id — and best effort: a node
+   * that will not serve the event stream costs the count, not the list.
+   */
+  private async countReports(): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    try {
+      const { events } = await this.client.listEvents({
+        filter: { eventType: `${this.packageId}::redflag::AddressBanned` },
+        order: 'descending',
+        limit: 200,
+      });
+      for (const event of events) {
+        const json = (event.json ?? {}) as Record<string, unknown>;
+        const addr = String(json.addr ?? '').toLowerCase();
+        if (addr) counts.set(addr, (counts.get(addr) ?? 0) + 1);
+      }
+    } catch {
+      /* the table above is the truth; this is only corroboration */
+    }
+    return counts;
+  }
+
+  /**
+   * The OracleCap this client's signer actually owns, or null.
+   *
+   * The dashboard asks before it offers a "report this address" control.
+   * `redflag::report` is gated on the capability, so offering the button
+   * without it produces a Move abort after the guardian has already been
+   * told the report went in — which is worse than not offering it, because
+   * he stops watching an address he believes is now flagged.
+   *
+   * Class-level, not on the `ShouClient` interface: it is a question about
+   * this particular signer's holdings rather than part of the chain
+   * contract the two halves of the app agreed on.
+   */
+  async findOracleCap(): Promise<string | null> {
+    try {
+      const { objects } = await this.client.listOwnedObjects({
+        owner: this.signer.toSuiAddress(),
+        type: `${this.packageId}::redflag::OracleCap`,
+        limit: 1,
+      });
+      return objects[0]?.objectId ?? null;
+    } catch {
+      // No cap and "could not ask" both mean the same thing to the caller:
+      // do not offer the control.
+      return null;
+    }
   }
 
   /** Total balance of `coinType` held by `owner`, in base units. */
