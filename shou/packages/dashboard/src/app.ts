@@ -1312,6 +1312,14 @@ async function main(): Promise<void> {
     document.getElementById(`side-${name}`)?.addEventListener('click', () => selectView(name));
   }
 
+  // Deep link support: the sign-in page links here as `#setup` right after
+  // she signs in, so the guardrail form is what she lands on, not the
+  // transfers list. Anything else in the hash is ignored, not an error.
+  const hashView = location.hash.slice(1);
+  if ((['transfers', 'flags', 'setup', 'telemetry'] as const).includes(hashView as View)) {
+    selectView(hashView as View);
+  }
+
   // Filter toolbar pills
   document.querySelectorAll<HTMLElement>('.dash-filter-pill').forEach((pill) => {
     pill.addEventListener('click', () => {

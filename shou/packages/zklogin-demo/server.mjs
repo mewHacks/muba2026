@@ -117,7 +117,10 @@ const server = createServer(async (req, res) => {
   // The OAuth callback lands here with the JWT in the URL *fragment*,
   // which never reaches the server — the browser reads it. So this just
   // serves the same page again and the client finishes the flow.
-  const file = url.pathname === '/' || url.pathname === '/auth/callback' ? '/index.html' : url.pathname;
+  let file = url.pathname === '/' || url.pathname === '/auth/callback' ? '/index.html' : url.pathname;
+  if (file.startsWith('/auth/')) {
+    file = file.replace(/^\/auth/, '');
+  }
 
   // Traversal guard. `new URL()` already normalises `..` out of the path,
   // so `/../server.mjs` never reaches here — but that is this code being

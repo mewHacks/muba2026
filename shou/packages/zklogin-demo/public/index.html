@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<base href="/" />
 <title>SHOU 守 — Safe Payments on Sui</title>
 <link rel="icon" type="image/png" href="/img/shou-icon.png">
 
@@ -524,11 +525,11 @@
        is no layout shift on slow connections or low-end mobile. */
   }
   .hero-col-left {
-    background-image: url('img/card-zero-passwords.jpg');
+    background-image: url('/img/card-zero-passwords.jpg');
     background-position: left 60%;
   }
   .hero-col-right {
-    background-image: url('img/card-family-shield.jpg');
+    background-image: url('/img/card-family-shield.jpg');
     background-position: right 65%;
   }
   /* Top scrim so the heading stays readable regardless of how "cover"
@@ -1612,7 +1613,7 @@
   <!-- Top Navigation -->
   <nav class="navbar">
     <a href="/" class="nav-brand">
-      <img src="img/shou-icon.png" alt="SHOU Shield" style="width:36px; height:36px; border-radius:9px; object-fit:contain;" />
+      <img src="/img/shou-icon.png" alt="SHOU Shield" style="width:36px; height:36px; border-radius:10px; object-fit:cover; background:#000; box-shadow:0 2px 6px rgba(0,0,0,0.15);" />
       <div class="brand-text">SHOU <span class="brand-kanji">守</span></div>
     </a>
 
@@ -1630,6 +1631,7 @@
         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16A34A; box-shadow:0 0 0 2px #DCFCE7;"></span>
         <span style="font-weight:600; color:#334155;">Mom's Wallet:</span>
         <code id="nav-address-display" style="font-family:var(--font-mono); color:#2563EB; font-weight:700; cursor:pointer;" title="Click to copy full Sui address">0x...</code>
+        <button id="nav-btn-guardrails" type="button" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; cursor:pointer;" title="Configure safety rules">⚙️ Guardrails</button>
         <span style="font-size:10px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:0.03em;">Zero Seed Phrase</span>
       </div>
 
@@ -1690,8 +1692,10 @@
         <div class="floating-coin coin-1" style="--d: 0s;" title="USDC Payment">
           <span class="coin-label">$</span>
         </div>
-        <div class="floating-coin coin-2" style="--d: 0.6s;" title="SHOU">
-          <img src="img/shou-icon.png" alt="" width="34" height="34" style="object-fit:contain;" />
+        <div class="floating-coin coin-2" style="--d: 0.6s;" title="Sui Network">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+          </svg>
         </div>
         <div class="floating-coin coin-3" style="--d: 1.2s;" title="Family Shield">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -1866,7 +1870,7 @@
         <div class="mom-showcase-split">
           <div class="mom-story-card">
             <div class="mom-story-img-box">
-              <img src="img/grandma-shield.png" alt="Happy grandma protected on Chrome by SHOU" class="mom-story-img" />
+              <img src="/img/grandma-shield.png" alt="Happy grandma protected on Chrome by SHOU" class="mom-story-img" />
             </div>
             <div class="mom-story-info">
               <div class="mom-story-badge">
@@ -1905,7 +1909,7 @@
             <div class="ext-dot dot-green"></div>
           </div>
           <span style="display:inline-flex; align-items:center; gap:6px;">
-            <img src="img/shou-icon.png" alt="SHOU" style="width:15px; height:15px; border-radius:3px; object-fit:contain;" />
+            <img src="/img/shou-icon.png" alt="SHOU" style="width:15px; height:15px; border-radius:3px; object-fit:contain;" />
             SHOU Extension · WhatsApp Web
           </span>
         </div>
@@ -1914,7 +1918,7 @@
           <!-- Top Bar -->
           <div class="mock-top-bar">
             <div class="mock-logo" style="background:transparent; padding:0; width:26px; height:26px; display:flex; align-items:center; justify-content:center;">
-              <img src="img/shou-icon.png" alt="SHOU" style="width:26px; height:26px; border-radius:6px; object-fit:contain;" />
+              <img src="/img/shou-icon.png" alt="SHOU" style="width:26px; height:26px; border-radius:6px; object-fit:contain;" />
             </div>
             <div class="mock-bal-pill">
               <span id="mock-bal">$50.00</span>
@@ -1938,10 +1942,11 @@
           <div class="mock-tab-content" id="mock-tab-chats">
             <div class="mock-main-card">
               <!-- Scenario quick test pills -->
-              <div class="scen-pills-row" style="justify-content:center; margin-bottom:14px;">
+              <div class="scen-pills-row" style="justify-content:center; margin-bottom:14px; gap:8px; flex-wrap:wrap;">
                 <button type="button" class="scen-pill active" id="scen-police">🚨 Fake Police</button>
                 <button type="button" class="scen-pill" id="scen-romance">💔 Romance Trap</button>
                 <button type="button" class="scen-pill" id="scen-normal">☕ Family Chat</button>
+                <button type="button" class="scen-pill" id="scen-adversarial" style="background:#FEF3C7; border:1.5px solid #F59E0B; color:#92400E; font-weight:700;">⚡ Test Compromised AI (Kill Shot)</button>
               </div>
 
               <!-- Passive Observation Bubble -->
@@ -2011,7 +2016,7 @@
               <!-- Big SHOU Shield Icon -->
               <div class="mock-coin-wrapper">
                 <div class="mock-coin-sui" id="mock-coin" style="background:#1677FF; border:3px solid #60A5FA; box-shadow:0 10px 28px rgba(22,119,255,0.35); border-radius:20px; width:72px; height:72px; display:grid; place-items:center;">
-                  <img src="img/shou-icon.png" alt="SHOU Shield" style="width:58px; height:58px; border-radius:14px; object-fit:contain;" />
+                  <img src="/img/shou-icon.png" alt="SHOU Shield" style="width:58px; height:58px; border-radius:14px; object-fit:contain;" />
                 </div>
               </div>
 
@@ -2071,14 +2076,23 @@
               </div>
 
               <!-- Senior Safety Guardrails Info -->
-              <div style="text-align:left; font-size:12px; color:#475569; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:10px 14px; line-height:1.45;">
-                <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#0F172A; margin-bottom:4px;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  <span>Safety Policy Rules</span>
+              <div style="text-align:left; font-size:12px; color:#475569; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:12px 14px; line-height:1.45;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#0F172A;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <span>Safety Guardrails</span>
+                  </div>
+                  <button id="btn-open-guardrails" type="button" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:11px; font-weight:700; border-radius:6px; padding:3px 8px; cursor:pointer;">
+                    ⚙️ Edit Rules
+                  </button>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:4px;">
                   <span>Small Transfer Limit:</span>
-                  <strong>$1.00 USDC</strong>
+                  <strong id="display-everyday-limit">$10.00 USDC</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                  <span>Review & Cooldown Ceiling:</span>
+                  <strong id="display-cooldown-limit">$50.00 USDC</strong>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:2px;">
                   <span>Guardian Approval:</span>
@@ -2184,7 +2198,7 @@
                 <div class="ext-dot dot-green"></div>
               </div>
               <div class="dashboard-url-bar">
-                <img src="img/shou-icon.png" alt="" style="width:13px; height:13px; border-radius:3px; object-fit:contain;" />
+                <img src="/img/shou-icon.png" alt="" style="width:13px; height:13px; border-radius:3px; object-fit:contain;" />
                 <span>guardian.shou.app · 127.0.0.1:4200</span>
               </div>
             </div>
@@ -2195,7 +2209,7 @@
 
           <!-- Dashboard Preview Image (Click to open) -->
           <a href="http://127.0.0.1:4200" target="_blank" class="dashboard-img-wrap" title="Click to open Live Guardian Dashboard">
-            <img src="img/dashboard-preview.png" alt="SHOU Guardian Command Dashboard" class="dashboard-preview-img" />
+            <img src="/img/dashboard-preview.png" alt="SHOU Guardian Command Dashboard" class="dashboard-preview-img" />
           </a>
 
           <!-- Dashboard Window Footer -->
@@ -2361,6 +2375,68 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- Safety Guardrails Settings Modal (Sui Move Policy Configuration) -->
+  <div class="process-overlay" id="guardrails-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Mom's Safety Guardrails">
+    <div class="process-card" style="max-width:520px; border-radius:18px;">
+      <div class="process-header" style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:18px 20px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; border-radius:10px; background:#EFF6FF; border:1.5px solid #BFDBFE; display:flex; align-items:center; justify-content:center; font-size:18px;">
+            🛡️
+          </div>
+          <div>
+            <h2 style="font-size:17px; margin:0; color:#0F172A; font-weight:800;">Mom's Safety Guardrails</h2>
+            <p style="margin:2px 0 0; font-size:12px; color:#64748B;">Pre-committed on-chain rules · Enforced by Sui Move SeniorityPolicy</p>
+          </div>
+        </div>
+        <button class="process-close" id="guardrails-close" type="button" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="process-body" style="padding:20px; font-size:13px;">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-weight:700; color:#0F172A; margin-bottom:4px;">1. Everyday Instant Allowance (USDC)</label>
+          <p style="margin:0 0 6px; font-size:11.5px; color:#64748B;">Small daily spending (coffee, groceries) that executes immediately without co-approval.</p>
+          <div style="position:relative;">
+            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:700; color:#64748B;">$</span>
+            <input type="number" id="input-everyday-limit" value="10" min="1" max="1000" style="width:100%; padding:9px 12px 9px 28px; border:1.5px solid #CBD5E1; border-radius:8px; font-size:14px; font-weight:700; color:#0F172A;" />
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-weight:700; color:#0F172A; margin-bottom:4px;">2. Suspicious Transfer Ceiling (USDC)</label>
+          <p style="margin:0 0 6px; font-size:11.5px; color:#64748B;">Transfers exceeding this amount are held in escrow on Sui for Son's co-approval.</p>
+          <div style="position:relative;">
+            <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-weight:700; color:#64748B;">$</span>
+            <input type="number" id="input-cooldown-limit" value="50" min="5" max="50000" style="width:100%; padding:9px 12px 9px 28px; border:1.5px solid #CBD5E1; border-radius:8px; font-size:14px; font-weight:700; color:#0F172A;" />
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-weight:700; color:#0F172A;">3. Family Guardian Approver</span>
+            <span style="font-size:11px; color:#15803D; font-weight:700; background:#DCFCE7; padding:2px 8px; border-radius:999px;">● Active 1/1</span>
+          </div>
+          <code style="font-family:var(--font-mono); font-size:11.5px; color:#2563EB; word-break:break-all;">0x4e48678637d9ff9fc151ee5b8083d21910ca280cee592b613addd0b8d9c32ddc (Son)</code>
+        </div>
+
+        <div style="margin-bottom:18px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px;">
+          <div style="font-weight:700; color:#0F172A; margin-bottom:3px;">4. Social Recovery Circle (2-of-3 Multisig)</div>
+          <div style="font-size:11.5px; color:#64748B; line-height:1.4;">Mom holds Weight 2 (spends alone). Son (Weight 1) + Daughter (Weight 1) can jointly recover account if Google login is ever lost.</div>
+        </div>
+
+        <button id="btn-save-guardrails" type="button" style="width:100%; background:#1677FF; color:#fff; border:none; padding:12px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(22,119,255,0.25);">
+          Save &amp; Commit Guardrails to Sui Move
+        </button>
+        <div id="guardrails-save-msg" style="display:none; margin-top:10px; color:#166534; font-size:12px; text-align:center; font-weight:700; background:#DCFCE7; border:1px solid #BBF7D0; padding:9px; border-radius:8px;">
+          ✅ Safety Guardrails committed to Sui Move SeniorityPolicy on-chain!
+        </div>
       </div>
     </div>
   </div>
