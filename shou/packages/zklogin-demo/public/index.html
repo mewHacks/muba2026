@@ -1807,10 +1807,10 @@
       Smart protection on Sui for seniors. Zero passwords to lose, and family backup before money moves.
     </p>
 
-    <!-- Picture 1 Pill Bar -->
+    <!-- Picture 1 Pill Bar: Claim Extraction -->
     <div class="hero-pill-bar">
-      <input type="text" id="quick-scenario-input" class="hero-pill-input" placeholder="Inspector Danial from police demanding RM8,500..." />
-      <button type="button" id="hero-test-btn" class="hero-pill-btn">Test Scam Shield →</button>
+      <input type="text" id="quick-scenario-input" class="hero-pill-input" placeholder="Input a URL, tweet, or text snippet for verification..." />
+      <button type="button" id="hero-test-btn" class="hero-pill-btn">Verify with Gonka AI →</button>
     </div>
 
     <!-- 3-Column Split -->
@@ -2147,18 +2147,27 @@
                 <div id="mock-deep-advice" style="margin-top:10px; padding:8px 12px; background:#FEF3C7; border:1px solid #FDE68A; border-radius:8px; font-size:12px; color:#92400E; font-weight:600; line-height:1.4;">
                   Don't worry — transfers are paused. Call your son to verify.
                 </div>
+
+                <!-- Gonka Router Transparency UI: Request IDs & Models -->
+                <div id="mock-gonka-provenance" style="margin-top:10px; padding-top:8px; border-top:1px dashed #E2E8F0; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B;">
+                  <span style="display:flex; align-items:center; gap:5px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    <span>Gonka Router: <strong style="color:#0F172A;" id="mock-gonka-models">DeepSeek-V4-Flash + MiniMax-M2.7</strong></span>
+                  </span>
+                  <a id="mock-gonka-req-link" href="https://api.gonkarouter.io/v1/receipts/req_01jm8a4b2c" target="_blank" rel="noopener" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:#2563EB; background:#EFF6FF; border:1px solid #DBEAFE; padding:2px 7px; border-radius:4px; text-decoration:none; font-weight:600;" title="View inference receipt on Gonka network">req_01jm8a... ↗</a>
+                </div>
                 <div style="display:none;" id="mock-deep-privacy"></div>
               </div>
 
-              <!-- Collapsed Custom Tester (keeps interface clean) -->
+              <!-- Collapsed Custom Tester (Claim Extraction: URL, tweet, or text snippet) -->
               <details style="margin-top:12px; text-align:left;">
                 <summary style="font-size:12px; color:#64748B; font-weight:600; cursor:pointer; user-select:none; padding:4px 0;">
-                  Test your own message
+                  Test your own message (URL, tweet, or snippet)
                 </summary>
                 <div style="margin-top:8px;">
-                  <textarea id="mock-chat-manual-input" class="mock-chat-input" rows="2" placeholder="Type or paste any chat message here..."></textarea>
+                  <textarea id="mock-chat-manual-input" class="mock-chat-input" rows="2" placeholder="Input a URL, tweet, or text snippet for verification..."></textarea>
                   <button class="mock-btn primary" id="mock-btn-deep-analyze" type="button" style="width:100%; margin-top:8px; padding:9px; background:#1A73E8; color:#FFF; border-color:#1A73E8; font-weight:700; font-size:13px; border-radius:10px; display:flex; flex-direction:row; justify-content:center; align-items:center; gap:6px;">
-                    <span>Check Message Safety →</span>
+                    <span>Verify with Gonka AI →</span>
                   </button>
                 </div>
               </details>

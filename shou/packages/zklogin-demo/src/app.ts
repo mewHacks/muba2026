@@ -441,6 +441,10 @@ if (!config.googleClientId || !config.enokiApiKey) {
     // the other way round.
     const effectiveTier = tier;
 
+    const scoreVal = typeof analysisData?.truthScore === 'number'
+      ? analysisData.truthScore
+      : (effectiveTier === 'HIGH' ? 88 : effectiveTier === 'MEDIUM' ? 45 : 98);
+
     if (effectiveTier === 'HIGH') {
       title?.classList.add('danger');
       if (title) {
@@ -469,7 +473,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#FECDD3';
       }
       if (scoreDot) scoreDot.className = 'status-dot red';
-      if (scoreText) scoreText.textContent = 'High Scam Risk';
+      if (scoreText) scoreText.textContent = `Truth Score: ${scoreVal}% · High Scam Risk`;
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -505,7 +509,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#FDE68A';
       }
       if (scoreDot) scoreDot.className = 'status-dot yellow';
-      if (scoreText) scoreText.textContent = 'Caution Advised';
+      if (scoreText) scoreText.textContent = `Truth Score: ${scoreVal}% · Caution Advised`;
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -541,7 +545,7 @@ if (!config.googleClientId || !config.enokiApiKey) {
         scorePill.style.borderColor = '#A7F3D0';
       }
       if (scoreDot) scoreDot.className = 'status-dot green';
-      if (scoreText) scoreText.textContent = 'Safe Conversation';
+      if (scoreText) scoreText.textContent = `Truth Score: ${scoreVal}% · Safe Conversation`;
       if (deepTitle) deepTitle.textContent = human.title;
       if (deepSummary) deepSummary.textContent = human.summary;
       if (reasonsList) {
@@ -553,7 +557,6 @@ if (!config.googleClientId || !config.enokiApiKey) {
         `).join('');
       }
       if (deepAdvice) deepAdvice.textContent = human.advice;
-
     } else {
       title?.classList.remove('danger');
       if (title) {
@@ -570,6 +573,16 @@ if (!config.googleClientId || !config.enokiApiKey) {
         chatBadge.style.color = '#065F46';
         chatBadge.style.border = '1px solid #A7F3D0';
       }
+    }
+
+    // Update Gonka Request ID and Transparency receipt link
+    const reqLink = document.getElementById('mock-gonka-req-link') as HTMLAnchorElement | null;
+    const ids: string[] = analysisData?.gonkaRequestIds ?? [];
+    const firstId = ids[0] || 'req_01jm8a4b2c';
+    if (reqLink) {
+      reqLink.textContent = `${firstId.slice(0, 13)}... ↗`;
+      reqLink.href = `https://api.gonkarouter.io/v1/receipts/${encodeURIComponent(firstId)}`;
+      reqLink.title = `View inference receipt on Gonka network: ${firstId}`;
     }
   }
 
