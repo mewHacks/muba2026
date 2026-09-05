@@ -331,11 +331,11 @@ Mode (weighted 2·1·1 multisig) enforced on-chain.
 
 ---
 
-## Team — Web 1.5
+## Team — TEAM WEB 1.5
 
-**Daniel anak Boniface Alin** — Research, business and financial value, target users, statistics, regulatory.
-**Hana Tang** — Overall planning, Move contracts, TEE enclave, driver SDK, zkLogin and recovery.
-**Shermaine Yap Shi Min** — Gonka Router integration, Chrome extension, guardian dashboard.
-**Liaw Yi Wen** — Research, business and financial value, target users, statistics, regulatory.
+1. **Daniel anak Boniface Alin** — Research, business and financial value, target users, statistics, regulatory.
+2. **Hana Tang** — Overall planning, Move contracts, TEE enclave, driver SDK, zkLogin and recovery.
+3. **Shermaine Yap Shi Min** — Gonka Router integration, Chrome extension, guardian dashboard.
+4. **Liaw Yi Wen** — Research, business and financial value, target users, statistics, regulatory.
 
 *MUBA Blockchain Hackathon 2026 · Sui Track 01 (Payments & Stablecoins) · Gonka (AI for Society)*
