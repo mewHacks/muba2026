@@ -34,8 +34,6 @@ money behaves, and the AI's verdict is a floor rather than a ceiling — it can 
 her limits, never loosen them. Tell the contract a large transfer is low-risk and it
 escalates anyway, which is why nobody has to trust our model.
 
-![SHOU cover](docs/img/grandma-shield.png)
-
 ---
 
 ## Problem
