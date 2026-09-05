@@ -845,76 +845,131 @@
   }
   @media (max-width: 940px) {
     .mom-showcase-split {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 28px;
     }
   }
+  /* The card commits to the pixel world in DESIGN.md rather than hedging
+     toward it: one hard offset shadow instead of a soft blur competing with a
+     drained 3px one, a small radius, and slate-900 edges that hold their line. */
   .mom-story-card {
+    min-width: 0;
     background: #FFFFFF;
-    border: 2px solid #CBD5E1;
-    border-radius: 24px;
-    padding: 24px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06), 3px 3px 0px #CBD5E1;
+    border: 2px solid #0F172A;
+    border-radius: 6px;
+    padding: 22px;
+    box-shadow: 5px 5px 0 #0F172A;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
+  }
+  .mom-mockup-col {
+    min-width: 0;
   }
   .mom-story-img-box {
-    border-radius: 18px;
+    border-radius: 3px;
     overflow: hidden;
     background: #0A0F1D;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border: 1.5px solid #1E293B;
-    padding: 10px;
-  }
-  .mom-story-img {
-    width: 100%;
-    max-height: 290px;
-    object-fit: contain;
+    border: 2px solid #0F172A;
+    padding: 14px 18px;
     display: block;
-    image-rendering: pixelated;
   }
-  .mom-story-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #EFF6FF;
-    border: 1px solid #BFDBFE;
-    color: #1D4ED8;
-    font-size: 11.5px;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 999px;
-    margin-bottom: 4px;
+  .mom-story-img-box svg {
+    display: block;
+    width: 100%;
+    height: auto;
   }
   .mom-story-title {
     font-family: var(--font-body);
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 800;
     color: #0F172A;
-    margin: 0 0 6px;
-    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    text-wrap: balance;
   }
   .mom-story-desc {
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: #475569;
-    line-height: 1.5;
-    margin: 0 0 10px;
+    line-height: 1.6;
+    margin: 0 0 16px;
+    max-width: 46ch;
   }
   .mom-story-features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 9px;
   }
   .mom-story-feat-item {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
+    align-items: flex-start;
+    gap: 9px;
+    font-size: 13.5px;
     color: #334155;
     font-weight: 600;
+    line-height: 1.45;
+  }
+  /* A drawn tick on the same stroke system as every other icon here, so the
+     list stops reading as the stock coloured-dot bullet. */
+  .feat-tick {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    margin-top: 2px;
+    color: var(--green);
+  }
+
+  .mom-story-getit {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 2px solid #0F172A;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .mom-story-download {
+    background: #0F172A;
+    color: #FFFFFF;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 20px;
+    border: 2px solid #0F172A;
+    border-radius: 4px;
+    text-decoration: none;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    box-shadow: 3px 3px 0 var(--blue, #3898FF);
+    transition: transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.14s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .mom-story-download:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 var(--blue, #3898FF);
+  }
+  .mom-story-download:active {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0 var(--blue, #3898FF);
+  }
+  .mom-story-download:focus-visible {
+    outline: 3px solid #3898FF;
+    outline-offset: 3px;
+  }
+  .mom-story-getit-note {
+    font-size: 12.5px;
+    color: #64748B;
+    line-height: 1.4;
+    max-width: 22ch;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mom-story-download { transition: none; }
+    .mom-story-download:hover { transform: none; }
   }
 
   .showcase-column-header {
@@ -1009,6 +1064,30 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+  }
+  .inline-ico {
+    width: 12px;
+    height: 12px;
+    flex: none;
+    vertical-align: -1px;
+    margin-right: 4px;
+  }
+  .scen-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .scen-pill-kill {
+    background: #FEF3C7;
+    border-color: #F59E0B;
+    color: #92400E;
+    font-weight: 700;
+  }
+  .scen-pill-kill:hover, .scen-pill-kill.active {
+    background: #FDE68A;
+    border-color: #B45309;
+    color: #78350F;
+    box-shadow: 0 2px 8px rgba(180, 83, 9, 0.22);
   }
   .scen-pill:hover, .scen-pill.active {
     background: #EFF6FF;
@@ -1631,7 +1710,7 @@
         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16A34A; box-shadow:0 0 0 2px #DCFCE7;"></span>
         <span style="font-weight:600; color:#334155;">Mom's Wallet:</span>
         <code id="nav-address-display" style="font-family:var(--font-mono); color:#2563EB; font-weight:700; cursor:pointer;" title="Click to copy full Sui address">0x...</code>
-        <button id="nav-btn-guardrails" type="button" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; cursor:pointer;" title="Configure safety rules">⚙️ Guardrails</button>
+        <button id="nav-btn-guardrails" type="button" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; cursor:pointer;" title="Configure safety rules"><svg class="inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.35.42.63.77.77H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Guardrails</button>
         <span style="font-size:10px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:0.03em;">Zero Seed Phrase</span>
       </div>
 
@@ -1649,7 +1728,7 @@
 
   <!-- Live zkLogin Active Notification Banner -->
   <div id="zklogin-success-banner" style="display:none; background:#EFF6FF; border-bottom:1px solid #BFDBFE; padding:10px 16px; font-size:13px; color:#1E40AF; text-align:center;">
-    <span style="font-weight:700; margin-right:6px;">✨ Google zkLogin Active:</span>
+    <span style="font-weight:700; margin-right:6px;">Google zkLogin active:</span>
     Mom's Sui wallet address <code id="banner-address" style="font-family:var(--font-mono); font-weight:700; color:#1D4ED8; background:#DBEAFE; padding:2px 7px; border-radius:4px;">0x...</code> is derived directly from Google OAuth.
     <strong style="color:#15803D; margin-left:6px;">Zero 12-word seed phrases required!</strong>
   </div>
@@ -1882,42 +1961,95 @@
         <div class="mom-showcase-split">
           <div class="mom-story-card">
             <div class="mom-story-img-box">
-              <img src="/img/grandma-shield.png" alt="Happy grandma protected on Chrome by SHOU" class="mom-story-img" />
+              <svg viewBox="0 0 104 48" width="100%" role="img" aria-label="A phone showing a scam message, with the payment held by SHOU beside it" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+              <rect x="38" y="1" width="30" height="46" fill="#0F172A"/>
+              <rect x="39" y="2" width="28" height="44" fill="#1E293B"/>
+              <rect x="51" y="3" width="4" height="1" fill="#94A3B8"/>
+              <rect x="41" y="6" width="24" height="36" fill="#FFFFFF"/>
+              <rect x="41" y="6" width="24" height="5" fill="#E2E8F0"/>
+              <rect x="43" y="7" width="3" height="3" fill="#94A3B8"/>
+              <rect x="47" y="8" width="12" height="1" fill="#94A3B8"/>
+              <rect x="47" y="10" width="7" height="1" fill="#CBD5E1"/>
+              <rect x="43" y="14" width="18" height="11" fill="#E11D48"/>
+              <rect x="44" y="15" width="16" height="9" fill="#FFF1F2"/>
+              <rect x="45" y="17" width="13" height="1" fill="#FB7185"/>
+              <rect x="45" y="19" width="14" height="1" fill="#FB7185"/>
+              <rect x="45" y="21" width="8" height="1" fill="#FB7185"/>
+              <rect x="43" y="28" width="20" height="12" fill="#3898FF"/>
+              <rect x="44" y="29" width="18" height="10" fill="#EFF6FF"/>
+              <rect x="46" y="31" width="6" height="4" fill="#1D4ED8"/>
+              <rect x="47" y="35" width="4" height="1" fill="#1D4ED8"/>
+              <rect x="48" y="36" width="2" height="1" fill="#1D4ED8"/>
+              <rect x="49" y="37" width="0" height="1" fill="#1D4ED8"/>
+              <rect x="46" y="33" width="1" height="1" fill="#EFF6FF"/>
+              <rect x="47" y="34" width="1" height="1" fill="#EFF6FF"/>
+              <rect x="48" y="33" width="1" height="1" fill="#EFF6FF"/>
+              <rect x="49" y="32" width="1" height="1" fill="#EFF6FF"/>
+              <rect x="50" y="31" width="1" height="1" fill="#EFF6FF"/>
+              <rect x="54" y="32" width="7" height="1" fill="#1D4ED8"/>
+              <rect x="54" y="35" width="5" height="1" fill="#3898FF"/>
+              <rect x="5" y="28" width="15" height="5" fill="#0F172A"/>
+              <rect x="6" y="29" width="13" height="3" fill="#D97706"/>
+              <rect x="6" y="29" width="13" height="1" fill="#F59E0B"/>
+              <rect x="5" y="35" width="15" height="5" fill="#0F172A"/>
+              <rect x="6" y="36" width="13" height="3" fill="#D97706"/>
+              <rect x="6" y="36" width="13" height="1" fill="#F59E0B"/>
+              <rect x="5" y="42" width="15" height="5" fill="#0F172A"/>
+              <rect x="6" y="43" width="13" height="3" fill="#D97706"/>
+              <rect x="6" y="43" width="13" height="1" fill="#F59E0B"/>
+              <rect x="78" y="33" width="13" height="11" fill="#94A3B8"/>
+              <rect x="79" y="34" width="11" height="9" fill="#FFFFFF"/>
+              <rect x="79" y="34" width="11" height="1" fill="#CBD5E1"/>
+              <rect x="91" y="35" width="2" height="1" fill="#94A3B8"/>
+              <rect x="92" y="36" width="1" height="3" fill="#94A3B8"/>
+              <rect x="91" y="39" width="2" height="1" fill="#94A3B8"/>
+              <rect x="76" y="44" width="17" height="2" fill="#94A3B8"/>
+              <rect x="81" y="27" width="1" height="4" fill="#CBD5E1"/>
+              <rect x="84" y="26" width="1" height="5" fill="#CBD5E1"/>
+              <rect x="87" y="28" width="1" height="3" fill="#CBD5E1"/>
+              <rect x="6" y="5" width="14" height="10" fill="#3898FF"/>
+              <rect x="7" y="15" width="12" height="1" fill="#3898FF"/>
+              <rect x="8" y="16" width="10" height="1" fill="#3898FF"/>
+              <rect x="9" y="17" width="8" height="1" fill="#3898FF"/>
+              <rect x="10" y="18" width="6" height="1" fill="#3898FF"/>
+              <rect x="11" y="19" width="4" height="1" fill="#3898FF"/>
+              <rect x="12" y="20" width="2" height="1" fill="#3898FF"/>
+              <rect x="13" y="21" width="0" height="1" fill="#3898FF"/>
+              <rect x="8" y="10" width="2" height="2" fill="#FFFFFF"/>
+              <rect x="10" y="12" width="2" height="2" fill="#FFFFFF"/>
+              <rect x="12" y="10" width="2" height="2" fill="#FFFFFF"/>
+              <rect x="14" y="8" width="2" height="2" fill="#FFFFFF"/>
+              <rect x="16" y="6" width="2" height="2" fill="#FFFFFF"/>
+              </svg>
             </div>
             <div class="mom-story-info">
-              <div class="mom-story-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1677FF" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>Family Protection in Action</span>
-              </div>
-              <h3 class="mom-story-title">Safe Browsing, Total Peace of Mind</h3>
+              <h3 class="mom-story-title">She keeps her money.<br />The scammer keeps waiting.</h3>
               <p class="mom-story-desc">
-                Mom enjoys chatting on WhatsApp with complete confidence.
-                If a scammer tries to impersonate police or demand urgent money, SHOU's Chrome extension flags the threat instantly and pauses payments on-chain.
+                Mum chats on WhatsApp the way she always has. When a message claiming to be Bukit Aman
+                demands RM8,500 before she tells anyone, SHOU reads the pressure in it, holds the payment
+                on-chain, and puts it in front of her son instead.
               </p>
-              <div class="mom-story-features">
-                <div class="mom-story-feat-item">
-                  <span class="status-dot green"></span>
-                  <span>Zero passwords or seed phrases for Mom</span>
-                </div>
-                <div class="mom-story-feat-item">
-                  <span class="status-dot green"></span>
-                  <span>Scam threats caught before money leaves</span>
-                </div>
-                <div class="mom-story-feat-item">
-                  <span class="status-dot green"></span>
-                  <span>Family backup ready from anywhere</span>
-                </div>
-              </div>
+              <ul class="mom-story-features">
+                <li class="mom-story-feat-item">
+                  <svg class="feat-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><polyline points="4 13 9 18 20 6"/></svg>
+                  <span>No password and no seed phrase &mdash; she signs in with Google</span>
+                </li>
+                <li class="mom-story-feat-item">
+                  <svg class="feat-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><polyline points="4 13 9 18 20 6"/></svg>
+                  <span>The hold lands before the money moves, not after</span>
+                </li>
+                <li class="mom-story-feat-item">
+                  <svg class="feat-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" aria-hidden="true"><polyline points="4 13 9 18 20 6"/></svg>
+                  <span>Her son releases or refunds it from anywhere</span>
+                </li>
+              </ul>
 
-              <!-- Sleek dark pill button exactly matching user's Image 1 -->
-              <div style="margin-top:20px; padding-top:16px; border-top:1px dashed #E2E8F0; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                <a href="/shou-extension.zip" download="shou-extension.zip" style="background:#0F172A; color:#FFFFFF; display:inline-flex; align-items:center; gap:9px; padding:10px 22px; border-radius:999px; text-decoration:none; font-family:var(--font-sans); font-weight:700; font-size:14px; letter-spacing:-0.01em; box-shadow:0 4px 14px rgba(15,23,42,0.22); transition:all 0.2s;" onmouseover="this.style.background='#1E293B'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#0F172A'; this.style.transform='translateY(0)'">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <div class="mom-story-getit">
+                <a class="mom-story-download" href="/shou-extension.zip" download="shou-extension.zip">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <span>Extension (.zip)</span>
                 </a>
-                <span style="font-size:12px; color:#64748B; line-height:1.35;">
-                  Download unpacked Chrome extension to test live
-                </span>
+                <span class="mom-story-getit-note">Unpacked build &mdash; load it in Chrome and try it live</span>
               </div>
             </div>
           </div>
@@ -1966,10 +2098,10 @@
             <div class="mock-main-card">
               <!-- Scenario quick test pills -->
               <div class="scen-pills-row" style="justify-content:center; margin-bottom:14px; gap:8px; flex-wrap:wrap;">
-                <button type="button" class="scen-pill active" id="scen-police">🚨 Fake Police</button>
-                <button type="button" class="scen-pill" id="scen-romance">💔 Romance Trap</button>
-                <button type="button" class="scen-pill" id="scen-normal">☕ Family Chat</button>
-                <button type="button" class="scen-pill" id="scen-adversarial" style="background:#FEF3C7; border:1.5px solid #F59E0B; color:#92400E; font-weight:700;">⚡ Test Compromised AI (Kill Shot)</button>
+                <button type="button" class="scen-pill active" id="scen-police"><svg class="scen-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Fake Police</button>
+                <button type="button" class="scen-pill" id="scen-romance"><svg class="scen-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l8.84 8.84 8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/><polyline points="12 5.9 10.4 10.5 13.6 12.2 11.6 16.4"/></svg>Romance Trap</button>
+                <button type="button" class="scen-pill" id="scen-normal"><svg class="scen-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>Family Chat</button>
+                <button type="button" class="scen-pill scen-pill-kill" id="scen-adversarial"><svg class="scen-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Test a compromised model</button>
               </div>
 
               <!-- Passive Observation Bubble -->
@@ -1993,7 +2125,7 @@
                     <span id="mock-score-text">High Scam Risk</span>
                   </div>
                   <span style="font-size:11px; font-weight:700; color:#166534; background:#DCFCE7; padding:2px 8px; border-radius:6px; border:1px solid #BBF7D0;">
-                    🛡️ Funds Safe
+                    <svg class="inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Funds Safe
                   </span>
                 </div>
 
@@ -2021,7 +2153,7 @@
               <!-- Collapsed Custom Tester (keeps interface clean) -->
               <details style="margin-top:12px; text-align:left;">
                 <summary style="font-size:12px; color:#64748B; font-weight:600; cursor:pointer; user-select:none; padding:4px 0;">
-                  ✍️ Test your own custom message...
+                  Test your own message
                 </summary>
                 <div style="margin-top:8px;">
                   <textarea id="mock-chat-manual-input" class="mock-chat-input" rows="2" placeholder="Type or paste any chat message here..."></textarea>
@@ -2106,7 +2238,7 @@
                     <span>Safety Guardrails</span>
                   </div>
                   <button id="btn-open-guardrails" type="button" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:11px; font-weight:700; border-radius:6px; padding:3px 8px; cursor:pointer;">
-                    ⚙️ Edit Rules
+                    <svg class="inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.35.42.63.77.77H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Edit Rules
                   </button>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:4px;">
@@ -2407,8 +2539,8 @@
     <div class="process-card" style="max-width:520px; border-radius:18px;">
       <div class="process-header" style="background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:18px 20px;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:38px; height:38px; border-radius:10px; background:#EFF6FF; border:1.5px solid #BFDBFE; display:flex; align-items:center; justify-content:center; font-size:18px;">
-            🛡️
+          <div style="width:38px; height:38px; border-radius:10px; background:#EFF6FF; border:1.5px solid #BFDBFE; display:flex; align-items:center; justify-content:center; color:#1D4ED8;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
           <div>
             <h2 style="font-size:17px; margin:0; color:#0F172A; font-weight:800;">Mom's Safety Guardrails</h2>
@@ -2458,7 +2590,7 @@
           Save &amp; Commit Guardrails to Sui Move
         </button>
         <div id="guardrails-save-msg" style="display:none; margin-top:10px; color:#166534; font-size:12px; text-align:center; font-weight:700; background:#DCFCE7; border:1px solid #BBF7D0; padding:9px; border-radius:8px;">
-          ✅ Safety Guardrails committed to Sui Move SeniorityPolicy on-chain!
+          Safety guardrails committed to the Sui Move SeniorityPolicy on-chain
         </div>
       </div>
     </div>
@@ -2553,7 +2685,7 @@
 
           if (saveMsg) saveMsg.style.display = 'block';
           var origText = saveBtn.innerHTML;
-          saveBtn.innerHTML = '✅ Saved &amp; Committed to Sui Testnet!';
+          saveBtn.innerHTML = 'Saved and committed to Sui testnet';
           saveBtn.style.background = '#15803D';
 
           setTimeout(function () {
@@ -2610,7 +2742,7 @@
         if (scoreText) scoreText.textContent = 'Smart Contract Circuit Breaker Active';
 
         var deepTitle = document.getElementById('mock-deep-title');
-        if (deepTitle) deepTitle.textContent = 'AI FOOLED (LOW) ➔ OVERRULED BY SUI MOVE TO HIGH';
+        if (deepTitle) deepTitle.textContent = 'AI FOOLED (LOW) → OVERRULED BY SUI MOVE TO HIGH';
 
         var deepSummary = document.getElementById('mock-deep-summary');
         if (deepSummary) {
